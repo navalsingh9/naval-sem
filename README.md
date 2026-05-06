@@ -2,6 +2,22 @@
 
 > Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, and fit indices. No internet required after install.
 
+[![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+
+---
+
+## Downloads
+
+| Platform | File | Notes |
+|---|---|---|
+| Windows | `NAVAL-SEM-Setup.msi` | Recommended — installs with Start Menu + uninstall |
+| Windows | `NAVAL-SEM.exe` | Portable — drop anywhere and run |
+| macOS | `NAVAL-SEM.dmg` | Drag to Applications |
+| Linux | `naval-sem_0.2.0_amd64.deb` | Debian/Ubuntu installer |
+| Linux | `NAVAL-SEM` | Portable binary |
+
+👉 **[Download from GitHub Releases](https://github.com/navalsingh9/naval-sem/releases)**
+
 ---
 
 ## Project structure
@@ -25,7 +41,8 @@ naval-sem/
 │   └── index.html           ← Full frontend (canvas builder, results panels)
 │
 ├── installer/
-│   └── naval_sem.wxs        ← WiX MSI definition (Windows)
+│   ├── naval_sem.wxs        ← WiX MSI definition (Windows)
+│   └── license.rtf          ← License shown in installer dialog
 │
 └── .github/
     └── workflows/
@@ -65,8 +82,9 @@ uvicorn app.main:app --reload --port 8000
 
 **One-time setup:**
 ```
-# Install WiX 4 (MSI builder)
-dotnet tool install --global wix
+# Install WiX 3 (MSI builder)
+# Download from: https://github.com/wixtoolset/wix3/releases
+# Install and add to PATH: C:\Program Files (x86)\WiX Toolset v3.14\bin
 ```
 
 **Build:**
@@ -169,6 +187,30 @@ This typically reduces the EXE from ~120 MB to ~80 MB.
 | `server offline` badge in UI | Make sure `launcher.py` started without errors; check port 8765 is free |
 | `ModuleNotFoundError: semopy` | Run `pip install -r requirements.txt` in your venv |
 | White screen / blank webview | pywebview needs WebKit2GTK on Linux — see Linux setup above |
-| MSI build fails | Ensure WiX 4 is installed: `wix --version` should print a version |
+| MSI build fails | Ensure WiX 3 is installed and on PATH: `candle.exe --version` should print a version |
 | macOS "App is damaged" | Run `xattr -cr dist/NAVAL-SEM.app` to strip quarantine flags |
 | Large binary size | Install UPX (see above) or add more entries to `excludes` in the spec |
+
+---
+
+## Support Development
+
+NAVAL-SEM is free to use. If you find it useful, please consider donating to help keep the project running and fund future features.
+
+👉 [Donate via PayPal](https://www.paypal.com/paypalme/singhn9)
+
+---
+
+## Bug Reports & Feedback
+
+Found a bug or have a suggestion? We read every submission!
+
+👉 [Submit Bug Report / Feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
+
+---
+
+## License
+
+This work is licensed under [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+
+You are free to share this software with attribution for non-commercial purposes, without modifications.
