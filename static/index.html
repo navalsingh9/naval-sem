@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAVAL-SEM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg0:#0e0f11;--bg1:#13151a;--bg2:#1a1d24;--bg3:#22262f;--bg4:#2a2f3a;
+    --line:#2e3340;--line2:#3a4052;
+    --txt0:#e8eaf0;--txt1:#b0b8cc;--txt2:#6e7a94;--txt3:#404859;
+    --blue:#4d9cf8;--blue-bg:rgba(77,156,248,0.10);--blue-line:rgba(77,156,248,0.30);
+    --green:#3dd68c;--green-bg:rgba(61,214,140,0.10);
+    --amber:#f0a840;--amber-bg:rgba(240,168,64,0.10);
+    --red:#f06060;--red-bg:rgba(240,96,96,0.10);
+    --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+    --r:5px;--r2:8px;
+  }
+  html,body{height:100%;background:var(--bg0);color:var(--txt0);font-family:var(--sans);font-size:13px}
+  .shell{display:grid;grid-template-rows:44px 1fr;grid-template-columns:210px 1fr;height:100vh;overflow:hidden}
+  /* topbar */
+  .topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg1)}
+  .logo{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:2px;color:var(--txt0)}
+  .logo em{color:var(--blue);font-style:normal}
+  .srv-dot{width:7px;height:7px;border-radius:50%;background:var(--txt3);transition:background .4s;flex-shrink:0}
+  .srv-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .srv-dot.error{background:var(--red)}
+  .srv-label{font-size:11px;color:var(--txt2);font-family:var(--mono)}
+  .top-tabs{display:flex;gap:2px;margin-left:auto}
+  .ttab{padding:5px 14px;font-size:11px;font-family:var(--mono);border:1px solid var(--line);border-radius:var(--r);background:transparent;color:var(--txt2);cursor:pointer;transition:all .15s;letter-spacing:.5px}
+  .ttab:hover:not(.active){border-color:var(--line2);color:var(--txt1)}
+  .ttab.active{background:var(--blue-bg);border-color:var(--blue-line);color:var(--blue)}
+  /* sidebar */
+  .sidebar{border-right:1px solid var(--line);background:var(--bg1);overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:14px}
+  .sec{display:flex;flex-direction:column;gap:6px}
+  .sec-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);padding-left:2px}
+  .tool-btn{width:100%;padding:7px 10px;text-align:left;border:1px solid var(--line);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;color:var(--txt1);display:flex;align-items:center;gap:9px;transition:all .15s;font-family:var(--sans)}
+  .tool-btn:hover{border-color:var(--line2);color:var(--txt0);background:var(--bg3)}
+  .tool-btn.active-tool{border-color:var(--blue-line);color:var(--blue);background:var(--blue-bg)}
+  .icon-lv{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--blue);background:var(--blue-bg);flex-shrink:0}
+  .icon-obs{width:14px;height:11px;border:1.5px solid var(--line2);border-radius:2px;background:var(--bg3);flex-shrink:0}
+  .icon-arr{width:14px;height:2px;background:var(--txt2);flex-shrink:0;position:relative}
+  .icon-arr::after{content:'';position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left:6px solid var(--txt2)}
+  .sid-input,.sid-select{width:100%;padding:6px 9px;font-size:11px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg2);color:var(--txt0);font-family:var(--mono);outline:none;transition:border-color .15s}
+  .sid-input:focus,.sid-select:focus{border-color:var(--blue-line)}
+  .sid-select option{background:var(--bg2)}
+  .run-btn{width:100%;padding:9px;background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:var(--r);color:var(--blue);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--mono);letter-spacing:1px;transition:all .15s;text-transform:uppercase}
+  .run-btn:hover:not(:disabled){background:rgba(77,156,248,0.18)}
+  .run-btn:disabled{opacity:.4;cursor:not-allowed}
+  .run-btn.running{animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .clear-btn{width:100%;padding:6px;background:transparent;border:1px solid var(--line);border-radius:var(--r);color:var(--txt2);font-size:11px;cursor:pointer;font-family:var(--sans);transition:all .15s}
+  .clear-btn:hover{color:var(--red);border-color:rgba(240,96,96,.4)}
+  .del-btn{width:100%;padding:6px;background:var(--red-bg);border:1px solid rgba(240,96,96,.35);border-radius:var(--r);color:var(--red);font-size:11px;cursor:pointer;font-family:var(--sans)}
+  .sel-info{font-size:11px;color:var(--txt2);min-height:28px;font-family:var(--mono);line-height:1.5}
+  /* main */
+  .main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg0)}
+  .upload-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);background:var(--bg1);min-height:38px}
+  .up-tag{font-size:10px;padding:4px 10px;border-radius:var(--r);background:var(--bg2);border:1px solid var(--line);color:var(--txt2);cursor:pointer;white-space:nowrap;font-family:var(--mono);transition:all .15s;flex-shrink:0}
+  .up-tag:hover{border-color:var(--line2);color:var(--txt1)}
+  .up-tag.loaded{background:var(--green-bg);border-color:rgba(61,214,140,.35);color:var(--green)}
+  .col-pills{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;flex:1}
+  .col-pill{font-size:10px;padding:3px 8px;border-radius:20px;border:1px solid var(--line);color:var(--txt2);background:var(--bg2);cursor:pointer;white-space:nowrap;font-family:var(--mono);transition:all .15s;flex-shrink:0}
+  .col-pill:hover{border-color:var(--blue-line);color:var(--blue)}
+  .canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg0)}
+  canvas#sem-canvas{display:block;width:100%;height:100%}
+  .canvas-hint{position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--txt3);font-family:var(--mono);pointer-events:none}
+  .canvas-status{position:absolute;top:8px;left:12px;font-size:11px;color:var(--amber);font-family:var(--mono);pointer-events:none}
+  .canvas-error{position:absolute;top:8px;left:12px;font-size:11px;color:var(--red);font-family:var(--mono);pointer-events:none}
+  /* results */
+  .results-panel{display:none;border-top:1px solid var(--line);background:var(--bg1);max-height:260px;overflow-y:auto}
+  .results-panel.show{display:block}
+  .res-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 14px;background:var(--bg1);position:sticky;top:0;z-index:2}
+  .rtab{padding:8px 16px;font-size:11px;border:none;background:transparent;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;font-family:var(--mono);transition:all .15s}
+  .rtab:hover:not(.active){color:var(--txt1)}
+  .rtab.active{color:var(--blue);border-bottom-color:var(--blue)}
+  .res-body{padding:14px 16px}
+  .fit-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+  .fit-chip{padding:5px 11px;border-radius:var(--r);font-size:11px;font-weight:500;font-family:var(--mono);border:1px solid transparent}
+  .fc-good{background:var(--green-bg);color:var(--green);border-color:rgba(61,214,140,.3)}
+  .fc-ok{background:var(--amber-bg);color:var(--amber);border-color:rgba(240,168,64,.3)}
+  .fc-bad{background:var(--red-bg);color:var(--red);border-color:rgba(240,96,96,.3)}
+  .fc-neu{background:var(--bg3);color:var(--txt1);border-color:var(--line2)}
+  .param-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+  .param-table th{text-align:left;padding:6px 10px;color:var(--txt2);font-size:9px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .param-table td{padding:6px 10px;border-bottom:1px solid var(--line);color:var(--txt0)}
+  .param-table tr:last-child td{border-bottom:none}
+  .op{color:var(--blue)}.sig{color:var(--green)}.nsig{color:var(--red)}.ci{color:var(--txt2)}
+  .bar-chart{display:flex;flex-direction:column;gap:8px}
+  .bar-row{display:flex;align-items:center;gap:10px;font-size:11px}
+  .bar-label{width:140px;color:var(--txt1);text-align:right;flex-shrink:0;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-track{flex:1;height:12px;background:var(--bg3);border-radius:3px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:3px;background:var(--blue);transition:width .7s ease}
+  .bar-val{width:50px;font-family:var(--mono);font-size:11px}
+  .htmt-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+  .htmt-table th{text-align:left;padding:5px 10px;color:var(--txt2);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .htmt-table td{padding:6px 10px;border-bottom:1px solid var(--line)}
+  .htmt-table tr:last-child td{border-bottom:none}
+  .bs-stat{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+  .bs-kv{display:flex;flex-direction:column;gap:2px}
+  .bs-key{font-size:9px;color:var(--txt2);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono)}
+  .bs-val{font-size:14px;color:var(--blue);font-family:var(--mono)}
+  .warn-box{margin-top:10px;padding:8px 12px;background:var(--amber-bg);border:1px solid rgba(240,168,64,.3);border-radius:var(--r);font-size:11px;color:var(--amber);font-family:var(--mono)}
+  .syntax-area{width:100%;min-height:180px;font-family:var(--mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--bg1);color:var(--txt0);resize:vertical;outline:none;line-height:1.9;transition:border-color .15s}
+  .syntax-area:focus{border-color:var(--blue-line)}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+  .spinner-overlay{display:none;position:absolute;inset:0;background:rgba(14,15,17,.6);align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(2px)}
+  .spinner-overlay.show{display:flex}
+  .spinner-box{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .spinner{width:32px;height:32px;border:2px solid var(--line2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner-msg{font-family:var(--mono);font-size:11px;color:var(--txt1);letter-spacing:1px}
+  .no-data{padding:20px 0;font-size:11px;color:var(--txt3);font-family:var(--mono);text-align:center}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <span class="logo">NAVAL<em>-</em>SEM</span>
+    <span class="srv-dot" id="srv-dot"></span>
+    <span class="srv-label" id="srv-label">connecting…</span>
+    <div class="top-tabs">
+      <button class="ttab active" onclick="switchView('builder')">Model builder</button>
+      <button class="ttab" onclick="switchView('syntax')">Syntax</button>
+      <button class="ttab" onclick="switchView('htmt')">HTMT</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sec">
+      <div class="sec-label">Add nodes</div>
+      <button class="tool-btn active-tool" id="tool-lv" onclick="setTool('lv')"><span class="icon-lv"></span>Latent variable</button>
+      <button class="tool-btn" id="tool-obs" onclick="setTool('obs')"><span class="icon-obs"></span>Observed indicator</button>
+      <button class="tool-btn" id="tool-arrow" onclick="setTool('arrow')"><span class="icon-arr"></span>Draw path</button>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Node label</div>
+      <input class="sid-input" id="node-label" placeholder="e.g. Trust" value="Trust">
+    </div>
+    <div class="sec">
+      <div class="sec-label">Algorithm</div>
+      <select class="sid-select" id="algo-sel">
+        <option value="pls">PLS-SEM</option>
+        <option value="cb">CB-SEM (ML)</option>
+        <option value="wls">WLS</option>
+      </select>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Bootstrapping</div>
+      <select class="sid-select" id="bs-sel">
+        <option value="0">None</option>
+        <option value="500" selected>500 samples</option>
+        <option value="1000">1 000 samples</option>
+        <option value="5000">5 000 samples</option>
+      </select>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Missing data</div>
+      <select class="sid-select" id="missing-sel">
+        <option value="listwise">Listwise deletion</option>
+        <option value="mean">Mean imputation</option>
+        <option value="none">None</option>
+      </select>
+    </div>
+    <button class="run-btn" id="run-btn" onclick="runAnalysis()" disabled>Run analysis</button>
+    <button class="clear-btn" onclick="clearCanvas()">Clear canvas</button>
+    <div class="sec">
+      <div class="sec-label">Selected</div>
+      <div class="sel-info" id="sel-info">Click a node to select</div>
+    </div>
+    <div id="delete-wrap" style="display:none">
+      <button class="del-btn" onclick="deleteSelected()">Delete selected</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Builder -->
+    <div id="builder-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;position:relative">
+      <div class="upload-bar">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.sav" style="display:none" onchange="handleUpload(this)">
+        <button class="up-tag" id="up-btn" onclick="document.getElementById('fileInput').click()">+ Upload CSV / Excel / SPSS</button>
+        <div class="col-pills" id="col-pills"></div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="sem-canvas"></canvas>
+        <div class="canvas-hint">Click to place node · drag to move · path tool: source → target</div>
+        <div class="canvas-status" id="canvas-status"></div>
+        <div class="canvas-error" id="canvas-error"></div>
+        <div class="spinner-overlay" id="spinner">
+          <div class="spinner-box">
+            <div class="spinner"></div>
+            <div class="spinner-msg" id="spinner-msg">FITTING MODEL…</div>
+          </div>
+        </div>
+      </div>
+      <div class="results-panel" id="results-panel">
+        <div class="res-tabs">
+          <button class="rtab active" onclick="showRes('fit')">Fit indices</button>
+          <button class="rtab" onclick="showRes('params')">Parameters</button>
+          <button class="rtab" onclick="showRes('chart')">Path chart</button>
+          <button class="rtab" id="bs-tab" style="display:none" onclick="showRes('bootstrap')">Bootstrap</button>
+        </div>
+        <div class="res-body" id="res-body"></div>
+      </div>
+    </div>
+
+    <!-- Syntax -->
+    <div id="syntax-view" style="display:none;flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:10px;color:var(--txt2);font-family:var(--mono);letter-spacing:1px">LAVAAN SYNTAX — generated from canvas (editable)</div>
+      <textarea class="syntax-area" id="syntax-area" placeholder="Draw a model on canvas or type lavaan syntax here…"></textarea>
+      <div style="font-size:10px;color:var(--txt3);font-family:var(--mono);line-height:1.7">
+        <strong style="color:var(--blue)">=~</strong> measurement &nbsp;|&nbsp;
+        <strong style="color:var(--blue)">~</strong> structural &nbsp;|&nbsp;
+        <strong style="color:var(--blue)">~~</strong> covariance
+      </div>
+      <button class="run-btn" style="max-width:200px" onclick="runFromSyntax()">Run from syntax</button>
+    </div>
+
+    <!-- HTMT -->
+    <div id="htmt-view" style="display:none;flex:1;padding:16px;overflow-y:auto">
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:12px;font-family:var(--mono)">
+        Heterotrait-Monotrait Ratio — threshold: &lt;0.85 (strict) · &lt;0.90 (lenient)
+      </div>
+      <div id="htmt-body"><div class="no-data">Run a model first, then come here for HTMT.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+// ── server health ──────────────────────────────────────────────────────────
+async function pingServer() {
+  try {
+    const r = await fetch(API+'/health',{signal:AbortSignal.timeout(2000)});
+    if(r.ok){
+      document.getElementById('srv-dot').className='srv-dot online';
+      document.getElementById('srv-label').textContent='server online';
+      document.getElementById('run-btn').disabled=false;
+      return true;
+    }
+  } catch {}
+  document.getElementById('srv-dot').className='srv-dot error';
+  document.getElementById('srv-label').textContent='server offline';
+  document.getElementById('run-btn').disabled=true;
+  return false;
+}
+setInterval(pingServer,5000); pingServer();
+
+// ── canvas state ───────────────────────────────────────────────────────────
+const canvas=document.getElementById('sem-canvas');
+const ctx=canvas.getContext('2d');
+let nodes=[],edges=[],tool='lv';
+let selected=null,arrowStart=null,dragging=null,dragOx=0,dragOy=0;
+let results=null,resTab='fit';
+let W=0,H=0,uploadedFile=null;
+
+function resize(){
+  const r=canvas.parentElement.getBoundingClientRect();
+  W=Math.floor(r.width);H=Math.floor(r.height);
+  canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  draw();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0e0f11';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(46,51,64,0.4)';ctx.lineWidth=0.5;
+  for(let x=40;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=40;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  edges.forEach(drawEdge);
+  nodes.forEach(drawNode);
+}
+
+function drawNode(n){
+  const sel=selected===n.id,isLV=n.type==='lv';
+  ctx.save();
+  if(isLV){
+    ctx.beginPath();ctx.ellipse(n.x,n.y,46,29,0,0,Math.PI*2);
+    ctx.fillStyle=sel?'rgba(77,156,248,0.12)':'#1a1d24';ctx.fill();
+    ctx.strokeStyle=sel?'#4d9cf8':'#3a4052';ctx.lineWidth=sel?1.5:1;ctx.stroke();
+  } else {
+    ctx.beginPath();ctx.roundRect(n.x-34,n.y-15.5,68,31,4);
+    ctx.fillStyle=sel?'rgba(77,156,248,0.12)':'#13151a';ctx.fill();
+    ctx.strokeStyle=sel?'#4d9cf8':'#2e3340';ctx.lineWidth=sel?1.5:1;ctx.stroke();
+  }
+  ctx.fillStyle=sel?'#4d9cf8':'#e8eaf0';
+  ctx.font=(sel?'500 ':'400 ')+'11px "IBM Plex Mono",monospace';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(n.label.length>8?n.label.slice(0,8)+'…':n.label,n.x,n.y);
+  if(isLV){ctx.font='9px "IBM Plex Mono",monospace';ctx.fillStyle='#6e7a94';ctx.fillText('LV',n.x,n.y+15);}
+  ctx.restore();
+}
+
+function drawEdge(e){
+  const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
+  if(!s||!t)return;
+  const dx=t.x-s.x,dy=t.y-s.y,dist=Math.sqrt(dx*dx+dy*dy)||1;
+  const ux=dx/dist,uy=dy/dist;
+  const sr=s.type==='lv'?46:34,tr=t.type==='lv'?46:34;
+  const x1=s.x+ux*sr,y1=s.y+uy*sr,x2=t.x-ux*tr,y2=t.y-uy*tr;
+  ctx.save();
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+  ctx.strokeStyle=e.type==='measurement'?'#4d9cf8':'#b0b8cc';ctx.lineWidth=1;ctx.stroke();
+  const ang=Math.atan2(y2-y1,x2-x1);
+  ctx.translate(x2,y2);ctx.rotate(ang);
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-9,-4);ctx.lineTo(-9,4);ctx.closePath();
+  ctx.fillStyle=e.type==='measurement'?'#4d9cf8':'#b0b8cc';ctx.fill();
+  ctx.restore();
+  if(e.label){
+    const mx=(x1+x2)/2,my=(y1+y2)/2;
+    ctx.font='10px "IBM Plex Mono",monospace';ctx.fillStyle='#f0a840';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.label,mx,my-9);
+  }
+}
+
+function hitTest(x,y){
+  for(let i=nodes.length-1;i>=0;i--){
+    const n=nodes[i],dx=x-n.x,dy=y-n.y;
+    if(n.type==='lv'){if((dx*dx)/(46*46)+(dy*dy)/(29*29)<=1)return n;}
+    else{if(Math.abs(dx)<=34&&Math.abs(dy)<=15)return n;}
+  }
+  return null;
+}
+
+let idctr=1;
+function uid(){return 'n'+(idctr++);}
+
+canvas.addEventListener('mousedown',e=>{
+  const r=canvas.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  const hit=hitTest(x,y);
+  clrStatus();
+  if(tool==='arrow'){
+    if(hit){
+      if(!arrowStart){arrowStart=hit.id;document.getElementById('canvas-status').textContent='→ click target node';}
+      else if(arrowStart!==hit.id){
+        const src=nodes.find(n=>n.id===arrowStart);
+        edges.push({from:arrowStart,to:hit.id,type:src.type==='lv'&&hit.type!=='lv'?'measurement':'structural'});
+        arrowStart=null;updateSyntax();draw();
+      } else {arrowStart=null;}
+    }
+    return;
+  }
+  if(hit){selected=hit.id;dragging=hit;dragOx=x-hit.x;dragOy=y-hit.y;
+    document.getElementById('sel-info').textContent=(hit.type==='lv'?'Latent':'Indicator')+': '+hit.label;
+    document.getElementById('delete-wrap').style.display='block';draw();return;}
+  const label=document.getElementById('node-label').value.trim()||(tool==='lv'?'LV':'x1');
+  const nn={id:uid(),type:tool,x,y,label};
+  nodes.push(nn);selected=nn.id;
+  document.getElementById('sel-info').textContent='Added: '+label;
+  document.getElementById('delete-wrap').style.display='block';
+  updateSyntax();draw();
+});
+canvas.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  const r=canvas.getBoundingClientRect();
+  dragging.x=e.clientX-r.left-dragOx;dragging.y=e.clientY-r.top-dragOy;draw();
+});
+canvas.addEventListener('mouseup',()=>{if(dragging)updateSyntax();dragging=null;});
+
+function setTool(t){tool=t;arrowStart=null;clrStatus();
+  ['lv','obs','arrow'].forEach(x=>document.getElementById('tool-'+x).classList.toggle('active-tool',x===t));}
+function clrStatus(){
+  document.getElementById('canvas-status').textContent='';
+  document.getElementById('canvas-error').textContent='';
+}
+function deleteSelected(){
+  if(!selected)return;
+  nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(e=>e.from!==selected&&e.to!==selected);
+  selected=null;document.getElementById('sel-info').textContent='Click a node to select';
+  document.getElementById('delete-wrap').style.display='none';updateSyntax();draw();
+}
+function clearCanvas(){
+  nodes=[];edges=[];selected=null;arrowStart=null;results=null;
+  document.getElementById('results-panel').classList.remove('show');
+  document.getElementById('syntax-area').value='';
+  document.getElementById('sel-info').textContent='Click a node to select';
+  document.getElementById('delete-wrap').style.display='none';
+  clrStatus();draw();
+}
+function updateSyntax(){
+  const lines=[];
+  nodes.filter(n=>n.type==='lv').forEach(lv=>{
+    const inds=edges.filter(e=>e.from===lv.id&&e.type==='measurement')
+      .map(e=>{const t=nodes.find(n=>n.id===e.to);return t?t.label:''}).filter(Boolean);
+    if(inds.length)lines.push(lv.label+' =~ '+inds.join(' + '));
+  });
+  edges.filter(e=>e.type==='structural').forEach(e=>{
+    const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
+    if(s&&t)lines.push(t.label+' ~ '+s.label);
+  });
+  document.getElementById('syntax-area').value=lines.join('\n');
+}
+
+// ── upload ─────────────────────────────────────────────────────────────────
+async function handleUpload(input){
+  const file=input.files[0];if(!file)return;
+  uploadedFile=file;
+  const btn=document.getElementById('up-btn');
+  btn.textContent=file.name.slice(0,22)+(file.name.length>22?'…':'');
+  btn.classList.add('loaded');
+  const fd=new FormData();fd.append('file',file);
+  try{
+    const r=await fetch(API+'/upload/preview',{method:'POST',body:fd});
+    if(r.ok){
+      const d=await r.json();
+      document.getElementById('col-pills').innerHTML=
+        d.columns.slice(0,16).map(h=>`<span class="col-pill" title="${h}" onclick="usePill('${h}')">${h}</span>`).join('')+
+        (d.columns.length>16?`<span class="col-pill" style="opacity:.5">+${d.columns.length-16}</span>`:'');
+    }
+  } catch {
+    if(file.name.endsWith('.csv')){
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const hs=ev.target.result.trim().split('\n')[0].split(',').map(h=>h.trim().replace(/"/g,''));
+        document.getElementById('col-pills').innerHTML=hs.slice(0,16).map(h=>`<span class="col-pill" onclick="usePill('${h}')">${h}</span>`).join('');
+      };
+      reader.readAsText(file);
+    }
+  }
+}
+function usePill(l){document.getElementById('node-label').value=l;}
+
+// ── run ────────────────────────────────────────────────────────────────────
+async function runAnalysis(){
+  if(!uploadedFile){document.getElementById('canvas-error').textContent='✗ Upload a data file first';return;}
+  const syntax=document.getElementById('syntax-area').value.trim();
+  if(!syntax){document.getElementById('canvas-error').textContent='✗ Build a model on the canvas first';return;}
+  clrStatus();showSpinner('FITTING MODEL…');
+  const fd=new FormData();
+  fd.append('file',uploadedFile);fd.append('model',syntax);
+  fd.append('algorithm',document.getElementById('algo-sel').value);
+  fd.append('bootstrap_n',document.getElementById('bs-sel').value);
+  fd.append('missing',document.getElementById('missing-sel').value);
+  try{
+    const r=await fetch(API+'/run',{method:'POST',body:fd});
+    const data=await r.json();hideSpinner();
+    if(!r.ok){document.getElementById('canvas-error').textContent='✗ '+(data.detail||'Server error');return;}
+    results=data;
+    data.parameters.forEach(p=>{
+      edges.forEach(e=>{
+        const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
+        if(s&&t){
+          if((p.op==='=~'&&p.lhs===s.label&&p.rhs===t.label)||
+             (p.op==='~' &&p.lhs===t.label&&p.rhs===s.label))
+            e.label=p.estimate.toFixed(3);
+        }
+      });
+    });
+    draw();renderResults('fit');
+    document.getElementById('results-panel').classList.add('show');
+    document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none';
+    triggerHtmt();
+  } catch(err){hideSpinner();document.getElementById('canvas-error').textContent='✗ '+err.message;}
+}
+
+async function runFromSyntax(){
+  if(!uploadedFile){alert('Upload a data file first.');return;}
+  const syntax=document.getElementById('syntax-area').value.trim();
+  if(!syntax){alert('Enter lavaan syntax first.');return;}
+  showSpinner('FITTING MODEL…');
+  const fd=new FormData();fd.append('file',uploadedFile);fd.append('model',syntax);
+  fd.append('algorithm',document.getElementById('algo-sel').value);
+  fd.append('bootstrap_n',document.getElementById('bs-sel').value);
+  fd.append('missing',document.getElementById('missing-sel').value);
+  try{
+    const r=await fetch(API+'/run',{method:'POST',body:fd});
+    const data=await r.json();hideSpinner();
+    if(!r.ok){alert(data.detail||'Error');return;}
+    results=data;switchView('builder');renderResults('fit');
+    document.getElementById('results-panel').classList.add('show');
+  } catch(err){hideSpinner();alert(err.message);}
+}
+
+// ── HTMT ───────────────────────────────────────────────────────────────────
+async function triggerHtmt(){
+  if(!uploadedFile)return;
+  const syntax=document.getElementById('syntax-area').value.trim();if(!syntax)return;
+  const fd=new FormData();fd.append('file',uploadedFile);fd.append('model',syntax);
+  try{
+    const r=await fetch(API+'/htmt',{method:'POST',body:fd});
+    if(!r.ok)return;renderHtmt(await r.json());
+  } catch {}
+}
+function renderHtmt(data){
+  const body=document.getElementById('htmt-body');
+  if(!data||!data.matrix||!data.matrix.length){body.innerHTML='<div class="no-data">Need ≥2 latent variables for HTMT.</div>';return;}
+  const rows=data.matrix.map(e=>{
+    const c=e.acceptable?'sig':'nsig';
+    return `<tr><td>${e.construct_a}</td><td>${e.construct_b}</td>
+    <td class="${c}" style="font-weight:500">${e.htmt.toFixed(4)}</td>
+    <td class="${c}">${e.acceptable?'✓ OK':'✗ Poor'}</td></tr>`;
+  }).join('');
+  body.innerHTML=(data.all_acceptable
+    ?'<div style="margin-bottom:10px;font-size:11px;color:var(--green);font-family:var(--mono)">✓ All HTMT values acceptable</div>'
+    :'<div style="margin-bottom:10px;font-size:11px;color:var(--red);font-family:var(--mono)">✗ One or more HTMT values exceed threshold</div>')+
+    `<table class="htmt-table"><thead><tr><th>Construct A</th><th>Construct B</th><th>HTMT</th><th>Verdict</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── render results ─────────────────────────────────────────────────────────
+function renderResults(tab){
+  resTab=tab;
+  document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace(/\s/,'').startsWith(tab)));
+  const body=document.getElementById('res-body');
+  if(!results){body.innerHTML='<div class="no-data">No results yet.</div>';return;}
+
+  if(tab==='fit'){
+    const f=results.fit;
+    const chip=(label,val,cls)=>`<span class="fit-chip ${cls}">${label} = ${val!=null?Number(val).toFixed(3):'—'}</span>`;
+    let html='<div class="fit-row">';
+    const cfi=f.cfi,rmsea=f.rmsea,srmr=f.srmr;
+    html+=chip('CFI',cfi,cfi!=null?(cfi>=0.95?'fc-good':cfi>=0.90?'fc-ok':'fc-bad'):'fc-neu');
+    html+=chip('RMSEA',rmsea,rmsea!=null?(rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'):'fc-neu');
+    html+=chip('SRMR',srmr,srmr!=null?(srmr<=0.08?'fc-good':'fc-ok'):'fc-neu');
+    if(f.chi_square!=null)html+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
+    if(f.df!=null)html+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
+    if(f.p_value!=null)html+=`<span class="fit-chip fc-neu">p = ${Number(f.p_value).toFixed(4)}</span>`;
+    if(f.aic!=null)html+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
+    if(f.bic!=null)html+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
+    if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
+    html+=`</div><div style="font-size:10px;color:var(--txt3);font-family:var(--mono)">Algorithm: ${results.algorithm} · N = ${results.n_obs} · k = ${results.n_params}</div>`;
+    if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
+    body.innerHTML=html;
+  }
+
+  if(tab==='params'){
+    const rows=results.parameters.map(p=>`<tr>
+      <td>${p.lhs}</td><td class="op">${p.op}</td><td>${p.rhs}</td>
+      <td style="font-weight:500">${Number(p.estimate).toFixed(4)}</td>
+      <td>${Number(p.std_error).toFixed(4)}</td>
+      <td>${p.z_value?Number(p.z_value).toFixed(3):'—'}</td>
+      <td class="${p.significant?'sig':'nsig'}">${Number(p.p_value).toFixed(4)}</td>
+      <td class="ci">${p.ci_lower!=null?Number(p.ci_lower).toFixed(3):'—'}</td>
+      <td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td>
+    </tr>`).join('');
+    body.innerHTML=`<div style="overflow-x:auto"><table class="param-table"><thead><tr>
+      <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th>SE</th><th>z</th><th>p-value</th><th>CI lo</th><th>CI hi</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  if(tab==='chart'){
+    const str=results.parameters.filter(p=>p.op==='~');
+    if(!str.length){body.innerHTML='<div class="no-data">No structural paths.</div>';return;}
+    const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
+    const bars=str.map(p=>{
+      const pct=mx>0?(Math.abs(p.estimate)/mx*100).toFixed(0):0;
+      return `<div class="bar-row">
+        <div class="bar-label">${p.rhs} → ${p.lhs}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${p.significant?'var(--blue)':'var(--txt3)'}"></div></div>
+        <div class="bar-val" style="color:${p.significant?'var(--txt0)':'var(--txt2)'}">${Number(p.estimate).toFixed(3)}${p.significant?'':' ns'}</div>
+      </div>`;
+    }).join('');
+    body.innerHTML=`<div class="bar-chart">${bars}</div><div style="margin-top:8px;font-size:10px;color:var(--txt3);font-family:var(--mono)">ns = not significant · bar width = relative magnitude</div>`;
+  }
+
+  if(tab==='bootstrap'&&results.bootstrap){
+    const bs=results.bootstrap;
+    const rows=bs.parameters.map(p=>`<tr>
+      <td>${p.lhs||''}</td><td class="op">${p.op||''}</td><td>${p.rhs||''}</td>
+      <td>${Number(p.bs_mean).toFixed(4)}</td><td>${Number(p.bs_se).toFixed(4)}</td>
+      <td class="ci">[${Number(p.ci_lower_95).toFixed(3)}, ${Number(p.ci_upper_95).toFixed(3)}]</td>
+      <td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'✗'}</td>
+    </tr>`).join('');
+    body.innerHTML=`<div class="bs-stat">
+      <div class="bs-kv"><div class="bs-key">Samples</div><div class="bs-val">${bs.n_samples.toLocaleString()}</div></div>
+      <div class="bs-kv"><div class="bs-key">Converged</div><div class="bs-val">${bs.converged_pct}%</div></div>
+    </div>
+    <div style="overflow-x:auto"><table class="param-table"><thead><tr>
+      <th>LHS</th><th>Op</th><th>RHS</th><th>BS Mean</th><th>BS SE</th><th>95% CI</th><th>Sig</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+}
+function showRes(tab){renderResults(tab);}
+
+// ── view switch ────────────────────────────────────────────────────────────
+function switchView(v){
+  document.getElementById('builder-view').style.display=v==='builder'?'flex':'none';
+  document.getElementById('syntax-view').style.display=v==='syntax'?'flex':'none';
+  document.getElementById('htmt-view').style.display=v==='htmt'?'block':'none';
+  document.querySelectorAll('.ttab').forEach((b,i)=>b.classList.toggle('active',['builder','syntax','htmt'][i]===v));
+  if(v==='builder')setTimeout(resize,10);
+}
+function showSpinner(msg){
+  document.getElementById('spinner-msg').textContent=msg;
+  document.getElementById('spinner').classList.add('show');
+  document.getElementById('run-btn').disabled=true;
+}
+function hideSpinner(){
+  document.getElementById('spinner').classList.remove('show');
+  document.getElementById('run-btn').disabled=false;
+}
+
+// ── demo ───────────────────────────────────────────────────────────────────
+function loadDemo(){
+  clearCanvas();
+  const cx=W/2,cy=H/2;
+  const t={id:uid(),type:'lv',x:cx-130,y:cy,label:'Trust'};
+  const s={id:uid(),type:'lv',x:cx+130,y:cy,label:'Satisf'};
+  const ns=[
+    {id:uid(),type:'obs',x:cx-250,y:cy-65,label:'t1'},
+    {id:uid(),type:'obs',x:cx-250,y:cy,   label:'t2'},
+    {id:uid(),type:'obs',x:cx-250,y:cy+65,label:'t3'},
+    {id:uid(),type:'obs',x:cx+250,y:cy-65,label:'s1'},
+    {id:uid(),type:'obs',x:cx+250,y:cy,   label:'s2'},
+    {id:uid(),type:'obs',x:cx+250,y:cy+65,label:'s3'},
+  ];
+  nodes=[t,s,...ns];
+  edges=[
+    {from:t.id,to:ns[0].id,type:'measurement'},{from:t.id,to:ns[1].id,type:'measurement'},{from:t.id,to:ns[2].id,type:'measurement'},
+    {from:s.id,to:ns[3].id,type:'measurement'},{from:s.id,to:ns[4].id,type:'measurement'},{from:s.id,to:ns[5].id,type:'measurement'},
+    {from:t.id,to:s.id,type:'structural'},
+  ];
+  updateSyntax();draw();
+}
+
+const ro=new ResizeObserver(resize);
+ro.observe(canvas.parentElement);
+setTimeout(()=>{resize();loadDemo();},80);
+</script>
+</body>
+</html>

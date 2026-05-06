@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+*.spec.bak
+
+# PyInstaller
+dist/
+build/
+*.deb
+*.dmg
+*.exe
+*.msi
+*.app
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Installer temp files
+installer/*.wixobj
+installer/*.wixpdb

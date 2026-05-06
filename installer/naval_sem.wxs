@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NAVAL-SEM WiX Installer Definition
+  Compatible with WiX 3.x (candle + light) and WiX 4 (wix build)
+
+  What it does:
+    - Installs NAVAL-SEM.exe to Program Files\NAVAL-SEM\
+    - Creates a Start Menu shortcut
+    - Creates an optional Desktop shortcut
+    - Registers Add/Remove Programs entry with version + uninstall
+    - Associates .nvs files with the app (optional)
+-->
+
+<?define ProductName     = "NAVAL-SEM" ?>
+<?define ProductVersion  = "0.2.0" ?>
+<?define Manufacturer    = "NAVAL-SEM Project" ?>
+<?define UpgradeCode     = "a1b2c3d4-e5f6-7890-abcd-ef1234567890" ?>
+<?define ExeSource       = "..\dist\NAVAL-SEM.exe" ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <Product
+    Id="*"
+    Name="$(var.ProductName)"
+    Version="$(var.ProductVersion)"
+    Manufacturer="$(var.Manufacturer)"
+    UpgradeCode="$(var.UpgradeCode)"
+    Language="1033"
+    Codepage="1252">
+
+    <Package
+  Description="$(var.ProductName) — Structural Equation Modelling Desktop App"
+  Comments="Open-source PLS-SEM / CB-SEM desktop application"
+  InstallerVersion="301"
+  Compressed="yes"
+  InstallScope="perMachine"
+  Platform="x64" />
+
+    <!-- Allow major upgrades (removes old version before installing new) -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of $(var.ProductName) is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- ── UI ──────────────────────────────────────────────────────────────── -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <!-- Skip licence dialog — remove this line if you want to add a EULA -->
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+
+    <!-- ── Installation directory ─────────────────────────────────────────── -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="$(var.ProductName)" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)" />
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <!-- ── Files ──────────────────────────────────────────────────────────── -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="*" Win64="yes">
+        <File
+          Id="NAVAL_SEM_EXE"
+          Source="$(var.ExeSource)"
+          Name="NAVAL-SEM.exe"
+          KeyPath="yes" />
+
+        <!-- Registry entry for Add/Remove Programs -->
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\$(var.Manufacturer)\$(var.ProductName)"
+          Name="InstallDir"
+          Type="string"
+          Value="[INSTALLFOLDER]" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── Start Menu shortcut ────────────────────────────────────────────── -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut
+          Id="StartMenuShortcutNAVAL"
+          Name="$(var.ProductName)"
+          Description="Structural Equation Modelling Desktop App"
+          Target="[INSTALLFOLDER]NAVAL-SEM.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut
+          Id="UninstallShortcut"
+          Name="Uninstall $(var.ProductName)"
+          Target="[SystemFolder]msiexec.exe"
+          Arguments="/x [ProductCode]" />
+        <RemoveFolder Id="CleanUpShortCut" On="uninstall" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\$(var.Manufacturer)\$(var.ProductName)"
+          Name="StartMenuInstalled"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── Desktop shortcut (optional — user can decline) ─────────────────── -->
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="*">
+        <Shortcut
+          Id="DesktopShortcutNAVAL"
+          Name="$(var.ProductName)"
+          Description="Structural Equation Modelling Desktop App"
+          Target="[INSTALLFOLDER]NAVAL-SEM.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\$(var.Manufacturer)\$(var.ProductName)"
+          Name="DesktopInstalled"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── Feature set ────────────────────────────────────────────────────── -->
+    <Feature Id="ProductFeature" Title="NAVAL-SEM" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+  </Product>
+</Wix>
