@@ -209,6 +209,20 @@ Found a bug or have a suggestion? We read every submission!
 
 ---
 
+## Source Code Transparency
+
+NAVAL-SEM is built from a public GitHub repository. All releases are generated automatically from that source — no closed build steps, no hidden binaries.
+
+| Path | What it contains |
+|---|---|
+| `/app` | Backend engine — FastAPI routes, SEM fitting, data parsing, and response schemas |
+| `/static/index.html` | Frontend UI — the full canvas builder, results panels, and all client-side logic |
+| `/.github/workflows/release.yml` | Automated CI — builds all platforms (Windows, macOS, Linux) and publishes each GitHub Release |
+
+You can audit, clone, or build from source at any time using the instructions in the sections above.
+
+---
+
 ## License
 
 This work is licensed under [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)](https://creativecommons.org/licenses/by-nc-nd/4.0/).
