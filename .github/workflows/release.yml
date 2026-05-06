@@ -28,10 +28,11 @@ jobs:
       - name: Build EXE
         run: pyinstaller naval_sem.spec --clean --noconfirm
 
-      - name: Install WiX 3
+      - name: Add WiX 3 to PATH
         run: |
-          choco install wixtoolset --version 3.14.0 -y --no-progress
-          echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $wixPath = Get-ChildItem "C:\Program Files (x86)" -Directory | Where-Object { $_.Name -like "WiX*" } | Select-Object -First 1 -ExpandProperty FullName
+          echo "$wixPath\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "Found WiX at: $wixPath"
 
       - name: Create license.rtf
         run: |
