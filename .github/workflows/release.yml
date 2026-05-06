@@ -3,11 +3,11 @@ name: Build & Release NAVAL-SEM
 on:
   push:
     tags:
-      - "v*.*.*"       # triggers on tags like v0.2.0
-  workflow_dispatch:   # allow manual trigger from GitHub UI
+      - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
-  contents: write      # needed to create releases and upload assets
+  contents: write
 
 jobs:
   # ── Windows ────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ jobs:
   # ── macOS ──────────────────────────────────────────────────────────────────
   build-macos:
     name: macOS .app + DMG
-    runs-on: macos-14        # Apple Silicon runner
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -73,7 +73,17 @@ jobs:
         run: brew install create-dmg
 
       - name: Build .app
-        run: pyinstaller naval_sem.spec --clean --noconfirm
+        run: |
+          pyinstaller naval_sem.spec --clean --noconfirm
+          # If spec produced a binary instead of .app bundle, rebuild as windowed
+          if [ ! -d "dist/NAVAL-SEM.app" ]; then
+            echo "No .app found, rebuilding with --windowed..."
+            pyinstaller launcher.py \
+              --name "NAVAL-SEM" \
+              --windowed \
+              --clean --noconfirm \
+              --osx-bundle-identifier "io.naval-sem.app"
+          fi
 
       - name: Create DMG
         run: |
@@ -82,11 +92,9 @@ jobs:
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "NAVAL-SEM.app" 175 190 \
-            --hide-extension "NAVAL-SEM.app" \
             --app-drop-link 425 190 \
             dist/NAVAL-SEM.dmg \
-            dist/NAVAL-SEM.app
+            "dist/NAVAL-SEM.app"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
