@@ -1,7 +1,8 @@
 """
 NAVAL-SEM Desktop Launcher
-Starts the FastAPI backend on a free port, then opens the UI in a browser window.
-Packaged by PyInstaller into a single .exe or .msi.
+Starts the FastAPI backend on a free port, then opens the UI in a native
+pywebview window (or falls back to the system browser if unavailable).
+Packaged by PyInstaller into a single .exe.
 """
 
 import os
@@ -10,21 +11,19 @@ import threading
 import time
 import webbrowser
 import socket
-import signal
 import logging
 
-# ── Silence noisy loggers in packaged mode ────────────────────────────────────
 logging.basicConfig(level=logging.WARNING)
 
-# ── Resolve base path (works both in dev and in PyInstaller bundle) ────────────
+
+# ── Resolve base path ────────────────────────────────────────────────────────
 def resource_path(relative: str) -> str:
-    """Return absolute path to a resource, works for dev and PyInstaller."""
     if getattr(sys, "_MEIPASS", None):
         return os.path.join(sys._MEIPASS, relative)
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), relative)
 
 
-# ── Find a free TCP port ───────────────────────────────────────────────────────
+# ── Find a free TCP port ─────────────────────────────────────────────────────
 def find_free_port(start: int = 8765) -> int:
     for port in range(start, start + 100):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -33,13 +32,12 @@ def find_free_port(start: int = 8765) -> int:
                 return port
             except OSError:
                 continue
-    raise RuntimeError("No free port found in range 8765–8865")
+    raise RuntimeError("No free port found in range 8765-8865")
 
 
-# ── Start the FastAPI/Uvicorn server in a daemon thread ───────────────────────
+# ── Start FastAPI/Uvicorn in a daemon thread ──────────────────────────────────
 def start_server(port: int):
     import uvicorn
-    # Tell the app module where static files live
     os.environ["NAVAL_SEM_STATIC"] = resource_path("static")
     os.environ["NAVAL_SEM_PORT"] = str(port)
     uvicorn.run(
@@ -51,22 +49,23 @@ def start_server(port: int):
     )
 
 
-# ── Wait until server is accepting connections ────────────────────────────────
-def wait_for_server(port: int, timeout: float = 15.0):
+# ── Wait until server accepts connections ─────────────────────────────────────
+def wait_for_server(port: int, timeout: float = 20.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.5):
                 return True
         except OSError:
-            time.sleep(0.1)
+            time.sleep(0.15)
     return False
 
 
-# ── Try to use pywebview for a native window, fall back to browser ─────────────
+# ── Open UI ───────────────────────────────────────────────────────────────────
 def open_ui(url: str):
+    # Try pywebview first (native desktop window)
     try:
-        import webview  # pip install pywebview
+        import webview
         webview.create_window(
             "NAVAL-SEM",
             url,
@@ -76,39 +75,48 @@ def open_ui(url: str):
             min_size=(900, 600),
         )
         webview.start()
+        return  # webview.start() blocks until window is closed — clean exit
     except ImportError:
-        # pywebview not available → use system browser
-        webbrowser.open(url)
-        # Keep the process alive so the server keeps running
-        try:
-            signal.pause()          # Unix
-        except AttributeError:
-            input("NAVAL-SEM is running. Press Enter to quit...\n")
-    except Exception as e:
-        print(f"[NAVAL-SEM] Could not open webview: {e}. Falling back to browser.")
-        webbrowser.open(url)
-        try:
-            signal.pause()
-        except AttributeError:
-            input("NAVAL-SEM is running. Press Enter to quit...\n")
+        pass  # pywebview not installed — fall through to browser
+    except Exception:
+        pass  # pywebview failed (e.g. WebView2 missing) — fall through
+
+    # Fallback: open in system browser and keep server alive via Event
+    webbrowser.open(url)
+    _keep_alive()
+
+
+def _keep_alive():
+    """Keep the server process alive when running in browser-fallback mode.
+    Uses threading.Event instead of input() so it works with console=False."""
+    stop = threading.Event()
+
+    def _watch():
+        # Exit when the server thread dies (shouldn't happen, but safety net)
+        while threading.active_count() > 1:
+            time.sleep(1)
+        stop.set()
+
+    threading.Thread(target=_watch, daemon=True).start()
+    stop.wait()  # blocks forever until the server dies or process is killed
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main():
     port = find_free_port()
-    print(f"[NAVAL-SEM] Starting server on port {port}...")
 
     server_thread = threading.Thread(
         target=start_server, args=(port,), daemon=True
     )
     server_thread.start()
 
-    if not wait_for_server(port):
-        print("[NAVAL-SEM] ERROR: Server did not start within 15 seconds.")
-        sys.exit(1)
+    if not wait_for_server(port, timeout=20):
+        # Can't show console message with console=False — try browser anyway
+        webbrowser.open(f"http://127.0.0.1:{port}")
+        _keep_alive()
+        return
 
     url = f"http://127.0.0.1:{port}"
-    print(f"[NAVAL-SEM] Ready → {url}")
     open_ui(url)
 
 

@@ -105,6 +105,22 @@
   .warn-box{margin-top:10px;padding:8px 12px;background:var(--amber-bg);border:1px solid rgba(240,168,64,.3);border-radius:var(--r);font-size:11px;color:var(--amber);font-family:var(--mono)}
   .syntax-area{width:100%;min-height:180px;font-family:var(--mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--bg1);color:var(--txt0);resize:vertical;outline:none;line-height:1.9;transition:border-color .15s}
   .syntax-area:focus{border-color:var(--blue-line)}
+
+  .export-wrap{position:relative;width:100%}
+  .export-btn{width:100%;padding:7px;background:transparent;border:1px solid var(--line);border-radius:var(--r);color:var(--txt2);font-size:11px;cursor:pointer;font-family:var(--mono);transition:all .15s;display:flex;align-items:center;justify-content:space-between;letter-spacing:.5px}
+  .export-btn:hover{border-color:var(--line2);color:var(--txt1)}
+  .export-btn .arr{font-size:8px;transition:transform .15s}
+  .export-btn.open .arr{transform:rotate(180deg)}
+  .export-drop{display:none;position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;z-index:20}
+  .export-drop.show{display:block}
+  .export-opt{width:100%;padding:8px 12px;text-align:left;background:transparent;border:none;color:var(--txt1);font-size:11px;font-family:var(--mono);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s}
+  .export-opt:hover{background:var(--bg3);color:var(--txt0)}
+  .export-opt .badge{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--bg4);color:var(--txt2)}
+
+  .export-toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--green);border-radius:var(--r2);padding:12px 18px;font-family:var(--mono);font-size:11px;color:var(--green);z-index:999;display:none;flex-direction:column;gap:4px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+  .export-toast.show{display:flex}
+  .export-toast-title{font-weight:500;letter-spacing:.5px}
+  .export-toast-sub{color:var(--txt2);font-size:10px;line-height:1.5}
   ::-webkit-scrollbar{width:5px;height:5px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
@@ -167,6 +183,16 @@
       </select>
     </div>
     <button class="run-btn" id="run-btn" onclick="runAnalysis()" disabled>Run analysis</button>
+    <div class="export-wrap" id="export-wrap">
+      <button class="export-btn" id="export-btn" onclick="toggleExport()">
+        <span>Export code</span><span class="arr">&#9660;</span>
+      </button>
+      <div class="export-drop" id="export-drop">
+        <button class="export-opt" onclick="doExport('r')">&#128196; R <span class="badge">lavaan</span></button>
+        <button class="export-opt" onclick="doExport('python')">&#128013; Python <span class="badge">semopy</span></button>
+        <button class="export-opt" onclick="doExport('lav')">&#128462; JASP / jamovi <span class="badge">.lav</span></button>
+      </div>
+    </div>
     <button class="clear-btn" onclick="clearCanvas()">Clear canvas</button>
     <div class="sec">
       <div class="sec-label">Selected</div>
@@ -619,9 +645,55 @@ function loadDemo(){
   updateSyntax();draw();
 }
 
+
+// -- export code ----------------------------------------------------------
+
+function showExportToast(filename){
+  document.getElementById('export-toast-sub').textContent='Paste into editor → save as: '+filename;
+  const t=document.getElementById('export-toast');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),4000);
+}
+function toggleExport(){
+  const btn=document.getElementById('export-btn');
+  const drop=document.getElementById('export-drop');
+  btn.classList.toggle('open');drop.classList.toggle('show');
+  if(drop.classList.contains('show')){
+    const close=e=>{if(!document.getElementById('export-wrap').contains(e.target)){btn.classList.remove('open');drop.classList.remove('show');document.removeEventListener('click',close);}};
+    setTimeout(()=>document.addEventListener('click',close),10);
+  }
+}
+async function doExport(fmt){
+  document.getElementById('export-btn').classList.remove('open');
+  document.getElementById('export-drop').classList.remove('show');
+  const syntax=document.getElementById('syntax-area').value.trim();
+  if(!syntax){alert('Build a model first.');return;}
+  const algo=document.getElementById('algo-sel').value;
+  try{
+    const r=await fetch(API+'/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:syntax,algorithm:algo,format:fmt})});
+    if(!r.ok){alert('Export failed.');return;}
+    const text=await r.text();
+    const ext={r:'R',python:'py',lav:'lav'}[fmt]||'txt';
+    const filename='naval_sem_model.'+ext;
+    // Copy to clipboard (works in pywebview + browser)
+    try{await navigator.clipboard.writeText(text);}
+    catch(e){
+      const ta=document.createElement('textarea');
+      ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);ta.select();
+      document.execCommand('copy');document.body.removeChild(ta);
+    }
+    showExportToast(filename);
+  } catch(e){alert('Export error: '+e.message);}
+}
 const ro=new ResizeObserver(resize);
 ro.observe(canvas.parentElement);
 setTimeout(()=>{resize();loadDemo();},80);
 </script>
+
+<div class="export-toast" id="export-toast">
+  <div class="export-toast-title">&#10003; Copied to clipboard</div>
+  <div class="export-toast-sub" id="export-toast-sub">Paste into your editor and save as the filename shown.</div>
+</div>
 </body>
 </html>

@@ -10,11 +10,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
 
-from app.engine import fit_model, run_bootstrap, compute_htmt
+from app.engine import fit_model, run_bootstrap, compute_htmt, export_as_code
 from app.parser import parse_spss, parse_excel, parse_lavaan
 from app.schemas import ModelResult, BootstrapResult, HTMTResult
 
@@ -155,3 +155,41 @@ async def validate_syntax(payload: dict):
         return {"valid": True, "parsed": parsed}
     except Exception as e:
         return {"valid": False, "error": str(e)}
+
+
+@app.post("/export")
+async def export_code(payload: dict):
+    """
+    Export the model as runnable code.
+
+    Body:
+      {
+        "model":     "<lavaan syntax>",
+        "algorithm": "pls" | "cb" | "wls",
+        "format":    "r" | "python" | "lav"
+      }
+
+    Returns a plain-text file download.
+    """
+    model = payload.get("model", "")
+    algorithm = payload.get("algorithm", "pls")
+    fmt = payload.get("format", "r")
+
+    if not model.strip():
+        raise HTTPException(400, "No model syntax provided.")
+
+    try:
+        code = export_as_code(model, algorithm=algorithm, format=fmt)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Export error: {e}")
+
+    ext_map = {"r": "R", "python": "py", "lav": "lav"}
+    ext = ext_map.get(fmt, "txt")
+
+    return PlainTextResponse(
+        content=code,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="naval_sem_model.{ext}"'},
+    )

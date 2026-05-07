@@ -10,8 +10,10 @@ block_cipher = None
 # Collect all hidden imports that PyInstaller misses for these packages
 hiddenimports = [
     # FastAPI / Starlette
-    "fastapi", "starlette", "starlette.middleware", "starlette.middleware.cors",
-    "starlette.staticfiles", "starlette.responses",
+    "fastapi", "fastapi.middleware", "fastapi.middleware.cors",
+    "fastapi.responses", "fastapi.staticfiles",
+    "starlette", "starlette.middleware", "starlette.middleware.cors",
+    "starlette.middleware.base", "starlette.staticfiles", "starlette.responses",
     # Uvicorn
     "uvicorn", "uvicorn.logging", "uvicorn.loops", "uvicorn.loops.auto",
     "uvicorn.loops.asyncio", "uvicorn.protocols", "uvicorn.protocols.http",
