@@ -79,6 +79,7 @@ def start_server(port: int):
             port=port,
             log_level="warning",
             access_log=False,
+            log_config=None,  # disable uvicorn log config — avoids isatty() crash with console=False
         )
     except Exception as e:
         logging.error(f"Server crashed: {e}", exc_info=True)

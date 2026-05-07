@@ -19,7 +19,7 @@ from app.schemas import (
 )
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _safe_float(val, default=None):
     try:
@@ -47,33 +47,22 @@ def _fit_verdict(fit: FitIndices) -> FitIndices:
     return fit
 
 
-# ─── Main fit function ────────────────────────────────────────────────────────
+# ── Main fit function ─────────────────────────────────────────────────────────
 
 def fit_model(
     df: pd.DataFrame,
     model_syntax: str,
     algorithm: str = "pls",
 ) -> ModelResult:
-    """
-    Fit a SEM model using semopy.
-
-    algorithm:
-      "pls"  -> PLS-SEM via semopy.PLS (or fallback to Model)
-      "cb"   -> CB-SEM via semopy.Model with ML estimator
-      "wls"  -> CB-SEM with WLS estimator
-    """
     try:
         from semopy import Model
     except ImportError:
-        raise RuntimeError(
-            "semopy is not installed. Run: pip install semopy"
-        )
+        raise RuntimeError("semopy is not installed. Run: pip install semopy")
 
     parsed = parse_lavaan(model_syntax)
     syntax = build_semopy_syntax(parsed)
     warnings = []
 
-    # Validate columns exist in dataframe
     missing_cols = [v for v in parsed["observed_vars"] if v not in df.columns]
     if missing_cols:
         raise ValueError(
@@ -81,8 +70,7 @@ def fit_model(
             f"Available: {df.columns.tolist()}"
         )
 
-    # Choose estimator
-    estimator = "MLW"  # default
+    estimator = "ML"
     use_pls = False
     if algorithm == "pls":
         try:
@@ -90,45 +78,45 @@ def fit_model(
             use_pls = True
         except ImportError:
             warnings.append(
-                "semopy.PLS not available in this version — falling back to CB-SEM (ML). "
-                "Upgrade semopy for PLS support."
+                "semopy.PLS not available — falling back to CB-SEM (ML)."
             )
-            estimator = "MLW"
     elif algorithm == "wls":
         estimator = "WLS"
 
-    # Fit
     try:
         if use_pls:
             from semopy import PLS
             sem_model = PLS(syntax)
-            sem_model.fit(df)
+            try:
+                sem_model.fit(df)
+            except TypeError:
+                warnings.append("PLS not supported in this semopy version — using CB-SEM (ML).")
+                sem_model = Model(syntax)
+                sem_model.fit(df, estimator="ML")
             algo_label = "PLS-SEM"
         else:
             sem_model = Model(syntax)
-            sem_model.fit(df, estimator=estimator)
+            if estimator == "WLS":
+                sem_model.fit(df, obj="WLS")
+            else:
+                sem_model.fit(df)
             algo_label = "CB-SEM" if algorithm == "cb" else ("WLS" if algorithm == "wls" else "CB-SEM (ML)")
     except Exception as e:
         raise ValueError(f"Model did not converge: {e}")
 
     params_df = sem_model.inspect()
 
-    # Build PathParameter list
     parameters = []
     for _, row in params_df.iterrows():
         est = _safe_float(row.get("Estimate", row.get("estimate", 0.0)), 0.0)
         se = _safe_float(row.get("Std. Err.", row.get("std_err", None)))
         z = _safe_float(row.get("z-Value", row.get("z_value", None)))
         p = _safe_float(row.get("p-Value", row.get("p_value", None)))
-
-        # Compute 95% CI if SE available
         ci_lo = round(est - 1.96 * se, 6) if se is not None else None
         ci_hi = round(est + 1.96 * se, 6) if se is not None else None
-
         lhs = str(row.get("lval", row.get("lhs", "")))
         op = str(row.get("op", "~"))
         rhs = str(row.get("rval", row.get("rhs", "")))
-
         parameters.append(PathParameter(
             lhs=lhs, op=op, rhs=rhs,
             estimate=est,
@@ -140,10 +128,10 @@ def fit_model(
             significant=_p_to_sig(p),
         ))
 
-    # Fit statistics
     fit = FitIndices()
     try:
-        stats = sem_model.calc_stats()
+        from semopy import calc_stats
+        stats = calc_stats(sem_model)
 
         def gs(key):
             for k, v in stats.items():
@@ -160,7 +148,6 @@ def fit_model(
         fit.aic = gs("AIC")
         fit.bic = gs("BIC")
 
-        # R² for endogenous variables
         r2 = {}
         for rel in parsed["structural"]:
             lhs = rel["lhs"]
@@ -193,7 +180,7 @@ def fit_model(
     )
 
 
-# ─── Bootstrapping ────────────────────────────────────────────────────────────
+# ── Bootstrapping ─────────────────────────────────────────────────────────────
 
 def run_bootstrap(
     df: pd.DataFrame,
@@ -202,11 +189,6 @@ def run_bootstrap(
     algorithm: str = "pls",
     seed: int = 42,
 ) -> BootstrapResult:
-    """
-    Parametric bootstrap: resample with replacement n times,
-    fit the model each time, collect distribution of estimates.
-    Returns bias-corrected SE and 95% percentile CIs.
-    """
     try:
         from semopy import Model
     except ImportError:
@@ -234,13 +216,12 @@ def run_bootstrap(
     if not all_estimates:
         raise ValueError("No bootstrap samples converged.")
 
-    est_array = np.array(all_estimates)  # shape: (converged, n_params)
+    est_array = np.array(all_estimates)
     bs_se = np.std(est_array, axis=0, ddof=1)
     ci_lo = np.percentile(est_array, 2.5, axis=0)
     ci_hi = np.percentile(est_array, 97.5, axis=0)
     bs_mean = np.mean(est_array, axis=0)
 
-    # Get original param labels for alignment
     try:
         orig = Model(syntax)
         orig.fit(df)
@@ -274,14 +255,9 @@ def run_bootstrap(
     )
 
 
-# ─── HTMT ─────────────────────────────────────────────────────────────────────
+# ── HTMT ──────────────────────────────────────────────────────────────────────
 
 def compute_htmt(df: pd.DataFrame, model_syntax: str) -> HTMTResult:
-    """
-    Heterotrait-Monotrait Ratio of Correlations (Henseler et al., 2015).
-    HTMT < 0.90 -> discriminant validity supported.
-    HTMT < 0.85 -> stricter threshold (conservative).
-    """
     parsed = parse_lavaan(model_syntax)
     measurement = parsed["measurement"]
     lvs = list(measurement.keys())
@@ -306,14 +282,11 @@ def compute_htmt(df: pd.DataFrame, model_syntax: str) -> HTMTResult:
         for lv_b in lvs[i + 1:]:
             inds_a = measurement[lv_a]
             inds_b = measurement[lv_b]
-
             cross = mean_abs_corr(inds_a, inds_b)
             within_a = mean_abs_corr(inds_a, inds_a, same=True)
             within_b = mean_abs_corr(inds_b, inds_b, same=True)
-
             denom = np.sqrt(within_a * within_b)
             htmt_val = cross / denom if denom > 0 else np.nan
-
             entries.append(HTMTEntry(
                 construct_a=lv_a,
                 construct_b=lv_b,
@@ -327,22 +300,13 @@ def compute_htmt(df: pd.DataFrame, model_syntax: str) -> HTMTResult:
     )
 
 
-# ─── Code Export ─────────────────────────────────────────────────────────────
+# ── Code Export ───────────────────────────────────────────────────────────────
 
 def export_as_code(model_syntax: str, algorithm: str = "pls", format: str = "r") -> str:
-    """
-    Export the current model as runnable code.
-
-    format:    "r"      -> R + lavaan
-               "python" -> Python + semopy
-               "lav"    -> plain lavaan syntax (JASP / jamovi compatible)
-    algorithm: "pls" | "cb" | "wls"
-    """
     parsed = parse_lavaan(model_syntax)
     measurement = parsed.get("measurement", {})
     structural = parsed.get("structural", [])
 
-    # Build shared lavaan-style syntax block
     lines = []
     if measurement:
         lines.append("  # Measurement model")
@@ -357,7 +321,6 @@ def export_as_code(model_syntax: str, algorithm: str = "pls", format: str = "r")
             lines.append(f"  {lhs} ~ {' + '.join(rhs_list)}")
     model_block = "\n".join(lines)
 
-    # ── R / lavaan ────────────────────────────────────────────────────────────
     if format == "r":
         estimator_map = {"pls": "ML", "cb": "ML", "wls": "WLS"}
         estimator = estimator_map.get(algorithm, "ML")
@@ -366,7 +329,6 @@ def export_as_code(model_syntax: str, algorithm: str = "pls", format: str = "r")
             "# For PLS in R, consider the 'seminr' package instead.\n"
             "# The syntax below uses lavaan ML as the closest equivalent.\n\n"
         ) if algorithm == "pls" else ""
-
         return (
             f"# Generated by NAVAL-SEM v0.2.0\n"
             f"# https://github.com/navalsingh9/naval-sem\n\n"
@@ -381,12 +343,9 @@ def export_as_code(model_syntax: str, algorithm: str = "pls", format: str = "r")
             f"summary(fit, fit.measures = TRUE, standardized = TRUE)\n"
             f"fitMeasures(fit, c(\"cfi\", \"rmsea\", \"srmr\", \"aic\", \"bic\"))\n"
         )
-
-    # ── Python / semopy ───────────────────────────────────────────────────────
     elif format == "python":
         cls = "PLS" if algorithm == "pls" else "Model"
         estimator_line = ", estimator='WLS'" if algorithm == "wls" else ""
-
         return (
             f"# Generated by NAVAL-SEM v0.2.0\n"
             f"# https://github.com/navalsingh9/naval-sem\n\n"
@@ -400,16 +359,13 @@ def export_as_code(model_syntax: str, algorithm: str = "pls", format: str = "r")
             f"print(m.inspect())\n"
             f"print(m.calc_stats())\n"
         )
-
-    # ── Plain lavaan syntax (.lav / JASP / jamovi) ───────────────────────────
     elif format == "lav":
         return (
-            f"# NAVAL-SEM export — lavaan syntax\n"
+            f"# NAVAL-SEM export - lavaan syntax\n"
             f"# Compatible with: JASP, jamovi (jSEM module), R lavaan\n"
             f"# Generated by NAVAL-SEM v0.2.0\n"
             f"# https://github.com/navalsingh9/naval-sem\n\n"
             f"{model_block}\n"
         )
-
     else:
         raise ValueError(f"Unknown export format: '{format}'. Use 'r', 'python', or 'lav'.")
