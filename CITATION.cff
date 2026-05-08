@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+title: "NAVAL-SEM"
+message: "If you use NAVAL-SEM in academic research, please cite this software."
+type: software
+authors:
+  - family-names: "Singh"
+    given-names: "Naval"
+repository-code: "https://github.com/navalsingh9/naval-sem"
+url: "https://github.com/navalsingh9/naval-sem"
+license: "MIT"
+version: "0.2.1"
+date-released: "2026-05-08"
+abstract: >
+  NAVAL-SEM is a free offline desktop application for Structural Equation
+  Modelling (SEM) supporting PLS-SEM, CB-SEM, HTMT, bootstrapping,
+  and export to R and Python workflows.
+keywords:
+  - SEM
+  - PLS-SEM
+  - CB-SEM
+  - Structural Equation Modelling
+  - Quantitative Research
+  - Research Methods
