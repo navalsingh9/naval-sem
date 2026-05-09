@@ -7,7 +7,9 @@ Run via launcher: python launcher.py
 import os
 import io
 from pathlib import Path
+import logging
 
+logger = logging.getLogger(__name__)
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
@@ -154,7 +156,11 @@ async def validate_syntax(payload: dict):
         parsed = parse_lavaan(model)
         return {"valid": True, "parsed": parsed}
     except Exception as e:
-        return {"valid": False, "error": str(e)}
+        logger.exception("Model validation error")
+        return {
+            "valid": False,
+            "error": "Model validation failed."
+        }
 
 
 @app.post("/export")
