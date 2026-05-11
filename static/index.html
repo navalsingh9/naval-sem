@@ -517,7 +517,32 @@ async function runFromSyntax(){
     const r=await fetch(API+'/run',{method:'POST',body:fd});
     const data=await r.json();hideSpinner();
     if(!r.ok){alert(data.detail||'Error');return;}
-    results=data;switchView('builder');renderResults('fit');
+    results = data;
+
+    // clear old labels first
+    edges.forEach(e => e.label = null);
+
+    // apply new estimates to edges
+    data.parameters.forEach(p => {
+      edges.forEach(e => {
+        const s = nodes.find(n => n.id === e.from);
+        const t = nodes.find(n => n.id === e.to);
+
+        if (s && t) {
+          if (
+            (p.op === '=~' && p.lhs === s.label && p.rhs === t.label) ||
+            (p.op === '~'  && p.lhs === t.label && p.rhs === s.label)
+          ) {
+            e.label = Number(p.estimate).toFixed(3);
+          }
+        }
+      });
+    });
+
+    draw();
+
+    switchView('builder');
+    renderResults('fit');
     document.getElementById('results-panel').classList.add('show');
     document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none';
     triggerHtmt();
