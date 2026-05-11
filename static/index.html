@@ -105,6 +105,23 @@
   .warn-box{margin-top:10px;padding:8px 12px;background:var(--amber-bg);border:1px solid rgba(240,168,64,.3);border-radius:var(--r);font-size:11px;color:var(--amber);font-family:var(--mono)}
   .syntax-area{width:100%;min-height:180px;font-family:var(--mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--bg1);color:var(--txt0);resize:vertical;outline:none;line-height:1.9;transition:border-color .15s}
   .syntax-area:focus{border-color:var(--blue-line)}
+  .mv-section{margin-top:14px}
+  .mv-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .mv-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);margin-bottom:4px}
+  .mv-table th{text-align:left;padding:5px 10px;color:var(--txt2);font-size:9px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .mv-table td{padding:6px 10px;border-bottom:1px solid var(--line)}
+  .mv-table tr:last-child td{border-bottom:none}
+  .mv-table .lv-name{color:var(--blue)}
+  .fl-matrix{border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+  .fl-matrix th{padding:5px 12px;color:var(--txt2);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--line);text-align:center}
+  .fl-matrix th:first-child{text-align:left}
+  .fl-matrix td{padding:6px 12px;border-bottom:1px solid var(--line);text-align:center}
+  .fl-matrix td:first-child{text-align:left;color:var(--blue)}
+  .fl-matrix tr:last-child td{border-bottom:none}
+  .fl-diag{color:var(--green);font-weight:600}
+  .fl-verdict{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:var(--r);font-size:11px;font-family:var(--mono);margin-top:8px}
+  .fl-pass{background:var(--green-bg);color:var(--green);border:1px solid rgba(61,214,140,.3)}
+  .fl-fail{background:var(--red-bg);color:var(--red);border:1px solid rgba(240,96,96,.3)}
 
   .export-wrap{position:relative;width:100%}
   .export-btn{width:100%;padding:7px;background:transparent;border:1px solid var(--line);border-radius:var(--r);color:var(--txt2);font-size:11px;cursor:pointer;font-family:var(--mono);transition:all .15s;display:flex;align-items:center;justify-content:space-between;letter-spacing:.5px}
@@ -226,6 +243,7 @@
       <div class="results-panel" id="results-panel">
         <div class="res-tabs">
           <button class="rtab active" onclick="showRes('fit')">Fit indices</button>
+          <button class="rtab" onclick="showRes('validity')">Validity</button>
           <button class="rtab" onclick="showRes('params')">Parameters</button>
           <button class="rtab" onclick="showRes('chart')">Path chart</button>
           <button class="rtab" id="bs-tab" style="display:none" onclick="showRes('bootstrap')">Bootstrap</button>
@@ -403,7 +421,7 @@ function deleteSelected(){
   document.getElementById('delete-wrap').style.display='none';updateSyntax();draw();
 }
 function clearCanvas(){
-  nodes=[];edges=[];selected=null;arrowStart=null;results=null;
+  nodes=[];edges=[];selected=null;arrowStart=null;results=null;htmtData=null;
   document.getElementById('results-panel').classList.remove('show');
   document.getElementById('syntax-area').value='';
   document.getElementById('sel-info').textContent='Click a node to select';
@@ -501,17 +519,22 @@ async function runFromSyntax(){
     if(!r.ok){alert(data.detail||'Error');return;}
     results=data;switchView('builder');renderResults('fit');
     document.getElementById('results-panel').classList.add('show');
+    document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none';
+    triggerHtmt();
   } catch(err){hideSpinner();alert(err.message);}
 }
 
 // ── HTMT ───────────────────────────────────────────────────────────────────
+let htmtData=null;
 async function triggerHtmt(){
   if(!uploadedFile)return;
   const syntax=document.getElementById('syntax-area').value.trim();if(!syntax)return;
   const fd=new FormData();fd.append('file',uploadedFile);fd.append('model',syntax);
   try{
     const r=await fetch(API+'/htmt',{method:'POST',body:fd});
-    if(!r.ok)return;renderHtmt(await r.json());
+    if(!r.ok)return;
+    htmtData=await r.json();
+    renderHtmt(htmtData);
   } catch {}
 }
 function renderHtmt(data){
@@ -532,7 +555,7 @@ function renderHtmt(data){
 // ── render results ─────────────────────────────────────────────────────────
 function renderResults(tab){
   resTab=tab;
-  document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace(/\s/,'').startsWith(tab)));
+  document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('active',b.textContent.trim().toLowerCase().replace(/\s/g,'')===tab.toLowerCase()));
   const body=document.getElementById('res-body');
   if(!results){body.innerHTML='<div class="no-data">No results yet.</div>';return;}
 
@@ -552,6 +575,76 @@ function renderResults(tab){
     if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
     html+=`</div><div style="font-size:10px;color:var(--txt3);font-family:var(--mono)">Algorithm: ${results.algorithm} · N = ${results.n_obs} · k = ${results.n_params}</div>`;
     if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
+    html+=`<div style="margin-top:12px"><button class="clear-btn" style="width:auto;padding:5px 14px" onclick="downloadResults('fit')">⬇ Download fit indices (.csv)</button></div>`;
+    body.innerHTML=html;
+  }
+
+  if(tab==='validity'){
+    const f=results.fit;
+    const ave=f.ave||{}, cr=f.composite_reliability||{}, alpha=f.cronbach_alpha||{};
+    const fl=f.fornell_larcker||{};
+    const lvs=Object.keys(ave).length?Object.keys(ave):Object.keys(cr).length?Object.keys(cr):Object.keys(alpha);
+    let html='';
+
+    // ── AVE / CR / Alpha table ──────────────────────────────────────────────
+    if(lvs.length){
+      const aveThresh=0.50, crThresh=0.70, aThresh=0.70;
+      const verdict=(val,thresh)=>val==null?'<span style="color:var(--txt3)">—</span>'
+        :`<span style="color:${val>=thresh?'var(--green)':'var(--red)'}">${Number(val).toFixed(3)} ${val>=thresh?'✓':'✗'}</span>`;
+      const rows=lvs.map(lv=>`<tr>
+        <td class="lv-name">${lv}</td>
+        <td>${verdict(ave[lv],aveThresh)}</td>
+        <td>${verdict(cr[lv],crThresh)}</td>
+        <td>${verdict(alpha[lv],aThresh)}</td>
+      </tr>`).join('');
+      html+=`<div class="mv-section">
+        <div class="mv-title">Convergent validity</div>
+        <div style="overflow-x:auto"><table class="mv-table">
+          <thead><tr>
+            <th>Construct</th>
+            <th>AVE <span style="color:var(--txt3);font-weight:400">&gt;0.50</span></th>
+            <th>CR ρc <span style="color:var(--txt3);font-weight:400">&gt;0.70</span></th>
+            <th>Cronbach α <span style="color:var(--txt3);font-weight:400">&gt;0.70</span></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>`;
+    } else {
+      html+='<div class="no-data">No measurement model — validity metrics require latent variables with indicators.</div>';
+    }
+
+    // ── Fornell-Larcker matrix ──────────────────────────────────────────────
+    if(Object.keys(fl).length){
+      const flLvs=Object.keys(fl);
+      const hdrCells=flLvs.map(lv=>`<th>${lv}</th>`).join('');
+      const dataRows=flLvs.map(lv=>{
+        const cells=flLvs.map(lv2=>{
+          const val=fl[lv][lv2];
+          const isDiag=(lv===lv2);
+          const fmt=val!=null?Number(val).toFixed(3):'—';
+          return isDiag?`<td class="fl-diag">${fmt}</td>`:`<td style="color:var(--txt1)">${fmt}</td>`;
+        }).join('');
+        return `<tr><td>${lv}</td>${cells}</tr>`;
+      }).join('');
+      const flPass=f.fornell_larcker_pass;
+      const verdictBadge=flPass==null?''
+        :`<div class="fl-verdict ${flPass?'fl-pass':'fl-fail'}">${flPass?'✓ Discriminant validity confirmed':'✗ Discriminant validity not confirmed'}</div>`;
+      html+=`<div class="mv-section">
+        <div class="mv-title">Fornell-Larcker criterion <span style="color:var(--txt3);font-weight:400;font-size:9px">diagonal = √AVE · off-diagonal = inter-construct r</span></div>
+        <div style="overflow-x:auto"><table class="fl-matrix">
+          <thead><tr><th></th>${hdrCells}</tr></thead>
+          <tbody>${dataRows}</tbody>
+        </table></div>
+        ${verdictBadge}
+      </div>`;
+    }
+
+    if(!html)html='<div class="no-data">No validity data returned. Ensure the model has latent variables with indicators.</div>';
+    html+=`<div style="margin-top:10px;font-size:10px;color:var(--txt3);font-family:var(--mono)">AVE &gt;0.50 · CR &gt;0.70 · α &gt;0.70 · √AVE must exceed all off-diagonal correlations</div>`;
+    html+=`<div style="margin-top:10px;display:flex;gap:8px">
+      <button class="clear-btn" style="width:auto;padding:5px 14px" onclick="downloadResults('validity-csv')">⬇ Download validity (.csv)</button>
+      <button class="clear-btn" style="width:auto;padding:5px 14px" onclick="downloadResults('validity-json')">⬇ Download full JSON</button>
+    </div>`;
     body.innerHTML=html;
   }
 
@@ -602,6 +695,78 @@ function renderResults(tab){
     </tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 }
+function downloadResults(kind){
+  if(!results)return;
+  const f=results.fit;
+  let content='',filename='',mime='text/csv';
+
+  if(kind==='fit'){
+    const rows=[
+      ['Metric','Value','Threshold','Pass'],
+      ['Algorithm',results.algorithm,'',''],
+      ['N',results.n_obs,'',''],
+      ['k (params)',results.n_params,'',''],
+      ['CFI',f.cfi!=null?f.cfi.toFixed(6):'','>= 0.95 (good)',f.cfi!=null?(f.cfi>=0.95?'good':f.cfi>=0.90?'acceptable':'poor'):''],
+      ['RMSEA',f.rmsea!=null?f.rmsea.toFixed(6):'','<= 0.06 (good)',f.rmsea!=null?(f.rmsea<=0.06?'good':f.rmsea<=0.08?'acceptable':'poor'):''],
+      ['SRMR',f.srmr!=null?f.srmr.toFixed(6):'','<= 0.08 (good)',f.srmr!=null?(f.srmr<=0.08?'good':'poor'):''],
+      ['Chi-square',f.chi_square!=null?f.chi_square.toFixed(6):'','',''],
+      ['df',f.df!=null?f.df:'','',''],
+      ['p-value',f.p_value!=null?f.p_value.toFixed(6):'','',''],
+      ['AIC',f.aic!=null?f.aic.toFixed(4):'','',''],
+      ['BIC',f.bic!=null?f.bic.toFixed(4):'','',''],
+    ];
+    if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>rows.push([`R² (${k})`,v!=null?v.toFixed(6):'','>= 0.26 (substantial)','']));
+    content=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+    filename='naval_sem_fit_indices.csv';
+  }
+
+  if(kind==='validity-csv'){
+    const ave=f.ave||{}, cr=f.composite_reliability||{}, alpha=f.cronbach_alpha||{};
+    const fl=f.fornell_larcker||{};
+    const lvs=[...new Set([...Object.keys(ave),...Object.keys(cr),...Object.keys(alpha)])];
+    const lines=['"Section","Construct / Row","Metric","Value","Threshold","Pass"'];
+    lvs.forEach(lv=>{
+      const a=ave[lv],c=cr[lv],al=alpha[lv];
+      if(a!=null)lines.push(`"Convergent","${lv}","AVE","${a.toFixed(6)}",">= 0.50","${a>=0.50?'pass':'fail'}"`);
+      if(c!=null)lines.push(`"Convergent","${lv}","Composite Reliability","${c.toFixed(6)}",">= 0.70","${c>=0.70?'pass':'fail'}"`);
+      if(al!=null)lines.push(`"Convergent","${lv}","Cronbach Alpha","${al.toFixed(6)}",">= 0.70","${al>=0.70?'pass':'fail'}"`);
+    });
+    const flLvs=Object.keys(fl);
+    if(flLvs.length){
+      lines.push('');
+      lines.push('"Fornell-Larcker","Row \\ Col",'+flLvs.map(l=>`"${l}"`).join(','));
+      flLvs.forEach(lv=>{
+        const vals=flLvs.map(lv2=>fl[lv][lv2]!=null?fl[lv][lv2].toFixed(6):'').map(v=>`"${v}"`).join(',');
+        lines.push(`"Fornell-Larcker","${lv}",${vals}`);
+      });
+      const fp=f.fornell_larcker_pass;
+      if(fp!=null)lines.push(`"","Verdict","${fp?'PASS — discriminant validity confirmed':'FAIL — discriminant validity not confirmed'}","","",""`);
+    }
+    content=lines.join('\n');
+    filename='naval_sem_validity.csv';
+  }
+
+  if(kind==='validity-json'){
+    const payload={
+      algorithm:results.algorithm, n_obs:results.n_obs,
+      ave:f.ave, composite_reliability:f.composite_reliability,
+      cronbach_alpha:f.cronbach_alpha,
+      fornell_larcker:f.fornell_larcker,
+      fornell_larcker_pass:f.fornell_larcker_pass,
+      fit:{cfi:f.cfi,rmsea:f.rmsea,srmr:f.srmr,chi_square:f.chi_square,df:f.df,p_value:f.p_value,aic:f.aic,bic:f.bic,r_squared:f.r_squared},
+    };
+    content=JSON.stringify(payload,null,2);
+    filename='naval_sem_results.json';
+    mime='application/json';
+  }
+
+  const blob=new Blob([content],{type:mime});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+}
 function showRes(tab){renderResults(tab);}
 
 // ── view switch ────────────────────────────────────────────────────────────
@@ -611,6 +776,10 @@ function switchView(v){
   document.getElementById('htmt-view').style.display=v==='htmt'?'block':'none';
   document.querySelectorAll('.ttab').forEach((b,i)=>b.classList.toggle('active',['builder','syntax','htmt'][i]===v));
   if(v==='builder')setTimeout(resize,10);
+  if(v==='htmt'){
+    if(htmtData)renderHtmt(htmtData);
+    else if(results)triggerHtmt();
+  }
 }
 function showSpinner(msg){
   document.getElementById('spinner-msg').textContent=msg;
