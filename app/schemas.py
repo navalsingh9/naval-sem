@@ -32,6 +32,13 @@ class FitIndices(BaseModel):
     bic: Optional[float] = None
     r_squared: Optional[Dict[str, float]] = None
 
+    # Measurement validity metrics
+    ave: Optional[Dict[str, float]] = None                          # AVE per LV
+    composite_reliability: Optional[Dict[str, float]] = None        # ρc per LV
+    cronbach_alpha: Optional[Dict[str, float]] = None               # α per LV
+    fornell_larcker: Optional[Dict[str, Dict[str, float]]] = None   # √AVE on diag, r off-diag
+    fornell_larcker_pass: Optional[bool] = None                     # True when all √AVE > off-diag r
+
     # Fit verdict helpers
     cfi_acceptable: Optional[bool] = None    # CFI >= 0.90
     cfi_good: Optional[bool] = None          # CFI >= 0.95
