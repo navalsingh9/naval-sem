@@ -6,14 +6,16 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
+# Default to least privilege
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # ── Windows ────────────────────────────────────────────────────────────────
   build-windows:
     name: Windows EXE + MSI
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +61,7 @@ jobs:
   build-macos:
     name: macOS .app + DMG
     runs-on: macos-14
+
     steps:
       - uses: actions/checkout@v4
 
@@ -76,9 +79,11 @@ jobs:
       - name: Build .app
         run: |
           pyinstaller naval_sem.spec --clean --noconfirm
+
           # If spec produced a binary instead of .app bundle, rebuild as windowed
           if [ ! -d "dist/NAVAL-SEM.app" ]; then
             echo "No .app found, rebuilding with --windowed..."
+
             pyinstaller launcher.py \
               --name "NAVAL-SEM" \
               --windowed \
@@ -107,6 +112,7 @@ jobs:
   build-linux:
     name: Linux Binary + .deb
     runs-on: ubuntu-22.04
+
     steps:
       - uses: actions/checkout@v4
 
@@ -118,9 +124,12 @@ jobs:
       - name: Install system GTK/WebKit deps
         run: |
           sudo apt-get update -q
+
           sudo apt-get install -y \
-            libgtk-3-0 libwebkit2gtk-4.0-dev \
-            python3-gi python3-gi-cairo \
+            libgtk-3-0 \
+            libwebkit2gtk-4.0-dev \
+            python3-gi \
+            python3-gi-cairo \
             gir1.2-webkit2-4.0
 
       - name: Install dependencies
@@ -151,7 +160,13 @@ jobs:
     name: Create GitHub Release
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
+
     if: startsWith(github.ref, 'refs/tags/')
+
+    # Only this job gets write permission
+    permissions:
+      contents: write
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -164,17 +179,20 @@ jobs:
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v2
+
         with:
           name: "NAVAL-SEM ${{ github.ref_name }}"
           draft: false
           prerelease: false
           generate_release_notes: false
+
           files: |
             release-assets/NAVAL-SEM.exe
             release-assets/NAVAL-SEM-Setup.msi
             release-assets/NAVAL-SEM.dmg
             release-assets/NAVAL-SEM
             release-assets/naval-sem_*.deb
+
           body: |
             ## NAVAL-SEM ${{ github.ref_name }}
 
@@ -183,6 +201,7 @@ jobs:
             ---
 
             ### Downloads
+
             | Platform | File | Notes |
             |---|---|---|
             | Windows | `NAVAL-SEM-Setup.msi` | Recommended — installs with Start Menu + uninstall |
@@ -194,21 +213,28 @@ jobs:
             ---
 
             ### 💛 Support Development
+
             NAVAL-SEM is free to use. If you find it useful, please consider donating to help keep the project running.
 
-            👉 [Donate via PayPal](https://www.paypal.com/paypalme/singhn9)
+            👉 https://www.paypal.com/paypalme/singhn9
 
             ---
 
             ### 🐛 Bug Reports & Feedback
+
             Found a bug or have a suggestion? We read every submission!
 
-            👉 [Submit Bug Report / Feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
+            👉 https://forms.gle/N4AmCkJyCK6HHsZz8
 
             ---
 
             ### ⚠️ Windows Security Note
-            Windows may show a SmartScreen warning on first run — this is normal for new apps without a paid code-signing certificate. Click **More info → Run anyway**.
+
+            Windows may show a SmartScreen warning on first run — this is normal for new apps without a paid code-signing certificate.
+
+            Click:
+            More info → Run anyway
 
             ### ⚠️ macOS Note
+
             Right-click → Open the first time to bypass Gatekeeper.
