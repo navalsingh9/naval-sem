@@ -119,7 +119,7 @@ python launcher.py              # opens at http://127.0.0.1:8765
 | Case library | **5 cases, open datasets, expected findings** | Sample projects only |
 | R / Python export | **✓ lavaan, seminr, semopy** | Not available |
 | Data privacy | **Localhost only — nothing transmitted** | Local analysis |
-| Citation count | Growing (2025 launch) | ~50,000+ (established) |
+| Citation count | Growing (2026 launch) | ~50,000+ (established) |
 | Moderation support | In development | Full support |
 
 ---
