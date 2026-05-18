@@ -21,4 +21,4 @@ pyreadstat>=1.2.0
 pywebview>=5.0.0
 
 # Build / packaging tools (install in dev env, not bundled)
-pyinstaller>=6.5.0
+pyinstaller>=6.20.0
