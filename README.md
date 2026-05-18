@@ -10,6 +10,9 @@
 
 ---
 
+## Google Calendar: 
+[Link](https://calendar.google.com/calendar/u/0?cid=YjZmYzkzMTBlYzQxZWQ5MDYxMDgwMDcyN2YwMjY0ZjliZDM1M2FiMjkzNjFlZjBlYjhmMGRkMWNhMmFiNWQ5MEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t)
+
 ## Download
 
 | Platform | File | Notes |
