@@ -18,7 +18,7 @@ xlrd>=2.0.1
 pyreadstat>=1.2.0
 
 # Native desktop window
-pywebview>=5.0.0
+pywebview>=6.2.1
 
 # Build / packaging tools (install in dev env, not bundled)
 pyinstaller>=6.20.0
