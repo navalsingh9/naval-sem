@@ -70,13 +70,18 @@
   .canvas-status{position:absolute;top:8px;left:12px;font-size:11px;color:var(--amber);font-family:var(--mono);pointer-events:none}
   .canvas-error{position:absolute;top:8px;left:12px;font-size:11px;color:var(--red);font-family:var(--mono);pointer-events:none}
   /* results */
-  .results-panel{display:none;border-top:1px solid var(--line);background:var(--bg1);max-height:260px;overflow-y:auto}
-  .results-panel.show{display:block}
-  .res-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 14px;background:var(--bg1);position:sticky;top:0;z-index:2}
-  .rtab{padding:8px 16px;font-size:11px;border:none;background:transparent;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;font-family:var(--mono);transition:all .15s}
-  .rtab:hover:not(.active){color:var(--txt1)}
-  .rtab.active{color:var(--blue);border-bottom-color:var(--blue)}
-  .res-body{padding:14px 16px}
+  .results-panel{display:none;border-top:2px solid var(--line);background:var(--bg1);height:280px;min-height:120px;max-height:75vh;overflow:hidden;flex-direction:column;flex-shrink:0}
+  .results-panel.show{display:flex}
+  .res-tabs{display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--line);background:var(--bg2);flex-shrink:0;flex-direction:column}
+  .res-drag-handle{height:5px;background:transparent;cursor:ns-resize;width:100%;flex-shrink:0;position:relative}
+  .res-drag-handle::after{content:'';position:absolute;left:50%;top:1px;transform:translateX(-50%);width:36px;height:3px;border-radius:2px;background:var(--line2)}
+  .res-drag-handle:hover::after{background:var(--blue-line)}
+  .res-tabs-row{display:flex;align-items:stretch;overflow-x:auto;padding:0 8px}
+  .res-tabs-row::-webkit-scrollbar{height:0}
+  .rtab{padding:8px 14px;font-size:11px;border:none;background:transparent;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;font-family:var(--mono);transition:all .15s;white-space:nowrap;flex-shrink:0}
+  .rtab:hover:not(.active){color:var(--txt1);background:var(--bg3)}
+  .rtab.active{color:var(--blue);border-bottom-color:var(--blue);background:var(--bg1)}
+  .res-body{padding:14px 16px;overflow-y:auto;flex:1}
   .fit-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
   .fit-chip{padding:5px 11px;border-radius:var(--r);font-size:11px;font-weight:500;font-family:var(--mono);border:1px solid transparent}
   .fc-good{background:var(--green-bg);color:var(--green);border-color:rgba(61,214,140,.3)}
@@ -147,7 +152,33 @@
   .spinner{width:32px;height:32px;border:2px solid var(--line2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .spinner-msg{font-family:var(--mono);font-size:11px;color:var(--txt1);letter-spacing:1px}
+  .spinner-counter{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--blue);letter-spacing:2px;min-width:60px;text-align:center;margin-top:2px}
+  .spinner-status{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.5px;min-height:14px;transition:opacity .4s}
   .no-data{padding:20px 0;font-size:11px;color:var(--txt3);font-family:var(--mono);text-align:center}
+  /* Effects tab (v0.4) */
+  .eff-section{margin-top:14px}
+  .eff-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .eff-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);margin-bottom:4px}
+  .eff-table th{text-align:left;padding:5px 10px;color:var(--txt2);font-size:9px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .eff-table td{padding:6px 10px;border-bottom:1px solid var(--line);color:var(--txt0)}
+  .eff-table tr:last-child td{border-bottom:none}
+  .eff-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-family:var(--mono)}
+  .eff-large{background:rgba(61,214,140,.15);color:var(--green)}
+  .eff-medium{background:rgba(77,156,248,.15);color:var(--blue)}
+  .eff-small{background:rgba(240,168,64,.15);color:var(--amber)}
+  .eff-negligible{background:var(--bg3);color:var(--txt3)}
+  .eff-sig{color:var(--green)}
+  .eff-nsig{color:var(--red)}
+  /* Downloads tab */
+  .dl-grid{display:flex;flex-direction:column;gap:2px}
+  .dl-section-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);padding:10px 0 5px;border-bottom:1px solid var(--line)}
+  .dl-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .dl-row:last-child{border-bottom:none}
+  .dl-label{font-size:12px;color:var(--txt0);font-family:var(--mono)}
+  .dl-note{font-size:10px;color:var(--txt3);margin-top:2px}
+  .dl-btn{padding:4px 12px;font-size:10px;font-family:var(--mono);border:1px solid var(--blue-line);border-radius:var(--r);background:transparent;color:var(--blue);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .dl-btn:hover{background:rgba(77,156,248,.1)}
+  .dl-empty{font-size:10px;color:var(--txt3);font-family:var(--mono);padding:6px 0;font-style:italic}
 </style>
 </head>
 <body>
@@ -237,16 +268,23 @@
           <div class="spinner-box">
             <div class="spinner"></div>
             <div class="spinner-msg" id="spinner-msg">FITTING MODEL…</div>
+            <div class="spinner-counter" id="spinner-counter">0s</div>
+            <div class="spinner-status" id="spinner-status"></div>
           </div>
         </div>
       </div>
       <div class="results-panel" id="results-panel">
-        <div class="res-tabs">
-          <button class="rtab active" onclick="showRes('fit')">Fit indices</button>
-          <button class="rtab" onclick="showRes('validity')">Validity</button>
-          <button class="rtab" onclick="showRes('params')">Parameters</button>
-          <button class="rtab" onclick="showRes('chart')">Path chart</button>
-          <button class="rtab" id="bs-tab" style="display:none" onclick="showRes('bootstrap')">Bootstrap</button>
+        <div class="res-tabs" id="res-tabs">
+          <div class="res-drag-handle" id="res-drag-handle" title="Drag to resize"></div>
+          <div class="res-tabs-row">
+            <button class="rtab active" data-tab="fit"       onclick="showRes('fit')">Fit indices</button>
+            <button class="rtab"        data-tab="validity"  onclick="showRes('validity')">Validity</button>
+            <button class="rtab"        data-tab="effects"   onclick="showRes('effects')">Effects</button>
+            <button class="rtab"        data-tab="params"    onclick="showRes('params')">Parameters</button>
+            <button class="rtab"        data-tab="chart"     onclick="showRes('chart')">Path chart</button>
+            <button class="rtab" id="bs-tab" data-tab="bootstrap" style="display:none" onclick="showRes('bootstrap')">Bootstrap</button>
+            <button class="rtab" data-tab="downloads" onclick="showRes('downloads')">⬇ Downloads</button>
+          </div>
         </div>
         <div class="res-body" id="res-body"></div>
       </div>
@@ -580,7 +618,7 @@ function renderHtmt(data){
 // ── render results ─────────────────────────────────────────────────────────
 function renderResults(tab){
   resTab=tab;
-  document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('active',b.textContent.trim().toLowerCase().replace(/\s/g,'')===tab.toLowerCase()));
+  document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   const body=document.getElementById('res-body');
   if(!results){body.innerHTML='<div class="no-data">No results yet.</div>';return;}
 
@@ -600,7 +638,6 @@ function renderResults(tab){
     if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
     html+=`</div><div style="font-size:10px;color:var(--txt3);font-family:var(--mono)">Algorithm: ${results.algorithm} · N = ${results.n_obs} · k = ${results.n_params}</div>`;
     if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
-    html+=`<div style="margin-top:12px"><button class="clear-btn" style="width:auto;padding:5px 14px" onclick="downloadResults('fit')">⬇ Download fit indices (.csv)</button></div>`;
     body.innerHTML=html;
   }
 
@@ -666,41 +703,151 @@ function renderResults(tab){
 
     if(!html)html='<div class="no-data">No validity data returned. Ensure the model has latent variables with indicators.</div>';
     html+=`<div style="margin-top:10px;font-size:10px;color:var(--txt3);font-family:var(--mono)">AVE &gt;0.50 · CR &gt;0.70 · α &gt;0.70 · √AVE must exceed all off-diagonal correlations</div>`;
-    html+=`<div style="margin-top:10px;display:flex;gap:8px">
-      <button class="clear-btn" style="width:auto;padding:5px 14px" onclick="downloadResults('validity-csv')">⬇ Download validity (.csv)</button>
-      <button class="clear-btn" style="width:auto;padding:5px 14px" onclick="downloadResults('validity-json')">⬇ Download full JSON</button>
-    </div>`;
     body.innerHTML=html;
   }
 
+  if(tab==='effects'){
+    const vif    = results.vif    || [];
+    const f2     = results.f2     || [];
+    const ow     = results.outer_weights || [];
+    const ind    = results.indirect;
+    let html = '';
+
+    // ── VIF ────────────────────────────────────────────────────────────────
+    if(vif.length){
+      const rows = vif.map(v=>`<tr>
+        <td style="color:var(--blue)">${v.lv}</td>
+        <td>${v.indicator}</td>
+        <td style="color:${v.vif<3.3?'var(--green)':v.vif<5?'var(--amber)':'var(--red)'}">${v.vif.toFixed(3)}</td>
+        <td style="color:${v.acceptable?'var(--green)':'var(--red)'}">${v.acceptable?'✓ OK':'✗ High'}</td>
+      </tr>`).join('');
+      html+=`<div class="eff-section"><div class="eff-title">VIF — Variance Inflation Factor <span style="color:var(--txt3);font-size:9px">&lt;3.3 strict · &lt;5.0 acceptable</span></div>
+        <div style="overflow-x:auto"><table class="eff-table"><thead><tr>
+          <th>LV</th><th>Indicator</th><th>VIF</th><th>Verdict</th>
+        </tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    }
+
+    // ── f² ─────────────────────────────────────────────────────────────────
+    if(f2.length){
+      const rows = f2.map(e=>`<tr>
+        <td style="color:var(--blue)">${e.lhs}</td>
+        <td style="color:var(--txt2)">←</td>
+        <td>${e.rhs}</td>
+        <td>${e.r2_full.toFixed(3)}</td>
+        <td>${e.r2_reduced.toFixed(3)}</td>
+        <td>${e.f2.toFixed(3)}</td>
+        <td><span class="eff-badge eff-${e.effect}">${e.effect}</span></td>
+      </tr>`).join('');
+      html+=`<div class="eff-section"><div class="eff-title">Cohen's f² — Effect Size <span style="color:var(--txt3);font-size:9px">small ≥0.02 · medium ≥0.15 · large ≥0.35</span></div>
+        <div style="overflow-x:auto"><table class="eff-table"><thead><tr>
+          <th>Dependent</th><th></th><th>Predictor</th><th>R² full</th><th>R² reduced</th><th>f²</th><th>Effect</th>
+        </tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    }
+
+    // ── Outer weights ───────────────────────────────────────────────────────
+    if(ow.length){
+      const rows = ow.map(e=>`<tr>
+        <td style="color:var(--blue)">${e.lv}</td>
+        <td>${e.indicator}</td>
+        <td>${e.estimate.toFixed(3)}</td>
+        <td>${e.bs_mean.toFixed(3)}</td>
+        <td>${e.bs_se.toFixed(3)}</td>
+        <td style="color:var(--txt2)">[${e.ci_lower_95.toFixed(3)}, ${e.ci_upper_95.toFixed(3)}]</td>
+        <td>${e.t_stat!=null?e.t_stat.toFixed(2):'—'}</td>
+        <td class="${e.significant?'eff-sig':'eff-nsig'}">${e.significant?'✓':'✗'}</td>
+      </tr>`).join('');
+      html+=`<div class="eff-section"><div class="eff-title">Outer Weight Significance <span style="color:var(--txt3);font-size:9px">bootstrapped 95% CI · t = estimate / BS SE</span></div>
+        <div style="overflow-x:auto"><table class="eff-table"><thead><tr>
+          <th>LV</th><th>Indicator</th><th>Estimate</th><th>BS Mean</th><th>BS SE</th><th>95% CI</th><th>t</th><th>Sig</th>
+        </tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    } else if(!vif.length && !f2.length){
+      html += `<div class="no-data">Run the model with bootstrap &gt; 0 to see outer weight significance.</div>`;
+    }
+
+    // ── Indirect effects ────────────────────────────────────────────────────
+    if(ind && ind.effects && ind.effects.length){
+      const rows = ind.effects.map(e=>`<tr>
+        <td style="color:var(--blue)">${e.from_var}</td>
+        <td style="color:var(--txt2)">→ ${e.through.join(' → ')} →</td>
+        <td style="color:var(--blue)">${e.to_var}</td>
+        <td>${e.indirect_effect.toFixed(3)}</td>
+        <td>${e.bs_se!=null?e.bs_se.toFixed(3):'—'}</td>
+        <td style="color:var(--txt2)">${e.ci_lower_95!=null?'['+e.ci_lower_95.toFixed(3)+', '+e.ci_upper_95.toFixed(3)+']':'—'}</td>
+        <td class="${e.significant?'eff-sig':'eff-nsig'}">${e.significant!=null?(e.significant?'✓':'✗'):'—'}</td>
+      </tr>`).join('');
+
+      // Total effects matrix
+      let teHtml = '';
+      const te = ind.total_effects;
+      const teKeys = Object.keys(te);
+      if(teKeys.length){
+        const allTo = [...new Set(teKeys.flatMap(k=>Object.keys(te[k])))];
+        const hdr = allTo.map(t=>`<th>${t}</th>`).join('');
+        const teRows = teKeys.map(from=>`<tr><td style="color:var(--blue)">${from}</td>${allTo.map(to=>`<td>${te[from][to]!=null?te[from][to].toFixed(3):'—'}</td>`).join('')}</tr>`).join('');
+        teHtml = `<div class="eff-title" style="margin-top:12px">Total Effects Matrix</div>
+          <div style="overflow-x:auto"><table class="eff-table"><thead><tr><th>From \\ To</th>${hdr}</tr></thead><tbody>${teRows}</tbody></table></div>`;
+      }
+
+      html+=`<div class="eff-section"><div class="eff-title">Indirect Effects <span style="color:var(--txt3);font-size:9px">bootstrapped 95% CI</span></div>
+        <div style="overflow-x:auto"><table class="eff-table"><thead><tr>
+          <th>From</th><th>Through</th><th>To</th><th>Indirect</th><th>BS SE</th><th>95% CI</th><th>Sig</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>
+        ${teHtml}</div>`;
+    }
+
+    if(!html) html = '<div class="no-data">No effects data. Run with bootstrap &gt; 0 for full v0.4 output.</div>';
+    body.innerHTML = html;
+  }
+
   if(tab==='params'){
-    const rows=results.parameters.map(p=>`<tr>
-      <td>${p.lhs}</td><td class="op">${p.op}</td><td>${p.rhs}</td>
-      <td style="font-weight:500">${Number(p.estimate).toFixed(4)}</td>
-      <td>${Number(p.std_error).toFixed(4)}</td>
-      <td>${p.z_value?Number(p.z_value).toFixed(3):'—'}</td>
-      <td class="${p.significant?'sig':'nsig'}">${Number(p.p_value).toFixed(4)}</td>
-      <td class="ci">${p.ci_lower!=null?Number(p.ci_lower).toFixed(3):'—'}</td>
-      <td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td>
-    </tr>`).join('');
-    body.innerHTML=`<div style="overflow-x:auto"><table class="param-table"><thead><tr>
-      <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th>SE</th><th>z</th><th>p-value</th><th>CI lo</th><th>CI hi</th>
+    const isPLS = (results.algorithm||'').includes('PLS');
+    const hasBS = results.bootstrap || (results.outer_weights && results.outer_weights.length);
+    const plsNote = isPLS && !hasBS
+      ? `<div class="warn-box" style="margin-bottom:10px">PLS-SEM does not produce analytical p-values. Run with bootstrapping enabled to get significance testing via 95% CIs.</div>`
+      : '';
+    const pLabel = isPLS ? (hasBS ? 'Sig (BS)' : 'p-value*') : 'p-value';
+    const rows=results.parameters.map(p=>{
+      const pDisplay = isPLS && hasBS
+        ? `<td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'✗'}</td>`
+        : `<td class="${p.significant?'sig':'nsig'}">${Number(p.p_value).toFixed(4)}</td>`;
+      return `<tr>
+        <td>${p.lhs}</td><td class="op">${p.op}</td><td>${p.rhs}</td>
+        <td style="font-weight:500">${Number(p.estimate).toFixed(4)}</td>
+        <td>${p.std_error?Number(p.std_error).toFixed(4):'—'}</td>
+        <td>${p.z_value?Number(p.z_value).toFixed(3):'—'}</td>
+        ${pDisplay}
+        <td class="ci">${p.ci_lower!=null?Number(p.ci_lower).toFixed(3):'—'}</td>
+        <td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td>
+      </tr>`;
+    }).join('');
+    body.innerHTML=`${plsNote}<div style="overflow-x:auto"><table class="param-table"><thead><tr>
+      <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th>SE</th><th>z</th><th>${pLabel}</th><th>CI lo</th><th>CI hi</th>
     </tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
   if(tab==='chart'){
-    const str=results.parameters.filter(p=>p.op==='~');
-    if(!str.length){body.innerHTML='<div class="no-data">No structural paths.</div>';return;}
+    const isPLS = (results.algorithm||'').includes('PLS');
+    const hasBS = results.bootstrap || (results.outer_weights && results.outer_weights.length);
+    const lvSet = new Set(results.latent_variables||[]);
+    // Only show structural paths between latent variables (not measurement loadings)
+    const str = results.parameters.filter(p =>
+      p.op==='~' && lvSet.has(p.lhs) && lvSet.has(p.rhs)
+    );
+    if(!str.length){body.innerHTML='<div class="no-data">No structural paths between latent variables.</div>';return;}
     const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
     const bars=str.map(p=>{
       const pct=mx>0?(Math.abs(p.estimate)/mx*100).toFixed(0):0;
+      const sig = p.significant;
       return `<div class="bar-row">
         <div class="bar-label">${p.rhs} → ${p.lhs}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${p.significant?'var(--blue)':'var(--txt3)'}"></div></div>
-        <div class="bar-val" style="color:${p.significant?'var(--txt0)':'var(--txt2)'}">${Number(p.estimate).toFixed(3)}${p.significant?'':' ns'}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${sig?'var(--blue)':'var(--txt3)'}"></div></div>
+        <div class="bar-val" style="color:${sig?'var(--txt0)':'var(--txt2)'}">${Number(p.estimate).toFixed(3)}${sig?'':' ns'}</div>
       </div>`;
     }).join('');
-    body.innerHTML=`<div class="bar-chart">${bars}</div><div style="margin-top:8px;font-size:10px;color:var(--txt3);font-family:var(--mono)">ns = not significant · bar width = relative magnitude</div>`;
+    const note = isPLS && !hasBS
+      ? `<div class="warn-box" style="margin-top:8px">PLS significance requires bootstrapping — bars shown in grey until bootstrap is run.</div>`
+      : `<div style="margin-top:8px;font-size:10px;color:var(--txt3);font-family:var(--mono)">ns = not significant · bar width = relative magnitude${isPLS||hasBS?' · significance from bootstrap CIs':' · significance from p &lt; 0.05'}</div>`;
+    body.innerHTML=`<div class="bar-chart">${bars}</div>${note}`;
   }
 
   if(tab==='bootstrap'&&results.bootstrap){
@@ -718,6 +865,52 @@ function renderResults(tab){
     <div style="overflow-x:auto"><table class="param-table"><thead><tr>
       <th>LHS</th><th>Op</th><th>RHS</th><th>BS Mean</th><th>BS SE</th><th>95% CI</th><th>Sig</th>
     </tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  if(tab==='downloads'){
+    if(!results){body.innerHTML='<div class="no-data">Run a model first.</div>';return;}
+    const f=results.fit;
+    const hasValidity  = f&&(f.ave||f.composite_reliability);
+    const hasEffects   = results.vif||results.f2||results.outer_weights||results.indirect;
+    const hasBootstrap = results.bootstrap;
+    const hasJson      = true;
+
+    const dlBtn=(label,kind,note='')=>`
+      <div class="dl-row">
+        <div class="dl-info">
+          <div class="dl-label">${label}</div>
+          ${note?`<div class="dl-note">${note}</div>`:''}
+        </div>
+        <button class="dl-btn" onclick="downloadResults('${kind}')">⬇ Download</button>
+      </div>`;
+
+    let html=`<div class="dl-section-title">Fit & Model</div>`;
+    html+=dlBtn('Fit indices (.csv)','fit','CFI, RMSEA, SRMR, χ², AIC, BIC, R² with thresholds');
+    html+=dlBtn('Parameters (.csv)','params-csv','All path estimates, SE, p-values, CIs');
+    html+=`<div class="dl-section-title" style="margin-top:14px">Measurement Validity</div>`;
+    if(hasValidity){
+      html+=dlBtn('Validity metrics (.csv)','validity-csv','AVE, CR, Cronbach α with pass/fail');
+      html+=dlBtn('Fornell-Larcker matrix (.csv)','validity-csv','Included in validity export');
+    } else {
+      html+=`<div class="dl-empty">No validity data — model needs latent variables with indicators.</div>`;
+    }
+    html+=`<div class="dl-section-title" style="margin-top:14px">v0.4 Effects</div>`;
+    if(hasEffects){
+      html+=dlBtn('Effects (.csv)','effects-csv','VIF, f², outer weights, indirect & total effects');
+    } else {
+      html+=`<div class="dl-empty">Run with bootstrap &gt; 0 to get outer weights and indirect effects.</div>`;
+    }
+    if(hasBootstrap){
+      html+=`<div class="dl-section-title" style="margin-top:14px">Bootstrap</div>`;
+      html+=dlBtn('Bootstrap results (.csv)','bootstrap-csv','BS mean, SE, 95% CI per parameter');
+    }
+    html+=`<div class="dl-section-title" style="margin-top:14px">Full Export</div>`;
+    html+=dlBtn('Complete results (.json)','validity-json','All fields — fit, validity, effects, bootstrap');
+    html+=dlBtn('R / lavaan script (.R)','code-r','Paste into R to replicate this model');
+    html+=dlBtn('Python / semopy script (.py)','code-py','Paste into Python to replicate');
+    html+=dlBtn('JASP syntax (.lav)','code-lav','Compatible with JASP, jamovi, R lavaan');
+
+    body.innerHTML=`<div class="dl-grid">${html}</div>`;
   }
 }
 function downloadResults(kind){
@@ -785,13 +978,104 @@ function downloadResults(kind){
     mime='application/json';
   }
 
-  const blob=new Blob([content],{type:mime});
+  if(kind==='params-csv'){
+    const rows=[['LHS','Op','RHS','Estimate','SE','z','p-value','CI Lower','CI Upper','Significant']];
+    (results.parameters||[]).forEach(p=>rows.push([p.lhs,p.op,p.rhs,p.estimate,p.std_error,p.z_value,p.p_value,p.ci_lower??'',p.ci_upper??'',p.significant?'yes':'no']));
+    content=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+    filename='naval_sem_parameters.csv';
+  }
+
+  if(kind==='bootstrap-csv'){
+    const bs=results.bootstrap;
+    if(!bs){return;}
+    const rows=[['LHS','Op','RHS','BS Mean','BS SE','CI Lower 95','CI Upper 95','Significant']];
+    (bs.parameters||[]).forEach(p=>rows.push([p.lhs||'',p.op||'',p.rhs||'',p.bs_mean,p.bs_se,p.ci_lower_95,p.ci_upper_95,p.significant?'yes':'no']));
+    content=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+    filename='naval_sem_bootstrap.csv';
+  }
+
+  if(kind==='code-r'||kind==='code-py'||kind==='code-lav'){
+    const fmtMap={'code-r':'r','code-py':'python','code-lav':'lav'};
+    const extMap={'code-r':'R','code-py':'py','code-lav':'lav'};
+    const syntax=document.getElementById('syntax-area')?.value||'';
+    if(!syntax.trim()){alert('No model syntax found.');return;}
+    const algo=(results.algorithm||'cb').toLowerCase().includes('pls')?'pls':
+                (results.algorithm||'').toLowerCase().includes('wls')?'wls':'cb';
+    fetch('/export',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:syntax,algorithm:algo,format:fmtMap[kind]})})
+      .then(r=>r.text()).then(code=>{
+        const blob=new Blob([code],{type:'text/plain'});
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=`naval_sem_model.${extMap[kind]}`;
+        document.body.appendChild(a);a.click();
+        setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+      }).catch(()=>alert('Export failed.'));
+    return;
+  }
+
+  if(kind==='effects-csv'){
+    const lines=['"Section","Field 1","Field 2","Field 3","Value","Note"'];
+    (results.vif||[]).forEach(v=>lines.push(`"VIF","${v.lv}","${v.indicator}","","${v.vif.toFixed(6)}","${v.acceptable?'acceptable':'HIGH'}"`));
+    (results.f2||[]).forEach(e=>lines.push(`"f2","${e.lhs}","${e.rhs}","","${e.f2.toFixed(6)}","${e.effect} (R2_full=${e.r2_full.toFixed(4)})"`));
+    (results.outer_weights||[]).forEach(e=>lines.push(`"OuterWeight","${e.lv}","${e.indicator}","estimate=${e.estimate.toFixed(6)}","t=${e.t_stat!=null?e.t_stat.toFixed(3):'NA'}","${e.significant?'significant':'n.s.'} CI=[${e.ci_lower_95.toFixed(4)},${e.ci_upper_95.toFixed(4)}]"`));
+    if(results.indirect){
+      (results.indirect.effects||[]).forEach(e=>lines.push(`"Indirect","${e.from_var}","${e.through.join('>')}","${e.to_var}","${e.indirect_effect.toFixed(6)}","${e.significant?'significant':'n.s.'} CI=[${e.ci_lower_95!=null?e.ci_lower_95.toFixed(4):'NA'},${e.ci_upper_95!=null?e.ci_upper_95.toFixed(4):'NA'}]"`));
+      Object.entries(results.indirect.total_effects||{}).forEach(([from,tos])=>Object.entries(tos).forEach(([to,v])=>lines.push(`"TotalEffect","${from}","${to}","","${v.toFixed(6)}",""`))); 
+    }
+    content=lines.join('\n');filename='naval_sem_effects.csv';
+  }
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
   document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
 }
+// ── Results panel drag-to-resize ───────────────────────────────────────────
+(function(){
+  const handle = document.getElementById('res-drag-handle');
+  const panel  = document.getElementById('results-panel');
+  if(!handle||!panel) return;
+  let dragging=false, startY=0, startH=0;
+  handle.addEventListener('mousedown', e=>{
+    dragging=true;
+    startY=e.clientY;
+    startH=panel.offsetHeight;
+    document.body.style.userSelect='none';
+    document.body.style.cursor='ns-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    // dragging UP = bigger panel (delta is negative → subtract from height)
+    const delta = startY - e.clientY;
+    const newH  = Math.min(Math.max(startH + delta, 120), window.innerHeight * 0.75);
+    panel.style.height = newH + 'px';
+    if(typeof resize==='function') resize();
+  });
+  document.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging=false;
+    document.body.style.userSelect='';
+    document.body.style.cursor='';
+  });
+  // Touch support
+  handle.addEventListener('touchstart', e=>{
+    dragging=true;
+    startY=e.touches[0].clientY;
+    startH=panel.offsetHeight;
+    e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchmove', e=>{
+    if(!dragging) return;
+    const delta = startY - e.touches[0].clientY;
+    const newH  = Math.min(Math.max(startH + delta, 120), window.innerHeight * 0.75);
+    panel.style.height = newH + 'px';
+    if(typeof resize==='function') resize();
+  },{passive:false});
+  document.addEventListener('touchend', ()=>{ dragging=false; });
+})();
+
 function showRes(tab){renderResults(tab);}
 
 // ── view switch ────────────────────────────────────────────────────────────
@@ -806,14 +1090,46 @@ function switchView(v){
     else if(results)triggerHtmt();
   }
 }
+let _spinnerTimer = null;
+const _spinnerMsgs = [
+  'Parsing model syntax…',
+  'Building covariance structure…',
+  'Fitting model parameters…',
+  'Computing fit indices…',
+  'Calculating AVE & reliability…',
+  'Running bootstrap samples…',
+  'Computing VIF & f² effects…',
+  'Tracing indirect paths…',
+  'Bootstrapping outer weights…',
+  'Assembling results…',
+];
 function showSpinner(msg){
-  document.getElementById('spinner-msg').textContent=msg;
+  document.getElementById('spinner-msg').textContent = msg || 'FITTING MODEL…';
+  document.getElementById('spinner-counter').textContent = '0s';
+  document.getElementById('spinner-status').textContent = _spinnerMsgs[0];
   document.getElementById('spinner').classList.add('show');
-  document.getElementById('run-btn').disabled=true;
+  document.getElementById('run-btn').disabled = true;
+  let elapsed = 0, msgIdx = 0;
+  _spinnerTimer = setInterval(() => {
+    elapsed++;
+    document.getElementById('spinner-counter').textContent = elapsed + 's';
+    // rotate status message every 3 seconds, cycle through list
+    if (elapsed % 3 === 0) {
+      msgIdx = (msgIdx + 1) % _spinnerMsgs.length;
+      const el = document.getElementById('spinner-status');
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = _spinnerMsgs[msgIdx];
+        el.style.opacity = '1';
+      }, 200);
+    }
+  }, 1000);
 }
 function hideSpinner(){
+  clearInterval(_spinnerTimer);
+  _spinnerTimer = null;
   document.getElementById('spinner').classList.remove('show');
-  document.getElementById('run-btn').disabled=false;
+  document.getElementById('run-btn').disabled = false;
 }
 
 // ── demo ───────────────────────────────────────────────────────────────────

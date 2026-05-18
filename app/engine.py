@@ -16,6 +16,7 @@ from app.parser import parse_lavaan, build_semopy_syntax
 from app.schemas import (
     ModelResult, PathParameter, FitIndices,
     BootstrapResult, HTMTResult, HTMTEntry,
+    VIFEntry, F2Entry, IndirectEffect, IndirectResult, OuterWeightEntry,
 )
 
 
@@ -407,6 +408,7 @@ def fit_model(
     df: pd.DataFrame,
     model_syntax: str,
     algorithm: str = "pls",
+    bootstrap_n: int = 0,
 ) -> ModelResult:
     try:
         from semopy import Model
@@ -560,6 +562,67 @@ def fit_model(
 
     fit = _fit_verdict(fit)
 
+    # ── v0.4: VIF and f² ─────────────────────────────────────────────────────
+    vif_entries: list[VIFEntry] = []
+    try:
+        vif_entries = compute_vif(df, model_syntax)
+    except Exception as e:
+        warnings.append(f"Could not compute VIF: {e}")
+
+    f2_entries: list[F2Entry] = []
+    try:
+        f2_entries = compute_f2(df, model_syntax)
+    except Exception as e:
+        warnings.append(f"Could not compute f²: {e}")
+
+    outer_weight_entries: list[OuterWeightEntry] = []
+    if bootstrap_n > 0:
+        try:
+            outer_weight_entries = compute_outer_weight_significance(
+                df, model_syntax, n=bootstrap_n
+            )
+        except Exception as e:
+            warnings.append(f"Could not compute outer weight significance: {e}")
+
+    # ── Significance back-fill from bootstrap CIs ────────────────────────────
+    # Triggers when bootstrap was run AND any structural path has no real
+    # p-value (p == 1.0 sentinel). This covers: PLS-SEM (no analytical p),
+    # PLS falling back to CB-SEM (use_pls stays False), and any estimator
+    # where semopy returns NaN/None p-values.
+    structural_vars_set = {r["lhs"] for r in parsed.get("structural", [])} | \
+                          {r["rhs"] for r in parsed.get("structural", [])}
+    structural_params = [p for p in parameters
+                         if p.op == "~"
+                         and p.lhs in structural_vars_set
+                         and p.rhs in structural_vars_set]
+    missing_pvals = any(p.p_value >= 0.999 for p in structural_params)
+
+    if bootstrap_n > 0 and (missing_pvals or use_pls):
+        try:
+            bs_result_tmp = run_bootstrap(df, model_syntax, n=bootstrap_n,
+                                          algorithm=algorithm)
+            bs_sig_map: dict[tuple[str, str, str], tuple[bool, float, float]] = {}
+            for bp in bs_result_tmp.parameters:
+                key = (str(bp.get("lhs", "")), str(bp.get("op", "")),
+                       str(bp.get("rhs", "")))
+                bs_sig_map[key] = (
+                    bool(bp.get("significant", False)),
+                    float(bp.get("ci_lower_95", 0)),
+                    float(bp.get("ci_upper_95", 0)),
+                )
+            for param in parameters:
+                key = (param.lhs, param.op, param.rhs)
+                if key in bs_sig_map:
+                    sig, ci_lo, ci_hi = bs_sig_map[key]
+                    param.significant = sig
+                    param.p_value = 0.001 if sig else 0.999
+                    if param.ci_lower is None:
+                        param.ci_lower = round(ci_lo, 6)
+                    if param.ci_upper is None:
+                        param.ci_upper = round(ci_hi, 6)
+        except Exception as e:
+            warnings.append(f"Could not back-fill significance from bootstrap: {e}")
+
     return ModelResult(
         algorithm=algo_label,
         n_obs=len(df),
@@ -569,6 +632,9 @@ def fit_model(
         fit=fit,
         latent_variables=parsed["latent_vars"],
         observed_variables=parsed["observed_vars"],
+        vif=vif_entries or None,
+        f2=f2_entries or None,
+        outer_weights=outer_weight_entries or None,
         warnings=warnings,
     )
 
@@ -691,6 +757,412 @@ def compute_htmt(df: pd.DataFrame, model_syntax: str) -> HTMTResult:
         matrix=entries,
         all_acceptable=all(e.acceptable for e in entries),
     )
+
+
+# ── Outer weight significance ─────────────────────────────────────────────────
+
+def compute_outer_weight_significance(
+    df: pd.DataFrame,
+    model_syntax: str,
+    n: int = 500,
+    seed: int = 42,
+) -> list[OuterWeightEntry]:
+    """
+    Bootstrap significance test for outer weights / loadings.
+
+    For each indicator-LV pair in the measurement model:
+      - Point estimate: loading/weight from the full-data fit
+      - Bootstrap distribution: n re-fits on resampled data
+      - Reports BS mean, SE, 95% percentile CI, t-stat = estimate / BS_SE
+      - Significant when the 95% CI excludes zero
+
+    Works for both reflective (outer loadings) and formative (outer weights)
+    indicators. Uses the same variable-name lookup as _extract_loadings so it
+    is robust to semopy's op-column inconsistencies across versions.
+    """
+    try:
+        from semopy import Model
+    except ImportError:
+        raise RuntimeError("semopy is not installed.")
+
+    parsed     = parse_lavaan(model_syntax)
+    syntax     = build_semopy_syntax(parsed)
+    measurement = parsed.get("measurement", {})
+
+    if not measurement:
+        return []
+
+    # ── Point estimates from full-data fit ────────────────────────────────────
+    m_full = Model(syntax)
+    m_full.fit(df)
+    full_loadings = _extract_loadings(m_full.inspect(), measurement, df)
+
+    # Build ordered list of (lv, indicator) pairs we have estimates for
+    pairs: list[tuple[str, str]] = []
+    point_ests: list[float] = []
+    for lv, indicators in measurement.items():
+        lv_lams = full_loadings.get(lv, [])
+        inds_with_data = [i for i in indicators if i in df.columns]
+        for k, ind in enumerate(inds_with_data):
+            if k < len(lv_lams):
+                pairs.append((lv, ind))
+                point_ests.append(lv_lams[k])
+
+    if not pairs:
+        return []
+
+    # ── Bootstrap ─────────────────────────────────────────────────────────────
+    bs_collections: list[list[float]] = [[] for _ in pairs]
+    rng = np.random.default_rng(seed)
+
+    for _ in range(n):
+        sample = df.sample(frac=1, replace=True,
+                           random_state=int(rng.integers(1_000_000)))
+        try:
+            m_bs = Model(syntax)
+            m_bs.fit(sample)
+            bs_lams = _extract_loadings(m_bs.inspect(), measurement, sample)
+            for idx, (lv, ind) in enumerate(pairs):
+                lv_lams_bs = bs_lams.get(lv, [])
+                inds_bs = [i for i in measurement[lv] if i in sample.columns]
+                k = inds_bs.index(ind) if ind in inds_bs else -1
+                if 0 <= k < len(lv_lams_bs):
+                    bs_collections[idx].append(lv_lams_bs[k])
+        except Exception:
+            continue
+
+    # ── Assemble results ──────────────────────────────────────────────────────
+    entries: list[OuterWeightEntry] = []
+    for idx, (lv, ind) in enumerate(pairs):
+        pe  = point_ests[idx]
+        bs  = bs_collections[idx]
+        if len(bs) < 2:
+            continue
+        bs_mean = float(np.mean(bs))
+        bs_se   = float(np.std(bs, ddof=1))
+        ci_lo   = float(np.percentile(bs, 2.5))
+        ci_hi   = float(np.percentile(bs, 97.5))
+        t_stat  = _safe_float(pe / bs_se) if bs_se > 0 else None
+        entries.append(OuterWeightEntry(
+            lv=lv,
+            indicator=ind,
+            estimate=round(pe, 6),
+            bs_mean=round(bs_mean, 6),
+            bs_se=round(bs_se, 6),
+            ci_lower_95=round(ci_lo, 6),
+            ci_upper_95=round(ci_hi, 6),
+            t_stat=t_stat,
+            significant=not (ci_lo <= 0 <= ci_hi),
+        ))
+    return entries
+
+
+# ── VIF ───────────────────────────────────────────────────────────────────────
+
+def compute_vif(df: pd.DataFrame, model_syntax: str) -> list[VIFEntry]:
+    """
+    Variance Inflation Factor for each indicator within each LV block.
+    For indicator i: VIF_i = 1 / (1 − R²_i)
+    where R²_i = R² from regressing x_i on all other indicators in the same block.
+
+    Useful for diagnosing multicollinearity in formative measurement models.
+    Threshold: VIF < 5.0 is acceptable; < 3.3 is the strict PLS-SEM standard.
+    """
+    parsed = parse_lavaan(model_syntax)
+    measurement = parsed.get("measurement", {})
+    entries: list[VIFEntry] = []
+
+    for lv, indicators in measurement.items():
+        cols = [c for c in indicators if c in df.columns]
+        if len(cols) < 2:
+            if cols:
+                entries.append(VIFEntry(lv=lv, indicator=cols[0], vif=1.0, acceptable=True))
+            continue
+        X = df[cols].dropna().values.astype(float)
+        for i, ind in enumerate(cols):
+            try:
+                y = X[:, i]
+                others = np.delete(X, i, axis=1)
+                X_int = np.column_stack([np.ones(len(y)), others])
+                beta = np.linalg.lstsq(X_int, y, rcond=None)[0]
+                y_pred = X_int @ beta
+                ss_res = float(np.sum((y - y_pred) ** 2))
+                ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+                r2 = min(max(1.0 - ss_res / ss_tot, 0.0), 0.9999) if ss_tot > 0 else 0.0
+                vif = _safe_float(1.0 / (1.0 - r2))
+            except Exception:
+                vif = None
+            if vif is not None:
+                entries.append(VIFEntry(lv=lv, indicator=ind, vif=vif, acceptable=vif < 5.0))
+
+    return entries
+
+
+# ── f² effect size ─────────────────────────────────────────────────────────────
+
+def _r2_for_lv(sem_model, df: pd.DataFrame, lv: str) -> Optional[float]:
+    """Extract R² for a given endogenous LV from a fitted semopy model."""
+    try:
+        pred = sem_model.predict(df)
+        if lv in pred.columns and lv in df.columns:
+            ss_res = float(((df[lv] - pred[lv]) ** 2).sum())
+            ss_tot = float(((df[lv] - df[lv].mean()) ** 2).sum())
+            if ss_tot > 0:
+                return 1.0 - ss_res / ss_tot
+    except Exception:
+        pass
+    return None
+
+
+def compute_f2(
+    df: pd.DataFrame,
+    model_syntax: str,
+) -> list[F2Entry]:
+    """
+    Cohen's f² effect size for each structural path.
+    f² = (R²_full − R²_reduced) / (1 − R²_full)
+
+    Computes R² directly from OLS residuals (composite-score approach):
+    each LV is represented by the unweighted mean of its indicators.
+    This avoids dependence on semopy's predict() which is unreliable for CB-SEM.
+
+    Benchmarks (Cohen 1988): negligible < 0.02, small ≥ 0.02, medium ≥ 0.15, large ≥ 0.35.
+    """
+    parsed = parse_lavaan(model_syntax)
+    structural = parsed.get("structural", [])
+    measurement = parsed.get("measurement", {})
+    if not structural:
+        return []
+
+    # Build LV composite scores: mean of indicators for each LV
+    composites: dict[str, pd.Series] = {}
+    for lv, indicators in measurement.items():
+        cols = [c for c in indicators if c in df.columns]
+        if cols:
+            composites[lv] = df[cols].mean(axis=1)
+        elif lv in df.columns:
+            composites[lv] = df[lv]
+
+    # For observed-only variables (pure path model)
+    for rel in structural:
+        for var in (rel["lhs"], rel["rhs"]):
+            if var not in composites and var in df.columns:
+                composites[var] = df[var]
+
+    def ols_r2(y_series: pd.Series, x_series_list: list[pd.Series]) -> float:
+        """R² from OLS regression of y on x_series_list."""
+        if not x_series_list:
+            return 0.0
+        data = pd.concat([y_series] + x_series_list, axis=1).dropna()
+        if len(data) < 2:
+            return 0.0
+        y = data.iloc[:, 0].values
+        X = np.column_stack([np.ones(len(y))] + [data.iloc[:, i+1].values
+                                                  for i in range(len(x_series_list))])
+        try:
+            beta = np.linalg.lstsq(X, y, rcond=None)[0]
+            y_pred = X @ beta
+            ss_res = float(np.sum((y - y_pred) ** 2))
+            ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+            return max(1.0 - ss_res / ss_tot, 0.0) if ss_tot > 0 else 0.0
+        except Exception:
+            return 0.0
+
+    # Group predictors by lhs
+    from collections import defaultdict
+    preds_by_lhs: dict[str, list[str]] = defaultdict(list)
+    for rel in structural:
+        preds_by_lhs[rel["lhs"]].append(rel["rhs"])
+
+    entries: list[F2Entry] = []
+    for rel in structural:
+        lhs, rhs = rel["lhs"], rel["rhs"]
+        if lhs not in composites or rhs not in composites:
+            continue
+        try:
+            all_preds = preds_by_lhs[lhs]
+            full_xs   = [composites[p] for p in all_preds if p in composites]
+            reduced_xs = [composites[p] for p in all_preds if p in composites and p != rhs]
+
+            r2_f = ols_r2(composites[lhs], full_xs)
+            r2_r = ols_r2(composites[lhs], reduced_xs)
+
+            denom   = 1.0 - r2_f
+            f2_val  = max((r2_f - r2_r) / denom, 0.0) if denom > 0 else 0.0
+
+            effect = ("large" if f2_val >= 0.35
+                      else "medium" if f2_val >= 0.15
+                      else "small"  if f2_val >= 0.02
+                      else "negligible")
+
+            entries.append(F2Entry(
+                lhs=lhs, rhs=rhs,
+                r2_full=round(r2_f, 6),
+                r2_reduced=round(r2_r, 6),
+                f2=round(f2_val, 6),
+                effect=effect,
+            ))
+        except Exception:
+            continue
+
+    return entries
+
+
+# ── Indirect effects ───────────────────────────────────────────────────────────
+
+def _build_coef_map(params_df: pd.DataFrame, structural_vars: set[str] | None = None) -> dict[tuple[str, str], float]:
+    """
+    Return {(rhs, lhs): coefficient} for structural (~) rows only.
+    When structural_vars is provided, only rows where BOTH lhs and rhs are
+    in that set are included — this filters out measurement loadings that
+    semopy also writes with op='~'.
+    """
+    est_col = "Estimate" if "Estimate" in params_df.columns else "estimate"
+    coef: dict[tuple[str, str], float] = {}
+    for _, row in params_df.iterrows():
+        op  = str(row.get("op", "~"))
+        lhs = str(row.get("lval", row.get("lhs", "")))
+        rhs = str(row.get("rval", row.get("rhs", "")))
+        est = _safe_float(row.get(est_col))
+        if est is not None and op == "~":
+            if structural_vars is None or (lhs in structural_vars and rhs in structural_vars):
+                coef[(rhs, lhs)] = est
+    return coef
+
+
+def _find_all_paths(
+    graph: dict[str, list[str]],
+    start: str,
+    end: str,
+    max_depth: int = 6,
+) -> list[list[str]]:
+    """All simple directed paths from start to end (no cycles)."""
+    paths: list[list[str]] = []
+    stack = [(start, [start])]
+    while stack:
+        node, path = stack.pop()
+        if len(path) > max_depth + 1:
+            continue
+        for nxt in graph.get(node, []):
+            if nxt in path:
+                continue
+            new_path = path + [nxt]
+            if nxt == end:
+                paths.append(new_path)
+            else:
+                stack.append((nxt, new_path))
+    return paths
+
+
+def compute_indirect_effects(
+    df: pd.DataFrame,
+    model_syntax: str,
+    n_bootstrap: int = 500,
+    seed: int = 42,
+) -> IndirectResult:
+    """
+    Decompose indirect effects for all variable pairs connected via paths ≥ 2 edges.
+    Point estimate = product of path coefficients along each indirect path.
+    Bootstrapped 95% percentile CIs computed when n_bootstrap > 0.
+    Total effect = direct effect + sum of all indirect effects for each pair.
+    """
+    try:
+        from semopy import Model
+    except ImportError:
+        raise RuntimeError("semopy is not installed.")
+
+    parsed = parse_lavaan(model_syntax)
+    syntax = build_semopy_syntax(parsed)
+    structural = parsed.get("structural", [])
+
+    if not structural:
+        raise ValueError("No structural paths — indirect effects require a structural model.")
+
+    # Build adjacency: rhs → [lhs, ...]
+    graph: dict[str, list[str]] = {}
+    for rel in structural:
+        graph.setdefault(rel["rhs"], []).append(rel["lhs"])
+
+    all_vars = list({v for rel in structural for v in (rel["lhs"], rel["rhs"])})
+    structural_vars = set(all_vars)
+
+    # Point estimates on full data
+    m = Model(syntax)
+    m.fit(df)
+    coef = _build_coef_map(m.inspect(), structural_vars)
+
+    def path_product(path: list[str], coef_map: dict) -> Optional[float]:
+        prod = 1.0
+        for i in range(len(path) - 1):
+            c = coef_map.get((path[i], path[i + 1]))
+            if c is None:
+                return None
+            prod *= c
+        return prod
+
+    # Enumerate all indirect paths (≥ 3 nodes = ≥ 1 mediator)
+    indirect_spec: list[tuple[str, str, list[str]]] = []
+    for src in all_vars:
+        for dst in all_vars:
+            if src == dst:
+                continue
+            for path in _find_all_paths(graph, src, dst):
+                if len(path) >= 3:
+                    indirect_spec.append((src, dst, path))
+
+    if not indirect_spec:
+        raise ValueError("No indirect paths found in this model.")
+
+    point_estimates = [path_product(path, coef) for _, _, path in indirect_spec]
+
+    # Bootstrap
+    bs_samples: list[list[float]] = [[] for _ in indirect_spec]
+    if n_bootstrap > 0:
+        rng = np.random.default_rng(seed)
+        for _ in range(n_bootstrap):
+            sample = df.sample(frac=1, replace=True,
+                               random_state=int(rng.integers(1_000_000)))
+            try:
+                m_bs = Model(syntax)
+                m_bs.fit(sample)
+                c_bs = _build_coef_map(m_bs.inspect(), structural_vars)
+                for j, (_, _, path) in enumerate(indirect_spec):
+                    v = path_product(path, c_bs)
+                    if v is not None:
+                        bs_samples[j].append(v)
+            except Exception:
+                continue
+
+    # Total effects: direct + indirect
+    total: dict[str, dict[str, float]] = {}
+    for (rhs, lhs), c in coef.items():
+        total.setdefault(rhs, {})[lhs] = round(total.get(rhs, {}).get(lhs, 0.0) + c, 6)
+    for j, (src, dst, _) in enumerate(indirect_spec):
+        pe = point_estimates[j]
+        if pe is not None:
+            total.setdefault(src, {})[dst] = round(total.get(src, {}).get(dst, 0.0) + pe, 6)
+
+    # Build output
+    effects: list[IndirectEffect] = []
+    for j, (src, dst, path) in enumerate(indirect_spec):
+        pe = point_estimates[j]
+        bs = bs_samples[j]
+        bs_se  = _safe_float(np.std(bs, ddof=1)) if len(bs) > 1 else None
+        ci_lo  = _safe_float(np.percentile(bs, 2.5))  if len(bs) > 1 else None
+        ci_hi  = _safe_float(np.percentile(bs, 97.5)) if len(bs) > 1 else None
+        sig    = (not (ci_lo <= 0 <= ci_hi)) if (ci_lo is not None and ci_hi is not None) else None
+        effects.append(IndirectEffect(
+            from_var=src,
+            to_var=dst,
+            through=path[1:-1],
+            indirect_effect=_safe_float(pe) or 0.0,
+            bs_se=bs_se,
+            ci_lower_95=ci_lo,
+            ci_upper_95=ci_hi,
+            significant=sig,
+        ))
+
+    return IndirectResult(effects=effects, total_effects=total)
 
 
 # ── Code Export ───────────────────────────────────────────────────────────────

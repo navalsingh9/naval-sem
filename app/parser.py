@@ -128,3 +128,69 @@ def parse_spss(content: bytes) -> pd.DataFrame:
         )
     except Exception as e:
         raise ValueError(f"SPSS parse error: {e}")
+
+
+def parse_csv_robust(content: bytes) -> pd.DataFrame:
+    """
+    Robust CSV/TSV parser.
+
+    Tries:
+      1. Normal comma CSV
+      2. Auto delimiter sniffing
+      3. Tab-separated fallback
+      4. Semicolon-separated fallback
+
+    Also strips BOMs and weird whitespace.
+    """
+
+    import io
+    import pandas as pd
+
+    attempts = []
+
+    parsers = [
+        {"sep": ","},
+        {"sep": None, "engine": "python"},
+        {"sep": "\t"},
+        {"sep": ";"},
+    ]
+
+    for opts in parsers:
+        try:
+            df = pd.read_csv(
+                io.BytesIO(content),
+                encoding="utf-8-sig",
+                **opts
+            )
+
+            # reject fake one-column parses
+            if len(df.columns) == 1:
+                col = str(df.columns[0])
+
+                suspicious = (
+                    "\t" in col or
+                    ";" in col or
+                    "," in col
+                )
+
+                if suspicious:
+                    raise ValueError(
+                        f"Likely wrong delimiter parse: {col[:100]}"
+                    )
+
+            # normalize column names
+            df.columns = (
+                df.columns
+                .astype(str)
+                .str.strip()
+            )
+
+            return df
+
+        except Exception as e:
+            attempts.append(str(e))
+
+    raise ValueError(
+        "Could not parse CSV/TSV file. "
+        f"Tried multiple strategies. Errors: {attempts}"
+    )
