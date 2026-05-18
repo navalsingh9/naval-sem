@@ -1,218 +1,173 @@
 # NAVAL-SEM
 
-> Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, and fit indices. No internet required after install.
+> **Free offline PLS-SEM / CB-SEM desktop application** — visual model builder, bootstrapping, HTMT, fit indices, and R/Python export. No internet required. No licence. No sample size limit.
 
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
-
+[![Latest Release](https://img.shields.io/github/v/release/navalsingh9/naval-sem)](https://github.com/navalsingh9/naval-sem/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/navalsingh9/naval-sem/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20124109.svg)](https://doi.org/10.5281/zenodo.20124109)
+[![Discussions](https://img.shields.io/github/discussions/navalsingh9/naval-sem)](https://github.com/navalsingh9/naval-sem/discussions)
 
 ---
 
-## Downloads
+## Download
 
 | Platform | File | Notes |
-|---|---|---|
-| Windows | `NAVAL-SEM-Setup.msi` | Recommended — installs with Start Menu + uninstall |
-| Windows | `NAVAL-SEM.exe` | Portable — drop anywhere and run |
-| macOS | `NAVAL-SEM.dmg` | Drag to Applications |
-| Linux | `naval-sem_0.2.0_amd64.deb` | Debian/Ubuntu installer |
-| Linux | `NAVAL-SEM` | Portable binary |
+|----------|------|-------|
+| **Windows** | `NAVAL-SEM-Setup.msi` | Recommended — Start Menu + uninstall |
+| **Windows** | `NAVAL-SEM.exe` | Portable — run anywhere, no install needed |
+| **macOS** | `NAVAL-SEM.dmg` | Drag to Applications |
+| **Linux** | `naval-sem_*.deb` | Debian/Ubuntu installer |
+| **Linux** | `NAVAL-SEM` | Portable binary |
 
-👉 **[Download from GitHub Releases](https://github.com/navalsingh9/naval-sem/releases)**
+👉 **[Download latest release →](https://github.com/navalsingh9/naval-sem/releases/latest)**
 
----
-
-## Project structure
-
-```
-naval-sem/
-├── launcher.py              ← Entry point: starts server + opens UI window
-├── requirements.txt         ← All Python dependencies
-├── naval_sem.spec           ← PyInstaller build spec
-├── build_windows.bat        ← Windows: builds EXE + MSI
-├── build_macos.sh           ← macOS:   builds .app + DMG
-├── build_linux.sh           ← Linux:   builds binary + .deb
-│
-├── app/
-│   ├── main.py              ← FastAPI routes + static file serving
-│   ├── engine.py            ← SEM fitting (PLS / CB / WLS), bootstrap, HTMT
-│   ├── parser.py            ← CSV / Excel / SPSS file parser + lavaan syntax
-│   └── schemas.py           ← Pydantic response models
-│
-├── static/
-│   └── index.html           ← Full frontend (canvas builder, results panels)
-│
-├── installer/
-│   ├── naval_sem.wxs        ← WiX MSI definition (Windows)
-│   └── license.rtf          ← License shown in installer dialog
-│
-└── .github/
-    └── workflows/
-        └── release.yml      ← CI/CD: build all platforms + publish release
-```
+> **Windows:** SmartScreen may warn on first run — click *More info → Run anyway*. Normal for unsigned apps.
+> **macOS:** Right-click → Open the first time to bypass Gatekeeper.
 
 ---
 
-## Run in development
+## What is NAVAL-SEM?
+
+NAVAL-SEM is a **structural equation modelling desktop app** that runs entirely on your machine. Load your dataset, draw your model in the visual canvas, and get bootstrapped path coefficients, HTMT, AVE, and fit indices — without an internet connection, a licence key, or your data leaving the machine.
+
+Built for:
+- **PhD students** who need full PLS-SEM without a SmartPLS subscription
+- **Professors** who need a free, zero-install classroom tool
+- **HR, Marketing, and Healthcare practitioners** running structural diagnostics on sensitive data
+- **Anyone** who wants SmartPLS-quality output without the SmartPLS price
+
+---
+
+## Features
+
+- **PLS-SEM** — reflective + formative constructs, bootstrapped path coefficients (5,000 iterations), indirect effects, full/partial/no mediation classification
+- **CB-SEM** — covariance-based SEM, lavaan syntax, fit indices (CFI, RMSEA, SRMR, χ²/df)
+- **Visual model builder** — drag-and-drop canvas, live validity warnings
+- **Measurement model** — AVE, Composite Reliability, Cronbach's α, outer loadings, cross-loadings
+- **HTMT** — full discriminant validity matrix, configurable threshold (0.85 / 0.90)
+- **Mediation analysis** — bootstrapped specific indirect effects, 95% CI, mediation type classification
+- **Multi-group analysis (MGA)** — compare path coefficients across groups
+- **Export** — R (lavaan / seminr syntax), Python (semopy syntax), CSV tables, PDF report
+- **Fully offline** — nothing leaves your machine, no account required, no internet after install
+
+---
+
+## SEM Case Library
+
+Five production-ready research cases — each with a real open dataset, construct specification, and expected path coefficients. Load any case to start a working model immediately.
+
+| # | Case | Framework | Dataset | n | Key finding |
+|---|------|-----------|---------|---|-------------|
+| 01 | **Why Employees Really Quit** | JD-R Theory | IBM HR Attrition · Kaggle · Free | 1,470 | WLB→Intent β=0.08 n.s. once Manager Trust enters — full mediation |
+| 02 | **Why Awareness Doesn't Become Purchase** | Aaker Brand Equity | Customer Personality Analysis · Kaggle · CC0 | 2,216 | Quality→Trust β=0.19 — the funnel gap regression misses |
+| 03 | **Why Hospital Ratings Fall** | Modified SERVQUAL | HCAHPS · CMS.gov · U.S. Federal Public Domain | ~4,800 | Responsiveness→Overall β=0.11 n.s. — it's communication, not call speed |
+| 04 | **Why Fintech Adoption Stalls** | UTAUT + Trust Extension | World Bank Findex 2021 · CC BY 4.0 | 3,212 | Performance Expectancy direct β=0.17 — Institutional Trust is the real barrier |
+| 05 | **Why Students Drop MOOCs** | TAM + Self-Determination Theory | OULAD · Open University UK · CC BY 4.0 | 32,593 | Social Belonging β=0.48 — stronger than Perceived Usefulness |
+
+Each case ships with a prepared CSV, indicator mapping, and the "surprise finding" — the path that collapses under mediation and changes the practical recommendation.
+
+→ **[Browse `cases/` →](https://github.com/navalsingh9/naval-sem/tree/master/cases)**
+
+---
+
+## How it works
+
+NAVAL-SEM starts a local FastAPI server on `http://127.0.0.1:8765` and opens the interface in a native window via pywebview. All computation — engine, data, results — stays on your machine.
+
+```
+launcher.py
+  ├── starts FastAPI on port 8765
+  ├── opens pywebview window  →  http://127.0.0.1:8765
+  ├── app/engine.py    ← PLS/CB-SEM, bootstrapping, HTMT, MGA
+  ├── app/parser.py    ← CSV / Excel / SPSS ingestion
+  └── static/index.html  ← canvas builder, results panels, export
+```
+
+No telemetry. No account. No data transmission.
+
+---
+
+## Run from source
 
 ```bash
-# 1. Create and activate a virtual environment
+git clone https://github.com/navalsingh9/naval-sem.git
+cd naval-sem
+
 python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
-
-# 2. Install dependencies
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-# 3. Start the app
-python launcher.py
-# Opens http://127.0.0.1:8765 in a native window (pywebview)
-# or in your default browser if pywebview is unavailable
-
-# Dev mode — hot-reload backend, open browser manually:
-uvicorn app.main:app --reload --port 8000
-# Then open http://localhost:8000
+python launcher.py              # opens at http://127.0.0.1:8765
 ```
+
+→ For full build instructions (EXE, DMG, .deb): see [`docs/building.md`](docs/building.md)
 
 ---
 
-## Package for release
+## NAVAL-SEM vs SmartPLS
 
-### Windows — EXE + MSI
-
-**One-time setup:**
-```
-# Install WiX 3 (MSI builder)
-# Download from: https://github.com/wixtoolset/wix3/releases
-# Install and add to PATH: C:\Program Files (x86)\WiX Toolset v3.14\bin
-```
-
-**Build:**
-```
-build_windows.bat
-```
-
-Outputs:
-- `dist\NAVAL-SEM.exe` — portable single-file executable, no install needed
-- `dist\NAVAL-SEM-Setup.msi` — proper Windows installer with Start Menu + uninstall
+| | NAVAL-SEM | SmartPLS 4 |
+|--|-----------|------------|
+| Price | **Free** | Paid licence |
+| Sample size limit | **None** | Student edition: 100 rows |
+| Construct limit | **None** | Student edition: 4 constructs |
+| OS | **Windows · macOS · Linux** | Windows · macOS only |
+| Offline | **Fully offline — no internet ever** | Offline after licence activation |
+| Case library | **5 cases, open datasets, expected findings** | Sample projects only |
+| R / Python export | **✓ lavaan, seminr, semopy** | Not available |
+| Data privacy | **Localhost only — nothing transmitted** | Local analysis |
+| Citation count | Growing (2025 launch) | ~50,000+ (established) |
+| Moderation support | In development | Full support |
 
 ---
 
-### macOS — .app + DMG
+## Citation
 
-**One-time setup:**
-```bash
-brew install create-dmg
+```
+Singh, N. (2025). NAVAL-SEM: Free offline structural equation modelling
+desktop application [Software, v0.4.0].
+https://doi.org/10.5281/zenodo.20124109
 ```
 
-**Build:**
-```bash
-chmod +x build_macos.sh
-./build_macos.sh
+```bibtex
+@software{singh2025navalsem,
+  author  = {Singh, Naval},
+  title   = {{NAVAL-SEM}: Free offline structural equation modelling desktop application},
+  year    = {2025},
+  doi     = {10.5281/zenodo.20124109},
+  url     = {https://github.com/navalsingh9/naval-sem},
+  version = {0.4.0},
+  license = {CC BY-NC-ND 4.0}
+}
 ```
-
-Outputs:
-- `dist/NAVAL-SEM.app` — macOS application bundle
-- `dist/NAVAL-SEM.dmg` — disk image for distribution
-
-> **Gatekeeper note:** Without an Apple Developer ID, users must right-click → Open the first time. To properly code-sign, add your Developer ID to your Keychain before building.
-
----
-
-### Linux — binary + .deb
-
-**One-time setup:**
-```bash
-sudo apt install libgtk-3-0 libwebkit2gtk-4.0-dev \
-  python3-gi python3-gi-cairo gir1.2-webkit2-4.0
-```
-
-**Build:**
-```bash
-chmod +x build_linux.sh
-./build_linux.sh
-```
-
-Outputs:
-- `dist/NAVAL-SEM` — portable ELF binary
-- `dist/naval-sem_0.2.0_amd64.deb` — Debian/Ubuntu installer
-
-Install the .deb:
-```bash
-sudo dpkg -i dist/naval-sem_0.2.0_amd64.deb
-naval-sem
-```
-
----
-
-## Release to GitHub (automated)
-
-The included GitHub Actions workflow (`.github/workflows/release.yml`) builds all three platforms automatically and publishes a GitHub Release.
-
-**To trigger a release:**
-
-```bash
-# Bump the version in naval_sem.spec and the WiX .wxs file, then:
-git tag v0.2.0
-git push origin v0.2.0
-```
-
-GitHub Actions will:
-1. Build EXE + MSI on Windows runner
-2. Build .app + DMG on macOS runner
-3. Build binary + .deb on Ubuntu runner
-4. Create a GitHub Release and upload all 5 files automatically
-
----
-
-## Reducing binary size (optional)
-
-```bash
-# Install UPX compressor — PyInstaller uses it automatically
-# Windows: download from https://github.com/upx/upx/releases
-# macOS:
-brew install upx
-# Linux:
-sudo apt install upx
-```
-
-This typically reduces the EXE from ~120 MB to ~80 MB.
 
 ---
 
 ## Troubleshooting
 
 | Problem | Fix |
-|---|---|
-| `server offline` badge in UI | Make sure `launcher.py` started without errors; check port 8765 is free |
-| `ModuleNotFoundError: semopy` | Run `pip install -r requirements.txt` in your venv |
-| White screen / blank webview | pywebview needs WebKit2GTK on Linux — see Linux setup above |
-| MSI build fails | Ensure WiX 3 is installed and on PATH: `candle.exe --version` should print a version |
-| macOS "App is damaged" | Run `xattr -cr dist/NAVAL-SEM.app` to strip quarantine flags |
-| Large binary size | Install UPX (see above) or add more entries to `excludes` in the spec |
+|---------|-----|
+| `server offline` in UI | Confirm `launcher.py` started cleanly; check port 8765 is free |
+| `ModuleNotFoundError: semopy` | `pip install -r requirements.txt` inside your venv |
+| White screen (Linux) | Install WebKit2GTK — see [building.md](docs/building.md) |
+| MSI build fails | Confirm WiX 3 on PATH: `candle.exe --version` |
+| macOS "App is damaged" | `xattr -cr dist/NAVAL-SEM.app` |
 
 ---
 
-## Support Development
+## Support
 
-NAVAL-SEM is free to use. If you find it useful, please consider donating to help keep the project running and fund future features.
-
-👉 [Donate via PayPal](https://www.paypal.com/paypalme/singhn9)
-
----
-
-## Bug Reports & Feedback
-
-Found a bug or have a suggestion? We read every submission!
-
-👉 [Submit Bug Report / Feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
+👉 [Donate via PayPal](https://www.paypal.com/paypalme/singhn9) — helps keep NAVAL-SEM free
+👉 [Submit bug / feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
 
 ---
 
 ## License
 
-This work is licensed under [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — free to use and share with attribution, non-commercial, no modifications.
 
-You are free to share this software with attribution for non-commercial purposes, without modifications.
+---
+
+## Keywords
+
+`PLS-SEM` · `structural equation modeling` · `SmartPLS alternative` · `SmartPLS free` · `free SEM software` · `offline SEM` · `CB-SEM` · `HTMT` · `mediation analysis` · `bootstrapping SEM` · `SEM desktop app` · `lavaan` · `semopy` · `HR analytics SEM` · `brand equity SEM` · `UTAUT PLS-SEM` · `TAM SEM` · `SERVQUAL PLS-SEM` · `structural equation modeling Python` · `PLS-SEM Windows macOS Linux`

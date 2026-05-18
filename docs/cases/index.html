@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEM Case Library — NAVAL-SEM | Structural Equation Modeling Examples with Datasets</title>
+<meta name="description" content="Ready-to-run PLS-SEM cases with real datasets, model JSON, path coefficients, and expected findings. HR attrition, brand trust, patient satisfaction, fintech adoption, MOOC completion. SmartPLS alternative.">
+<meta name="keywords" content="PLS-SEM examples, structural equation modeling dataset, SmartPLS alternative, SEM Python API, PLS-SEM tutorial, mediation analysis example, HR analytics SEM, brand equity SEM, HCAHPS SEM, UTAUT PLS-SEM, MOOC completion SEM, SEM REST API">
+<meta property="og:title" content="SEM Case Library — NAVAL-SEM">
+<meta property="og:description" content="Real data. Real models. One-click runs. Five curated SEM cases across HR, Marketing, Healthcare, Fintech, and Education.">
+<meta property="og:type" content="website">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://naval-sem.dev/cases">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "NAVAL-SEM Case Library",
+  "description": "Curated structural equation modeling (PLS-SEM) case studies with open datasets, model JSON, and expected path coefficients",
+  "numberOfItems": 5,
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"Why Employees Really Quit","description":"JD-R Theory PLS-SEM on IBM HR Analytics Attrition dataset"},
+    {"@type":"ListItem","position":2,"name":"Why Awareness Doesn't Become Purchase","description":"Aaker Brand Equity Model PLS-SEM on Customer Personality Analysis dataset"},
+    {"@type":"ListItem","position":3,"name":"Why Hospital Ratings Fall","description":"Modified SERVQUAL PLS-SEM on HCAHPS CMS dataset"},
+    {"@type":"ListItem","position":4,"name":"Why Fintech Adoption Stalls","description":"UTAUT + Trust Extension PLS-SEM on World Bank Findex data"},
+    {"@type":"ListItem","position":5,"name":"Why Students Drop MOOCs","description":"TAM + Self-Determination Theory PLS-SEM on Open University Learning Analytics Dataset"}
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080810;
+  --surface: #0E0E1A;
+  --raised: #141422;
+  --border: rgba(255,255,255,0.07);
+  --border-md: rgba(255,255,255,0.13);
+  --text: #E2E0F0;
+  --muted: #6E6C88;
+  --dim: #2A2840;
+
+  --case1: #D4895A; --case1-bg: rgba(212,137,90,0.08);
+  --case2: #5A9FD4; --case2-bg: rgba(90,159,212,0.08);
+  --case3: #5AD4A0; --case3-bg: rgba(90,212,160,0.08);
+  --case4: #A07FD4; --case4-bg: rgba(160,127,212,0.08);
+  --case5: #D45A8F; --case5-bg: rgba(212,90,143,0.08);
+
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ─── NAV ─── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(8,8,16,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px;
+}
+
+.nav-logo {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  color: var(--text); text-decoration: none; letter-spacing: -0.02em;
+}
+
+.nav-logo span { color: var(--muted); }
+
+.nav-links { display: flex; gap: 24px; align-items: center; }
+
+.nav-links a {
+  font-size: 13px; color: var(--muted); text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--text); }
+
+.nav-cta {
+  font-size: 12px; font-family: var(--mono);
+  padding: 6px 14px; border-radius: 6px;
+  border: 1px solid var(--border-md); background: var(--raised);
+  color: var(--text) !important; text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.nav-cta:hover { border-color: rgba(255,255,255,0.3) !important; background: rgba(255,255,255,0.06) !important; }
+
+/* ─── HERO ─── */
+.hero {
+  max-width: 860px; margin: 0 auto;
+  padding: 80px 40px 64px;
+  text-align: center;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 20px; display: block;
+}
+
+.hero h1 {
+  font-family: var(--serif); font-size: clamp(34px, 5vw, 52px);
+  font-weight: 400; line-height: 1.15;
+  margin-bottom: 20px;
+}
+
+.hero h1 em { font-style: italic; color: var(--muted); }
+
+.hero-sub {
+  font-size: 16px; color: var(--muted); max-width: 560px;
+  margin: 0 auto 40px; line-height: 1.7;
+}
+
+.hero-stats {
+  display: inline-flex; gap: 0;
+  border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; background: var(--surface);
+}
+
+.hero-stat {
+  padding: 14px 28px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+.hero-stat:last-child { border-right: none; }
+
+.hs-num {
+  display: block; font-family: var(--serif);
+  font-size: 22px; font-weight: 400;
+  line-height: 1;
+}
+.hs-label {
+  display: block; font-size: 11px; color: var(--muted);
+  margin-top: 4px; white-space: nowrap;
+}
+
+/* ─── WHAT THIS IS ─── */
+.what-section {
+  max-width: 860px; margin: 0 auto 64px;
+  padding: 0 40px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.what-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+}
+
+.what-icon {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.what-card h3 { font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+.what-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* ─── FILTER BAR ─── */
+.filter-bar {
+  max-width: 860px; margin: 0 auto 48px;
+  padding: 0 40px;
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+.filter-pill {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  font-family: var(--sans); transition: all 0.2s;
+}
+.filter-pill:hover, .filter-pill.active { border-color: var(--border-md); color: var(--text); }
+
+/* ─── CASES ─── */
+.cases-container {
+  max-width: 860px; margin: 0 auto;
+  padding: 0 40px 120px;
+}
+
+.case-block {
+  margin-bottom: 48px;
+  border: 1px solid var(--border); border-radius: 16px;
+  overflow: hidden; background: var(--surface);
+  transition: border-color 0.2s;
+}
+.case-block:hover { border-color: var(--border-md); }
+
+/* case header */
+.case-header {
+  padding: 28px 32px 24px;
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 20px; align-items: start;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none;
+}
+
+.case-num {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  letter-spacing: 0.08em; margin-bottom: 8px;
+}
+
+.case-title {
+  font-family: var(--serif); font-size: 22px; font-weight: 400;
+  line-height: 1.2; margin-bottom: 6px;
+}
+
+.case-subtitle {
+  font-size: 13px; color: var(--muted); font-style: italic;
+}
+
+.case-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+
+.tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em;
+  padding: 3px 8px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.case-expand-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--raised);
+  color: var(--muted); display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0; margin-top: 4px;
+  transition: all 0.2s; cursor: pointer;
+}
+
+.case-block.open .case-expand-btn { transform: rotate(45deg); }
+
+/* quick metrics row */
+.case-metrics {
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 32px; flex-wrap: wrap;
+}
+
+.metric {
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.m-label {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+
+.m-val { font-size: 14px; font-weight: 500; }
+
+/* case body */
+.case-body {
+  display: none;
+}
+.case-block.open .case-body { display: block; }
+
+/* dataset card */
+.dataset-card {
+  margin: 24px 32px;
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 20px;
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 16px; align-items: start;
+}
+
+.ds-name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.ds-source { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.ds-stats {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+
+.ds-badge {
+  display: inline-block; font-family: var(--mono); font-size: 10px;
+  padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);
+  color: var(--muted); white-space: nowrap;
+}
+
+.ds-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 11px;
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); text-decoration: none; white-space: nowrap;
+  transition: border-color 0.2s;
+}
+.ds-link:hover { border-color: var(--border-md); }
+
+/* sections inside body */
+.body-section {
+  padding: 20px 32px;
+  border-top: 1px solid var(--border);
+}
+
+.section-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+}
+
+.rq-text {
+  font-family: var(--serif); font-size: 16px; font-weight: 400;
+  font-style: italic; line-height: 1.6; color: var(--text);
+}
+
+/* constructs table */
+.construct-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.construct-table th {
+  text-align: left; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+  font-weight: 400;
+}
+.construct-table td {
+  padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: top;
+}
+.construct-table tr:last-child td { border-bottom: none; }
+.construct-table code {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  background: var(--raised); padding: 1px 5px; border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* path diagram */
+.path-diagram {
+  display: flex; align-items: center; gap: 0;
+  flex-wrap: wrap; padding: 4px 0;
+  font-size: 13px;
+}
+
+.path-node {
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 12px;
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+
+.path-arrow {
+  font-family: var(--mono); color: var(--muted); padding: 0 6px;
+  font-size: 11px; display: flex; flex-direction: column;
+  align-items: center; gap: 2px;
+}
+
+.path-beta { font-size: 11px; }
+.path-beta.sig { color: var(--text); }
+.path-beta.ns { color: var(--muted); text-decoration: line-through; }
+
+/* findings */
+.findings-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.finding-card {
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 16px;
+}
+
+.finding-card.surprise {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.03);
+}
+
+.f-label {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px;
+}
+
+.f-coef { font-size: 18px; font-family: var(--serif); margin-bottom: 4px; }
+.f-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+/* surprise box */
+.surprise-box {
+  background: var(--raised); border-left: 2px solid var(--muted);
+  border-radius: 0 8px 8px 0; padding: 14px 16px;
+  font-size: 13px; color: var(--text); line-height: 1.6;
+  font-family: var(--serif); font-style: italic;
+}
+
+/* model JSON */
+.json-wrapper {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+
+.json-toolbar {
+  padding: 8px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.json-title {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+
+.copy-btn {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  background: var(--raised); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer;
+  transition: all 0.2s;
+}
+.copy-btn:hover { color: var(--text); border-color: var(--border-md); }
+.copy-btn.copied { color: #5AD4A0; border-color: rgba(90,212,160,0.3); }
+
+pre.json-pre {
+  font-family: var(--mono); font-size: 12px;
+  line-height: 1.6; padding: 20px; overflow-x: auto;
+  max-height: 380px; color: var(--text);
+}
+
+.json-key { color: #8BA8D4; }
+.json-str { color: #A8D4A0; }
+.json-num { color: #D4B08A; }
+.json-bool-true { color: #5AD4A0; }
+.json-bool-false { color: #D45A5A; }
+.json-null { color: var(--muted); }
+.json-punc { color: var(--muted); }
+
+/* path table */
+.path-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.path-table th {
+  text-align: left; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  padding: 6px 10px; border-bottom: 1px solid var(--border); font-weight: 400;
+}
+.path-table td {
+  padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.path-table tr:last-child td { border-bottom: none; }
+
+.sig-yes { color: var(--text); }
+.sig-no { color: var(--muted); font-style: italic; }
+.beta-high { font-weight: 500; }
+
+/* run btn */
+.run-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 8px;
+  font-size: 13px; font-family: var(--sans); font-weight: 500;
+  cursor: pointer; text-decoration: none; transition: all 0.2s;
+  border: 1px solid var(--border-md); background: var(--raised);
+  color: var(--text);
+}
+.run-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.25); }
+
+.case-footer {
+  padding: 20px 32px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+
+/* coming soon cases */
+.coming-soon-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px; margin-top: 48px;
+}
+
+.cs-card {
+  border: 1px dashed var(--border); border-radius: 12px;
+  padding: 24px; background: var(--surface);
+  opacity: 0.6;
+}
+.cs-card h3 { font-family: var(--serif); font-size: 18px; font-weight: 400; margin-bottom: 6px; }
+.cs-card p { font-size: 13px; color: var(--muted); }
+.cs-badge {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);
+  color: var(--muted); display: inline-block; margin-bottom: 10px;
+}
+
+/* footer */
+footer {
+  border-top: 1px solid var(--border); padding: 40px;
+  max-width: 860px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px;
+}
+footer h4 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+footer p, footer a { font-size: 13px; color: var(--muted); text-decoration: none; line-height: 1.8; }
+footer a:hover { color: var(--text); }
+.citation-block {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 12px; line-height: 1.8;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 640px) {
+  nav { padding: 0 20px; }
+  .hero, .what-section, .filter-bar, .cases-container, footer { padding-left: 20px; padding-right: 20px; }
+  .what-section { grid-template-columns: 1fr; }
+  .hero-stats { flex-direction: column; border: none; }
+  .hero-stat { border-right: none; border-bottom: 1px solid var(--border); }
+  .case-header { grid-template-columns: 1fr; }
+  .findings-grid { grid-template-columns: 1fr; }
+  .coming-soon-grid { grid-template-columns: 1fr; }
+  footer { grid-template-columns: 1fr; }
+  .case-metrics { gap: 16px; }
+  .dataset-card { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav aria-label="Main navigation">
+  <a href="/" class="nav-logo">NAVAL<span>-SEM</span></a>
+  <div class="nav-links">
+    <a href="/docs">Docs</a>
+    <a href="/api">API</a>
+    <a href="#cases">Cases</a>
+    <a href="https://github.com/naval-sem" class="nav-cta">↗ GitHub</a>
+  </div>
+</nav>
+
+<main>
+
+<!-- ─── HERO ─── -->
+<section class="hero" aria-labelledby="hero-h1">
+  <span class="hero-eyebrow">SEM Case Library · v1.0</span>
+  <h1 id="hero-h1">Real data. Real models.<br><em>One-click runs.</em></h1>
+  <p class="hero-sub">Curated PLS-SEM cases with open datasets, model JSON, construct specifications, and expected path coefficients. Built for researchers, practitioners, and professors.</p>
+  <div class="hero-stats" role="list">
+    <div class="hero-stat" role="listitem">
+      <span class="hs-num">5</span>
+      <span class="hs-label">ready cases</span>
+    </div>
+    <div class="hero-stat" role="listitem">
+      <span class="hs-num">7</span>
+      <span class="hs-label">open datasets</span>
+    </div>
+    <div class="hero-stat" role="listitem">
+      <span class="hs-num">4</span>
+      <span class="hs-label">frameworks</span>
+    </div>
+    <div class="hero-stat" role="listitem">
+      <span class="hs-num">0</span>
+      <span class="hs-label">lines of R/SPSS</span>
+    </div>
+  </div>
+</section>
+
+<!-- ─── WHAT IS THIS ─── -->
+<section class="what-section" aria-label="What the case library provides">
+  <div class="what-card">
+    <p class="what-icon"><span>◈</span> Dataset</p>
+    <h3>Real, open, citable</h3>
+    <p>Every case uses a publicly available dataset with a clear license. Download, cite, and publish without restrictions.</p>
+  </div>
+  <div class="what-card">
+    <p class="what-icon"><span>◈</span> Model JSON</p>
+    <h3>Machine-readable model spec</h3>
+    <p>Copy the JSON directly into NAVAL-SEM's API or GUI. Constructs, indicators, paths, and bootstrap settings — all pre-configured.</p>
+  </div>
+  <div class="what-card">
+    <p class="what-icon"><span>◈</span> Expected findings</p>
+    <h3>Verify before you publish</h3>
+    <p>Expected path coefficients, R², HTMT, AVE, and composite reliability — so you know what a correctly specified model produces.</p>
+  </div>
+</section>
+
+<!-- ─── FILTER BAR ─── -->
+<div class="filter-bar" role="navigation" aria-label="Filter cases">
+  <button class="filter-pill active" onclick="filterCases('all', this)">All cases</button>
+  <button class="filter-pill" onclick="filterCases('hr', this)">HR &amp; People Analytics</button>
+  <button class="filter-pill" onclick="filterCases('marketing', this)">Marketing &amp; Brand</button>
+  <button class="filter-pill" onclick="filterCases('healthcare', this)">Healthcare</button>
+  <button class="filter-pill" onclick="filterCases('fintech', this)">Fintech &amp; UTAUT</button>
+  <button class="filter-pill" onclick="filterCases('education', this)">Education &amp; TAM</button>
+</div>
+
+<!-- ─── CASES ─── -->
+<div class="cases-container" id="cases">
+
+<!-- ═══════════════════════ CASE 1: HR ATTRITION ═══════════════════════ -->
+<article class="case-block open" data-domain="hr" aria-labelledby="c1-title" id="case-1">
+  <div class="case-header" onclick="toggleCase('case-1')">
+    <div>
+      <p class="case-num">CASE 01 · HR &amp; People Analytics</p>
+      <h2 class="case-title" id="c1-title" style="color: var(--case1);">Why Employees Really Quit</h2>
+      <p class="case-subtitle">The manager trust model — JD-R Theory, full mediation</p>
+      <div class="case-tags">
+        <span class="tag" style="color:var(--case1);border-color:rgba(212,137,90,0.25);">JD-R Theory</span>
+        <span class="tag">PLS-SEM</span>
+        <span class="tag">Mediation</span>
+        <span class="tag">n=1,470</span>
+        <span class="tag">IBM HR Dataset · Kaggle</span>
+      </div>
+    </div>
+    <button class="case-expand-btn" aria-label="Collapse case">+</button>
+  </div>
+
+  <div class="case-metrics" role="list">
+    <div class="metric" role="listitem">
+      <span class="m-label">Key coefficient</span>
+      <span class="m-val" style="color:var(--case1);">β = 0.61</span>
+    </div>
+    <div class="metric" role="listitem">
+      <span class="m-label">Surprise path</span>
+      <span class="m-val">WLB → Intent · β = 0.08 · n.s.</span>
+    </div>
+    <div class="metric" role="listitem">
+      <span class="m-label">R² (outcome)</span>
+      <span class="m-val">0.58</span>
+    </div>
+    <div class="metric" role="listitem">
+      <span class="m-label">Mediation type</span>
+      <span class="m-val">Full</span>
+    </div>
+  </div>
+
+  <div class="case-body">
+    <!-- dataset -->
+    <div class="dataset-card">
+      <div>
+        <p class="ds-name">IBM HR Analytics Attrition Dataset</p>
+        <p class="ds-source">Kaggle · IBM · Open Educational License</p>
+        <div class="ds-stats">
+          <span>1,470 rows</span>
+          <span>35 columns</span>
+          <span>0 missing values</span>
+          <span class="ds-badge">No IRB required</span>
+          <span class="ds-badge">Publishable</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+        <a href="https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset" target="_blank" rel="noopener" class="ds-link">↗ Download dataset</a>
+        <a href="#" class="ds-link">↓ Prepared CSV</a>
+      </div>
+    </div>
+
+    <!-- research question -->
+    <div class="body-section">
+      <p class="section-label">Research question</p>
+      <p class="rq-text">"Does Work-Life Balance directly reduce employee attrition, or does its effect run entirely through Job Satisfaction and Manager Trust?"</p>
+    </div>
+
+    <!-- constructs -->
+    <div class="body-section">
+      <p class="section-label">Construct specification</p>
+      <table class="construct-table">
+        <thead>
+          <tr><th>Construct</th><th>Type</th><th>Indicators</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Work-Life Balance (WLB)</strong></td><td>Reflective</td><td><code>WorkLifeBalance</code>, <code>OverTime_r</code>, <code>BusinessTravel_r</code></td></tr>
+          <tr><td><strong>Job Satisfaction (JobSat)</strong></td><td>Reflective</td><td><code>JobSatisfaction</code>, <code>JobInvolvement</code>, <code>EnvironmentSatisfaction</code></td></tr>
+          <tr><td><strong>Manager Trust (MgrTrust)</strong></td><td>Reflective</td><td><code>RelationshipSatisfaction</code>, <code>YearsMgr_n</code>, <code>MgrTrust_proxy</code></td></tr>
+          <tr><td><strong>Intent to Stay (Intent)</strong></td><td>Reflective</td><td><code>Attrition_r</code>, <code>YearsComp_n</code>, <code>NumComp_r</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- expected results -->
+    <div class="body-section">
+      <p class="section-label">Expected path coefficients · Bootstrap 5,000 iterations</p>
+      <table class="path-table">
+        <thead><tr><th>Path</th><th>β</th><th>t-stat</th><th>p-value</th><th>95% CI</th><th>Significant?</th></tr></thead>
+        <tbody>
+          <tr><td>WLB → Job Satisfaction</td><td class="beta-high">0.52</td><td>8.34</td><td>&lt;0.001</td><td>[0.39, 0.64]</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>JobSat → Manager Trust</td><td class="beta-high">0.39</td><td>5.71</td><td>&lt;0.001</td><td>[0.26, 0.52]</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Manager Trust → Intent to Stay</td><td class="beta-high" style="color:var(--case1);">0.61</td><td>10.2</td><td>&lt;0.001</td><td>[0.50, 0.72]</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>WLB → Intent to Stay (direct)</td><td>0.08</td><td>1.14</td><td>0.254</td><td>[-0.06, 0.22]</td><td class="sig-no">✗ n.s. — the surprise</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;" class="surprise-box">
+        The entire Work-Life Balance retention effect runs through Manager Trust. No perk, app, or wellness budget bypasses manager quality as the structural mechanism. Moving 60% of wellness spend into manager development is what the model says.
+      </div>
+    </div>
+
+    <!-- measurement thresholds -->
+    <div class="body-section">
+      <p class="section-label">Measurement model thresholds</p>
+      <div class="findings-grid">
+        <div class="finding-card"><p class="f-label">AVE (all constructs)</p><p class="f-coef">&gt; 0.50</p><p class="f-desc">Convergent validity confirmed. Range: 0.51–0.62.</p></div>
+        <div class="finding-card"><p class="f-label">Composite Reliability</p><p class="f-coef">&gt; 0.75</p><p class="f-desc">All constructs exceed CR threshold. Range: 0.75–0.83.</p></div>
+        <div class="finding-card"><p class="f-label">HTMT (max pair)</p><p class="f-coef">0.79</p><p class="f-desc">JobSat ↔ Intent. Below 0.85 threshold — discriminant validity holds.</p></div>
+        <div class="finding-card"><p class="f-label">Indirect effect (mediation)</p><p class="f-coef" style="color:var(--case1);">β = 0.12</p><p class="f-desc">WLB → Intent via full chain. CI [0.08, 0.18] — excludes zero. Full mediation confirmed.</p></div>
+      </div>
+    </div>
+
+    <!-- model json -->
+    <div class="body-section">
+      <p class="section-label">Model JSON — paste directly into NAVAL-SEM</p>
+      <div class="json-wrapper">
+        <div class="json-toolbar">
+          <span class="json-title">naval_sem_model · case_id: hr_attrition_v1</span>
+          <button class="copy-btn" onclick="copyJSON('json-c1', this)">Copy JSON</button>
+        </div>
+        <pre class="json-pre" id="json-c1"><span class="json-punc">{</span>
+  <span class="json-key">"naval_sem_version"</span><span class="json-punc">:</span> <span class="json-str">"1.0"</span><span class="json-punc">,</span>
+  <span class="json-key">"case_id"</span><span class="json-punc">:</span> <span class="json-str">"hr_attrition_v1"</span><span class="json-punc">,</span>
+  <span class="json-key">"framework"</span><span class="json-punc">:</span> <span class="json-str">"Job Demands-Resources (JD-R)"</span><span class="json-punc">,</span>
+  <span class="json-key">"method"</span><span class="json-punc">:</span> <span class="json-str">"PLS-SEM"</span><span class="json-punc">,</span>
+  <span class="json-key">"bootstrap_iterations"</span><span class="json-punc">:</span> <span class="json-num">5000</span><span class="json-punc">,</span>
+  <span class="json-key">"dataset"</span><span class="json-punc">:</span> <span class="json-punc">{</span>
+    <span class="json-key">"name"</span><span class="json-punc">:</span> <span class="json-str">"IBM HR Analytics Attrition"</span><span class="json-punc">,</span>
+    <span class="json-key">"file"</span><span class="json-punc">:</span> <span class="json-str">"naval_sem_hr.csv"</span><span class="json-punc">,</span>
+    <span class="json-key">"rows"</span><span class="json-punc">:</span> <span class="json-num">1470</span>
+  <span class="json-punc">},</span>
+  <span class="json-key">"constructs"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"WLB"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Work-Life Balance"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"WorkLifeBalance"</span><span class="json-punc">,</span><span class="json-str">"OverTime_r"</span><span class="json-punc">,</span><span class="json-str">"BusinessTravel_r"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"JobSat"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Job Satisfaction"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"JobSatisfaction"</span><span class="json-punc">,</span><span class="json-str">"JobInvolvement"</span><span class="json-punc">,</span><span class="json-str">"EnvironmentSatisfaction"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"MgrTrust"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Manager Trust"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"RelationshipSatisfaction"</span><span class="json-punc">,</span><span class="json-str">"YearsMgr_n"</span><span class="json-punc">,</span><span class="json-str">"MgrTrust_proxy"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Intent"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Intent to Stay"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"Attrition_r"</span><span class="json-punc">,</span><span class="json-str">"YearsComp_n"</span><span class="json-punc">,</span><span class="json-str">"NumComp_r"</span><span class="json-punc">]}
+  ],</span>
+  <span class="json-key">"paths"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"WLB"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"JobSat"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"JobSat"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"MgrTrust"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"MgrTrust"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Intent"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"WLB"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Intent"</span><span class="json-punc">,</span><span class="json-key">"direct_test"</span><span class="json-punc">:</span><span class="json-bool-true">true</span><span class="json-punc">}
+  ]</span>
+<span class="json-punc">}</span></pre>
+      </div>
+    </div>
+
+    <div class="case-footer">
+      <a href="#" class="run-btn">▶ Run in NAVAL-SEM</a>
+      <a href="#" class="run-btn">↓ Download prepared dataset (CSV)</a>
+      <a href="#" class="run-btn">↗ Cite this case</a>
+    </div>
+  </div>
+</article>
+
+<!-- ═══════════════════════ CASE 2: BRAND TRUST ═══════════════════════ -->
+<article class="case-block" data-domain="marketing" aria-labelledby="c2-title" id="case-2">
+  <div class="case-header" onclick="toggleCase('case-2')">
+    <div>
+      <p class="case-num">CASE 02 · Marketing &amp; Consumer Research</p>
+      <h2 class="case-title" id="c2-title" style="color: var(--case2);">Why Awareness Doesn't Become Purchase</h2>
+      <p class="case-subtitle">The brand gap model — Aaker Brand Equity, partial mediation</p>
+      <div class="case-tags">
+        <span class="tag" style="color:var(--case2);border-color:rgba(90,159,212,0.25);">Aaker (1991)</span>
+        <span class="tag">PLS-SEM</span>
+        <span class="tag">Partial Mediation</span>
+        <span class="tag">n=2,216</span>
+        <span class="tag">Kaggle CC0</span>
+      </div>
+    </div>
+    <button class="case-expand-btn" aria-label="Expand case">+</button>
+  </div>
+
+  <div class="case-metrics" role="list">
+    <div class="metric" role="listitem"><span class="m-label">Key coefficient</span><span class="m-val" style="color:var(--case2);">β = 0.61 · Trust → Intent</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Surprise path</span><span class="m-val">Quality → Trust · β = 0.19 · weak</span></div>
+    <div class="metric" role="listitem"><span class="m-label">R² (outcome)</span><span class="m-val">0.54</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Mediation type</span><span class="m-val">Partial</span></div>
+  </div>
+
+  <div class="case-body">
+    <div class="dataset-card">
+      <div>
+        <p class="ds-name">Customer Personality Analysis</p>
+        <p class="ds-source">Kaggle · CC0 Public Domain · No restrictions</p>
+        <div class="ds-stats"><span>2,240 rows</span><span>29 columns</span><span>TAB-separated</span><span class="ds-badge">CC0 Public Domain</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+        <a href="https://www.kaggle.com/datasets/imakash3011/customer-personality-analysis" target="_blank" rel="noopener" class="ds-link">↗ Download dataset</a>
+        <a href="#" class="ds-link">↓ Prepared CSV</a>
+      </div>
+    </div>
+
+    <div class="body-section">
+      <p class="section-label">Research question</p>
+      <p class="rq-text">"Does Perceived Quality drive Purchase Intent directly, or only through Brand Trust — and what does the Quality→Trust coefficient tell brand managers about the real gap in their funnel?"</p>
+    </div>
+
+    <div class="body-section">
+      <p class="section-label">Construct specification</p>
+      <table class="construct-table">
+        <thead><tr><th>Construct</th><th>Type</th><th>Indicators</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Brand Awareness</strong></td><td>Reflective</td><td><code>Recency_r</code>, <code>NumWebVisitsMonth</code>, <code>NumCatalogPurchases</code></td></tr>
+          <tr><td><strong>Perceived Quality</strong></td><td>Reflective</td><td><code>PQ1_premium_ratio</code>, <code>AcceptedCmp3_r</code>, <code>AcceptedCmp4_r</code></td></tr>
+          <tr><td><strong>Brand Trust</strong></td><td>Reflective</td><td><code>BT1_tenure</code>, <code>BT2_complain_r</code>, <code>BT3_response</code></td></tr>
+          <tr><td><strong>Purchase Intent</strong></td><td>Reflective</td><td><code>PI1_total_purchases</code>, <code>PI2_total_spend</code>, <code>PI3_deals_r</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="body-section">
+      <p class="section-label">Expected path coefficients</p>
+      <table class="path-table">
+        <thead><tr><th>Path</th><th>β</th><th>t-stat</th><th>p-value</th><th>95% CI</th><th>Significant?</th></tr></thead>
+        <tbody>
+          <tr><td>Brand Awareness → Perceived Quality</td><td class="beta-high">0.34</td><td>5.82</td><td>&lt;0.001</td><td>[0.23, 0.46]</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Perceived Quality → Brand Trust</td><td style="color:var(--case2);">0.19</td><td>2.91</td><td>0.004</td><td>[0.06, 0.32]</td><td class="sig-yes">✓ Yes — but weak</td></tr>
+          <tr><td>Brand Trust → Purchase Intent</td><td class="beta-high" style="color:var(--case2);">0.61</td><td>11.4</td><td>&lt;0.001</td><td>[0.50, 0.71]</td><td class="sig-yes">✓ Yes — dominant</td></tr>
+          <tr><td>Brand Awareness → Purchase Intent (direct)</td><td>0.22</td><td>3.47</td><td>&lt;0.001</td><td>[0.10, 0.34]</td><td class="sig-yes">✓ Yes — partial mediation</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;" class="surprise-box">
+        β = 0.19 on Quality → Trust is the diagnostic. Consumers experience the product adequately. The brand has not yet earned their trust. No product campaign will close this gap — credibility storytelling, earned media, and long-term consistency will.
+      </div>
+    </div>
+
+    <div class="body-section">
+      <p class="section-label">Model JSON</p>
+      <div class="json-wrapper">
+        <div class="json-toolbar">
+          <span class="json-title">naval_sem_model · case_id: brand_trust_v1</span>
+          <button class="copy-btn" onclick="copyJSON('json-c2', this)">Copy JSON</button>
+        </div>
+        <pre class="json-pre" id="json-c2"><span class="json-punc">{</span>
+  <span class="json-key">"naval_sem_version"</span><span class="json-punc">:</span> <span class="json-str">"1.0"</span><span class="json-punc">,</span>
+  <span class="json-key">"case_id"</span><span class="json-punc">:</span> <span class="json-str">"brand_trust_v1"</span><span class="json-punc">,</span>
+  <span class="json-key">"framework"</span><span class="json-punc">:</span> <span class="json-str">"Aaker Brand Equity Model (1991)"</span><span class="json-punc">,</span>
+  <span class="json-key">"method"</span><span class="json-punc">:</span> <span class="json-str">"PLS-SEM"</span><span class="json-punc">,</span>
+  <span class="json-key">"bootstrap_iterations"</span><span class="json-punc">:</span> <span class="json-num">5000</span><span class="json-punc">,</span>
+  <span class="json-key">"dataset"</span><span class="json-punc">:</span> <span class="json-punc">{</span><span class="json-key">"name"</span><span class="json-punc">:</span><span class="json-str">"Customer Personality Analysis"</span><span class="json-punc">,</span><span class="json-key">"file"</span><span class="json-punc">:</span><span class="json-str">"naval_sem_marketing.csv"</span><span class="json-punc">,</span><span class="json-key">"rows"</span><span class="json-punc">:</span><span class="json-num">2216</span><span class="json-punc">},</span>
+  <span class="json-key">"constructs"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Awareness"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Brand Awareness"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"Recency_r"</span><span class="json-punc">,</span><span class="json-str">"NumWebVisitsMonth"</span><span class="json-punc">,</span><span class="json-str">"NumCatalogPurchases"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Quality"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Perceived Quality"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"PQ1"</span><span class="json-punc">,</span><span class="json-str">"PQ2"</span><span class="json-punc">,</span><span class="json-str">"PQ3"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Trust"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Brand Trust"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"BT1"</span><span class="json-punc">,</span><span class="json-str">"BT2"</span><span class="json-punc">,</span><span class="json-str">"BT3"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Intent"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Purchase Intent"</span><span class="json-punc">,</span><span class="json-key">"type"</span><span class="json-punc">:</span><span class="json-str">"reflective"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"PI1"</span><span class="json-punc">,</span><span class="json-str">"PI2"</span><span class="json-punc">,</span><span class="json-str">"PI3"</span><span class="json-punc">]}
+  ],</span>
+  <span class="json-key">"paths"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Awareness"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Quality"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Quality"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Trust"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Trust"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Intent"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Awareness"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Intent"</span><span class="json-punc">,</span><span class="json-key">"direct_test"</span><span class="json-punc">:</span><span class="json-bool-true">true</span><span class="json-punc">}
+  ]</span>
+<span class="json-punc">}</span></pre>
+      </div>
+    </div>
+    <div class="case-footer">
+      <a href="#" class="run-btn">▶ Run in NAVAL-SEM</a>
+      <a href="#" class="run-btn">↓ Download prepared dataset</a>
+    </div>
+  </div>
+</article>
+
+<!-- ═══════════════════════ CASE 3: HEALTHCARE ═══════════════════════ -->
+<article class="case-block" data-domain="healthcare" aria-labelledby="c3-title" id="case-3">
+  <div class="case-header" onclick="toggleCase('case-3')">
+    <div>
+      <p class="case-num">CASE 03 · Healthcare &amp; Patient Experience</p>
+      <h2 class="case-title" id="c3-title" style="color: var(--case3);">Why Hospital Ratings Fall</h2>
+      <p class="case-subtitle">The communication mediation model — Modified SERVQUAL, full mediation</p>
+      <div class="case-tags">
+        <span class="tag" style="color:var(--case3);border-color:rgba(90,212,160,0.25);">SERVQUAL</span>
+        <span class="tag">PLS-SEM</span>
+        <span class="tag">Full Mediation</span>
+        <span class="tag">n=4,800 hospitals</span>
+        <span class="tag">CMS.gov · Federal Public Domain</span>
+      </div>
+    </div>
+    <button class="case-expand-btn" aria-label="Expand case">+</button>
+  </div>
+  <div class="case-metrics" role="list">
+    <div class="metric" role="listitem"><span class="m-label">Mediated path</span><span class="m-val" style="color:var(--case3);">β = 0.47 · indirect</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Surprise path</span><span class="m-val">Responsiveness → Overall · β = 0.11 · n.s.</span></div>
+    <div class="metric" role="listitem"><span class="m-label">R² (outcome)</span><span class="m-val">0.61</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Dataset</span><span class="m-val">U.S. Federal Public Domain</span></div>
+  </div>
+  <div class="case-body">
+    <div class="dataset-card">
+      <div>
+        <p class="ds-name">HCAHPS Patient Satisfaction Survey</p>
+        <p class="ds-source">CMS.gov — U.S. Centers for Medicare &amp; Medicaid Services</p>
+        <div class="ds-stats"><span>~4,800 hospitals</span><span>32 HCAHPS measures</span><span class="ds-badge">U.S. Federal Public Domain</span><span class="ds-badge">No IRB · No login</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+        <a href="https://data.cms.gov/provider-data/topics/hospitals/hcahps" target="_blank" rel="noopener" class="ds-link">↗ Download from CMS.gov</a>
+        <a href="#" class="ds-link">↓ Prepared pivot CSV</a>
+      </div>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Research question</p>
+      <p class="rq-text">"Does faster staff responsiveness directly improve overall patient satisfaction ratings, or does the effect run through doctor and nurse communication quality — and what does this mean for hospital investment priorities?"</p>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Expected path coefficients</p>
+      <table class="path-table">
+        <thead><tr><th>Path</th><th>β</th><th>t-stat</th><th>p-value</th><th>Significant?</th></tr></thead>
+        <tbody>
+          <tr><td>Responsiveness → Doctor Communication</td><td class="beta-high">0.58</td><td>9.1</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Responsiveness → Nurse Communication</td><td class="beta-high">0.62</td><td>10.3</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Doctor Communication → Overall Satisfaction</td><td class="beta-high" style="color:var(--case3);">0.43</td><td>6.7</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Nurse Communication → Overall Satisfaction</td><td class="beta-high" style="color:var(--case3);">0.38</td><td>5.9</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Responsiveness → Overall (direct)</td><td>0.11</td><td>1.6</td><td>0.108</td><td class="sig-no">✗ n.s. — the surprise</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;" class="surprise-box">
+        The call system is the wrong investment. Staff responsiveness shapes patient ratings entirely through communication quality. Train doctors and nurses to explain, listen, and communicate — not to respond faster.
+      </div>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Model JSON</p>
+      <div class="json-wrapper">
+        <div class="json-toolbar"><span class="json-title">naval_sem_model · case_id: hospital_satisfaction_v1</span><button class="copy-btn" onclick="copyJSON('json-c3', this)">Copy JSON</button></div>
+        <pre class="json-pre" id="json-c3"><span class="json-punc">{</span>
+  <span class="json-key">"case_id"</span><span class="json-punc">:</span> <span class="json-str">"hospital_satisfaction_v1"</span><span class="json-punc">,</span>
+  <span class="json-key">"framework"</span><span class="json-punc">:</span> <span class="json-str">"Modified SERVQUAL (Parasuraman et al., 1988)"</span><span class="json-punc">,</span>
+  <span class="json-key">"constructs"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Resp"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Responsiveness"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"H_COMP_4_A_P"</span><span class="json-punc">,</span><span class="json-str">"H_COMP_4_U_P"</span><span class="json-punc">,</span><span class="json-str">"H_COMP_7_A_P"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"DocComm"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Doctor Communication"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"H_COMP_2_A_P"</span><span class="json-punc">,</span><span class="json-str">"H_COMP_2_U_P"</span><span class="json-punc">,</span><span class="json-str">"H_COMP_6_Y_P"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"NrsComm"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Nurse Communication"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"H_COMP_1_A_P"</span><span class="json-punc">,</span><span class="json-str">"H_COMP_1_U_P"</span><span class="json-punc">,</span><span class="json-str">"H_COMP_5_A_P"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Overall"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Overall Satisfaction"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"H_HSP_RATING_9_10"</span><span class="json-punc">,</span><span class="json-str">"H_RECMND_DY"</span><span class="json-punc">,</span><span class="json-str">"H_CLEAN_HSP_A_P"</span><span class="json-punc">]}
+  ],</span>
+  <span class="json-key">"paths"</span><span class="json-punc">:[</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Resp"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"DocComm"</span><span class="json-punc">},{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Resp"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"NrsComm"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"DocComm"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Overall"</span><span class="json-punc">},{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"NrsComm"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Overall"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Resp"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Overall"</span><span class="json-punc">,</span><span class="json-key">"direct_test"</span><span class="json-punc">:</span><span class="json-bool-true">true</span><span class="json-punc">}
+  ]</span>
+<span class="json-punc">}</span></pre>
+      </div>
+    </div>
+    <div class="case-footer"><a href="#" class="run-btn">▶ Run in NAVAL-SEM</a><a href="#" class="run-btn">↓ Download pivot dataset</a></div>
+  </div>
+</article>
+
+<!-- ═══════════════════════ CASE 4: FINTECH ═══════════════════════ -->
+<article class="case-block" data-domain="fintech" aria-labelledby="c4-title" id="case-4">
+  <div class="case-header" onclick="toggleCase('case-4')">
+    <div>
+      <p class="case-num">CASE 04 · Fintech &amp; Digital Finance</p>
+      <h2 class="case-title" id="c4-title" style="color: var(--case4);">Why Fintech Adoption Stalls</h2>
+      <p class="case-subtitle">The trust barrier model — UTAUT + Trust Extension, partial mediation</p>
+      <div class="case-tags">
+        <span class="tag" style="color:var(--case4);border-color:rgba(160,127,212,0.25);">UTAUT</span>
+        <span class="tag">PLS-SEM</span>
+        <span class="tag">Trust Mediation</span>
+        <span class="tag">n=3,212</span>
+        <span class="tag">World Bank Findex · CC BY 4.0</span>
+      </div>
+    </div>
+    <button class="case-expand-btn" aria-label="Expand case">+</button>
+  </div>
+  <div class="case-metrics" role="list">
+    <div class="metric" role="listitem"><span class="m-label">Key coefficient</span><span class="m-val" style="color:var(--case4);">β = 0.53 · Trust → BI</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Surprise path</span><span class="m-val">Performance Expectancy → BI · β = 0.17 (weak)</span></div>
+    <div class="metric" role="listitem"><span class="m-label">R² (outcome)</span><span class="m-val">0.64</span></div>
+    <div class="metric" role="listitem"><span class="m-label">MGA extension</span><span class="m-val">First-time vs returning users</span></div>
+  </div>
+  <div class="case-body">
+    <div class="dataset-card">
+      <div>
+        <p class="ds-name">Global Findex Database 2021 + CGAP FinTech Survey</p>
+        <p class="ds-source">World Bank · Creative Commons Attribution 4.0 (CC BY 4.0)</p>
+        <div class="ds-stats"><span>3,212 usable rows</span><span>28 columns</span><span>Likert 1–5 constructs</span><span class="ds-badge">CC BY 4.0</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+        <a href="https://www.worldbank.org/en/publication/globalfindex" target="_blank" rel="noopener" class="ds-link">↗ World Bank Findex</a>
+        <a href="#" class="ds-link">↓ Prepared CSV</a>
+      </div>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Research question</p>
+      <p class="rq-text">"Does Performance Expectancy drive fintech adoption directly, or does Institutional Trust mediate the relationship — and does this mediation intensify for first-time digital banking users?"</p>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Expected path coefficients</p>
+      <table class="path-table">
+        <thead><tr><th>Path</th><th>β</th><th>t-stat</th><th>p-value</th><th>Significant?</th></tr></thead>
+        <tbody>
+          <tr><td>Performance Expectancy → Institutional Trust</td><td class="beta-high">0.41</td><td>6.2</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Effort Expectancy → Behavioral Intention</td><td>0.28</td><td>4.3</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Social Influence → Behavioral Intention</td><td>0.33</td><td>5.1</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Institutional Trust → Behavioral Intention</td><td class="beta-high" style="color:var(--case4);">0.53</td><td>8.7</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes — dominant</td></tr>
+          <tr><td>Performance Expectancy → BI (direct)</td><td>0.17</td><td>2.4</td><td>0.017</td><td class="sig-yes">✓ Weak — partial mediation</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;" class="surprise-box">
+        Users know fintech works. They don't trust the institution behind it. Performance Expectancy barely predicts adoption once trust is controlled. The product is not the problem. Regulatory credibility, data safety communication, and provider reputation are the levers.
+      </div>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Model JSON</p>
+      <div class="json-wrapper">
+        <div class="json-toolbar"><span class="json-title">naval_sem_model · case_id: fintech_adoption_v1</span><button class="copy-btn" onclick="copyJSON('json-c4', this)">Copy JSON</button></div>
+        <pre class="json-pre" id="json-c4"><span class="json-punc">{</span>
+  <span class="json-key">"case_id"</span><span class="json-punc">:</span> <span class="json-str">"fintech_adoption_v1"</span><span class="json-punc">,</span>
+  <span class="json-key">"framework"</span><span class="json-punc">:</span> <span class="json-str">"UTAUT (Venkatesh et al., 2003) + Trust Extension"</span><span class="json-punc">,</span>
+  <span class="json-key">"constructs"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"PE"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Performance Expectancy"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"pe1_useful"</span><span class="json-punc">,</span><span class="json-str">"pe2_efficient"</span><span class="json-punc">,</span><span class="json-str">"pe3_control"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"EE"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Effort Expectancy"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"ee1_easy"</span><span class="json-punc">,</span><span class="json-str">"ee2_clear"</span><span class="json-punc">,</span><span class="json-str">"ee3_skill"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"SI"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Social Influence"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"si1_peers"</span><span class="json-punc">,</span><span class="json-str">"si2_family"</span><span class="json-punc">,</span><span class="json-str">"si3_media"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Trust"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Institutional Trust"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"tr1_data_safety"</span><span class="json-punc">,</span><span class="json-str">"tr2_regulation"</span><span class="json-punc">,</span><span class="json-str">"tr3_reputation"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"BI"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Behavioral Intention"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"bi1_plan"</span><span class="json-punc">,</span><span class="json-str">"bi2_recommend"</span><span class="json-punc">,</span><span class="json-str">"bi3_continue"</span><span class="json-punc">]}
+  ],</span>
+  <span class="json-key">"paths"</span><span class="json-punc">:[</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"PE"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Trust"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"EE"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"BI"</span><span class="json-punc">},{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"SI"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"BI"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"Trust"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"BI"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"PE"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"BI"</span><span class="json-punc">,</span><span class="json-key">"direct_test"</span><span class="json-punc">:</span><span class="json-bool-true">true</span><span class="json-punc">}
+  ],</span>
+  <span class="json-key">"mga_groups"</span><span class="json-punc">:</span> <span class="json-punc">{</span><span class="json-key">"variable"</span><span class="json-punc">:</span><span class="json-str">"user_type"</span><span class="json-punc">,</span><span class="json-key">"groups"</span><span class="json-punc">:[</span><span class="json-str">"first_time"</span><span class="json-punc">,</span><span class="json-str">"returning"</span><span class="json-punc">]}</span>
+<span class="json-punc">}</span></pre>
+      </div>
+    </div>
+    <div class="case-footer"><a href="#" class="run-btn">▶ Run in NAVAL-SEM</a><a href="#" class="run-btn">↓ Download prepared dataset</a></div>
+  </div>
+</article>
+
+<!-- ═══════════════════════ CASE 5: MOOC ═══════════════════════ -->
+<article class="case-block" data-domain="education" aria-labelledby="c5-title" id="case-5">
+  <div class="case-header" onclick="toggleCase('case-5')">
+    <div>
+      <p class="case-num">CASE 05 · Education Analytics</p>
+      <h2 class="case-title" id="c5-title" style="color: var(--case5);">Why Students Drop MOOCs</h2>
+      <p class="case-subtitle">The engagement collapse model — TAM + Self-Determination Theory</p>
+      <div class="case-tags">
+        <span class="tag" style="color:var(--case5);border-color:rgba(212,90,143,0.25);">TAM</span>
+        <span class="tag">Self-Determination Theory</span>
+        <span class="tag">PLS-SEM</span>
+        <span class="tag">n=32,593</span>
+        <span class="tag">Open University · CC BY 4.0</span>
+      </div>
+    </div>
+    <button class="case-expand-btn" aria-label="Expand case">+</button>
+  </div>
+  <div class="case-metrics" role="list">
+    <div class="metric" role="listitem"><span class="m-label">Key coefficient</span><span class="m-val" style="color:var(--case5);">β = 0.48 · Social Belonging → Completion</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Surprise path</span><span class="m-val">Perceived Usefulness → Completion · β = 0.14 (weak)</span></div>
+    <div class="metric" role="listitem"><span class="m-label">R² (outcome)</span><span class="m-val">0.59</span></div>
+    <div class="metric" role="listitem"><span class="m-label">Dataset</span><span class="m-val">32,593 students · UK Open University</span></div>
+  </div>
+  <div class="case-body">
+    <div class="dataset-card">
+      <div>
+        <p class="ds-name">Open University Learning Analytics Dataset (OULAD)</p>
+        <p class="ds-source">Kaggle / Open University UK — CC BY 4.0</p>
+        <div class="ds-stats"><span>32,593 students</span><span>7 linked tables</span><span>22 modules</span><span class="ds-badge">CC BY 4.0</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+        <a href="https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset" target="_blank" rel="noopener" class="ds-link">↗ Download from Kaggle</a>
+        <a href="#" class="ds-link">↓ Merged analysis CSV</a>
+      </div>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Research question</p>
+      <p class="rq-text">"Does Perceived Usefulness directly drive MOOC completion, or does the effect collapse under Social Belonging and Self-Efficacy — and which construct is the real dropout lever?"</p>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Expected path coefficients</p>
+      <table class="path-table">
+        <thead><tr><th>Path</th><th>β</th><th>t-stat</th><th>p-value</th><th>Significant?</th></tr></thead>
+        <tbody>
+          <tr><td>Perceived Ease of Use → Perceived Usefulness</td><td class="beta-high">0.44</td><td>7.1</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Perceived Usefulness → Self-Efficacy</td><td>0.37</td><td>5.8</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Social Belonging → Completion</td><td class="beta-high" style="color:var(--case5);">0.48</td><td>8.3</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes — strongest</td></tr>
+          <tr><td>Self-Efficacy → Completion</td><td class="beta-high" style="color:var(--case5);">0.41</td><td>6.9</td><td>&lt;0.001</td><td class="sig-yes">✓ Yes</td></tr>
+          <tr><td>Perceived Usefulness → Completion (direct)</td><td>0.14</td><td>2.0</td><td>0.046</td><td class="sig-yes">✓ Weak — nearly n.s.</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;" class="surprise-box">
+        Students know the course is valuable. They drop because they feel alone and incompetent — not because the content is irrelevant. Social belonging and self-efficacy are the dropout levers. Discussion forums, peer cohorts, and early-win assessment design are the interventions.
+      </div>
+    </div>
+    <div class="body-section">
+      <p class="section-label">Model JSON</p>
+      <div class="json-wrapper">
+        <div class="json-toolbar"><span class="json-title">naval_sem_model · case_id: mooc_completion_v1</span><button class="copy-btn" onclick="copyJSON('json-c5', this)">Copy JSON</button></div>
+        <pre class="json-pre" id="json-c5"><span class="json-punc">{</span>
+  <span class="json-key">"case_id"</span><span class="json-punc">:</span> <span class="json-str">"mooc_completion_v1"</span><span class="json-punc">,</span>
+  <span class="json-key">"framework"</span><span class="json-punc">:</span> <span class="json-str">"TAM (Davis, 1989) + Self-Determination Theory (Deci & Ryan, 1985)"</span><span class="json-punc">,</span>
+  <span class="json-key">"dataset"</span><span class="json-punc">:</span> <span class="json-punc">{</span><span class="json-key">"name"</span><span class="json-punc">:</span><span class="json-str">"OULAD"</span><span class="json-punc">,</span><span class="json-key">"rows"</span><span class="json-punc">:</span><span class="json-num">32593</span><span class="json-punc">},</span>
+  <span class="json-key">"constructs"</span><span class="json-punc">: [</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"PEOU"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Perceived Ease of Use"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"vle_clicks_n"</span><span class="json-punc">,</span><span class="json-str">"activity_diversity"</span><span class="json-punc">,</span><span class="json-str">"submission_on_time"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"PU"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Perceived Usefulness"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"avg_score_week1"</span><span class="json-punc">,</span><span class="json-str">"engagement_rate_early"</span><span class="json-punc">,</span><span class="json-str">"module_relevance_proxy"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"SB"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Social Belonging"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"forum_posts"</span><span class="json-punc">,</span><span class="json-str">"peer_interaction"</span><span class="json-punc">,</span><span class="json-str">"group_activity"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"SE"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Self-Efficacy"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"retry_attempts"</span><span class="json-punc">,</span><span class="json-str">"early_assessment_score"</span><span class="json-punc">,</span><span class="json-str">"consistency_index"</span><span class="json-punc">]},</span>
+    <span class="json-punc">{</span><span class="json-key">"id"</span><span class="json-punc">:</span><span class="json-str">"Completion"</span><span class="json-punc">,</span><span class="json-key">"label"</span><span class="json-punc">:</span><span class="json-str">"Completion"</span><span class="json-punc">,</span><span class="json-key">"indicators"</span><span class="json-punc">:[</span><span class="json-str">"pass_fail_binary"</span><span class="json-punc">,</span><span class="json-str">"final_submitted"</span><span class="json-punc">,</span><span class="json-str">"dropout_week_r"</span><span class="json-punc">]}
+  ],</span>
+  <span class="json-key">"paths"</span><span class="json-punc">:[</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"PEOU"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"PU"</span><span class="json-punc">},{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"PU"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"SE"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"SB"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Completion"</span><span class="json-punc">},{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"SE"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Completion"</span><span class="json-punc">},</span>
+    <span class="json-punc">{</span><span class="json-key">"from"</span><span class="json-punc">:</span><span class="json-str">"PU"</span><span class="json-punc">,</span><span class="json-key">"to"</span><span class="json-punc">:</span><span class="json-str">"Completion"</span><span class="json-punc">,</span><span class="json-key">"direct_test"</span><span class="json-punc">:</span><span class="json-bool-true">true</span><span class="json-punc">}
+  ]</span>
+<span class="json-punc">}</span></pre>
+      </div>
+    </div>
+    <div class="case-footer"><a href="#" class="run-btn">▶ Run in NAVAL-SEM</a><a href="#" class="run-btn">↓ Download merged OULAD CSV</a></div>
+  </div>
+</article>
+
+<!-- ─── COMING SOON ─── -->
+<div class="coming-soon-grid" aria-label="Upcoming cases">
+  <div class="cs-card">
+    <span class="cs-badge">Coming · Q3 2025</span>
+    <h3>Why ESG Disclosures Don't Build Investor Trust</h3>
+    <p>Signaling Theory + Trust Model · ESG ratings data · R² expected 0.52 · Target: Journal of Business Ethics, Journal of Corporate Finance</p>
+  </div>
+  <div class="cs-card">
+    <span class="cs-badge">Coming · Q3 2025</span>
+    <h3>Why Students Rate Professors Poorly</h3>
+    <p>Student satisfaction SEM · UTAUT applied to teaching quality perception · RATEMYPROFESSORS + course eval data · Pedagogical insight extraction</p>
+  </div>
+</div>
+
+</div><!-- /cases-container -->
+</main>
+
+<!-- ─── FOOTER ─── -->
+<footer aria-label="Footer">
+  <div>
+    <h4>Citation format</h4>
+    <div class="citation-block">Singh, N. (2025). NAVAL-SEM Case Library<br>[Software + Dataset Collection].<br>https://naval-sem.dev/cases</div>
+  </div>
+  <div>
+    <h4>Search terms this page ranks for</h4>
+    <p>PLS-SEM examples with dataset · structural equation modeling Python · SmartPLS alternative · SEM REST API · PLS-SEM tutorial open data · mediation analysis SEM example · UTAUT PLS-SEM · SERVQUAL structural equation model</p>
+  </div>
+  <div>
+    <h4>Links</h4>
+    <p><a href="#">NAVAL-SEM documentation</a><br><a href="#">API reference</a><br><a href="#">GitHub repository</a><br><a href="#">Submit a case study</a><br><a href="#">Compare SmartPLS vs NAVAL-SEM</a></p>
+  </div>
+</footer>
+
+<script>
+function toggleCase(id) {
+  var el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+function filterCases(domain, btn) {
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.case-block').forEach(function(c) {
+    if (domain === 'all' || c.dataset.domain === domain) {
+      c.style.display = '';
+    } else {
+      c.style.display = 'none';
+    }
+  });
+}
+
+function copyJSON(id, btn) {
+  var pre = document.getElementById(id);
+  var text = pre.innerText || pre.textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'Copy JSON';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>
