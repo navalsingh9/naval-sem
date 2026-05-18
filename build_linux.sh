@@ -3,7 +3,7 @@
 #  NAVAL-SEM — Linux Build Script
 #  Produces:
 #    dist/NAVAL-SEM           (portable ELF binary)
-#    dist/naval-sem_0.2.0_amd64.deb   (Debian/Ubuntu package)
+#    dist/naval-sem_0.4.0_amd64.deb   (Debian/Ubuntu package)
 #
 #  Prerequisites:
 #    pip install pyinstaller pywebview
@@ -14,7 +14,7 @@
 set -e
 cd "$(dirname "$0")"
 
-VERSION="0.2.0"
+VERSION="0.4.0"
 ARCH="amd64"
 PKG_NAME="naval-sem"
 DEB_DIR="dist/deb_pkg"

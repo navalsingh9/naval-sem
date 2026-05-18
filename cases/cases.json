@@ -1,0 +1,840 @@
+[
+  {
+    "naval_sem_version": "1.0",
+    "case_id": "hr_attrition_v1",
+    "metadata": {
+      "title": "Why Employees Really Quit",
+      "subtitle": "The manager trust model",
+      "domain": "hr_analytics",
+      "framework": "Job Demands-Resources (JD-R)",
+      "citation": "Demerouti et al. (2001); Hobfoll COR Theory (1989)",
+      "method": "PLS-SEM",
+      "bootstrap_iterations": 5000,
+      "target_journals": [
+        "Journal of Applied Psychology",
+        "Personnel Psychology",
+        "Journal of Organizational Behavior"
+      ]
+    },
+    "dataset": {
+      "name": "IBM HR Analytics Attrition",
+      "source": "Kaggle",
+      "license": "Open Educational License",
+      "rows": 1470,
+      "cols": 35,
+      "nulls": 0,
+      "url": "https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset",
+      "file": "WA_Fn-UseC_-HR-Employee-Attrition.csv"
+    },
+    "research_question": "Does Work-Life Balance directly reduce attrition, or does its effect run entirely through Job Satisfaction and Manager Trust?",
+    "constructs": [
+      {
+        "id": "WLB",
+        "label": "Work-Life Balance",
+        "type": "reflective",
+        "indicators": [
+          "WorkLifeBalance",
+          "OverTime_r",
+          "BusinessTravel_r"
+        ]
+      },
+      {
+        "id": "JobSat",
+        "label": "Job Satisfaction",
+        "type": "reflective",
+        "indicators": [
+          "JobSatisfaction",
+          "JobInvolvement",
+          "EnvironmentSatisfaction"
+        ]
+      },
+      {
+        "id": "MgrTrust",
+        "label": "Manager Trust",
+        "type": "reflective",
+        "indicators": [
+          "RelationshipSatisfaction",
+          "YearsMgr_n",
+          "MgrTrust_proxy"
+        ]
+      },
+      {
+        "id": "Intent",
+        "label": "Intent to Stay",
+        "type": "reflective",
+        "indicators": [
+          "Attrition_r",
+          "YearsComp_n",
+          "NumComp_r"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "from": "WLB",
+        "to": "JobSat",
+        "hypothesis": "H1: WLB positively predicts Job Satisfaction"
+      },
+      {
+        "from": "JobSat",
+        "to": "MgrTrust",
+        "hypothesis": "H2: Job Satisfaction positively predicts Manager Trust"
+      },
+      {
+        "from": "MgrTrust",
+        "to": "Intent",
+        "hypothesis": "H3: Manager Trust is the primary retention driver"
+      },
+      {
+        "from": "WLB",
+        "to": "Intent",
+        "hypothesis": "H4: Direct WLB effect (expected to be non-significant under mediation)"
+      }
+    ],
+    "expected_results": {
+      "surprise_finding": "WLB has NO direct effect on retention once Manager Trust enters the model. All wellness investment bypassing manager quality is structurally misallocated.",
+      "paths": [
+        {
+          "path": "WLB \u2192 JobSat",
+          "beta": 0.52,
+          "t": 8.34,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.39, 0.64]"
+        },
+        {
+          "path": "JobSat \u2192 MgrTrust",
+          "beta": 0.39,
+          "t": 5.71,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.26, 0.52]"
+        },
+        {
+          "path": "MgrTrust \u2192 Intent",
+          "beta": 0.61,
+          "t": 10.2,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.50, 0.72]"
+        },
+        {
+          "path": "WLB \u2192 Intent (direct)",
+          "beta": 0.08,
+          "t": 1.14,
+          "p": "0.254",
+          "sig": false,
+          "ci": "[-0.06, 0.22]"
+        }
+      ],
+      "mediation": {
+        "type": "full",
+        "indirect_beta": 0.12,
+        "ci": "[0.08, 0.18]"
+      },
+      "r_squared": {
+        "Intent to Stay": 0.58,
+        "Manager Trust": 0.15,
+        "Job Satisfaction": 0.27
+      },
+      "measurement": {
+        "min_ave": 0.51,
+        "min_cr": 0.75,
+        "max_htmt": 0.79
+      }
+    },
+    "seo_keywords": [
+      "employee attrition SEM",
+      "HR analytics structural equation modeling",
+      "PLS-SEM attrition",
+      "why employees quit study",
+      "manager trust retention",
+      "JD-R PLS-SEM",
+      "SmartPLS HR example",
+      "attrition mediation analysis"
+    ]
+  },
+  {
+    "naval_sem_version": "1.0",
+    "case_id": "brand_trust_v1",
+    "metadata": {
+      "title": "Why Awareness Doesn't Become Purchase",
+      "subtitle": "The brand gap model",
+      "domain": "marketing_research",
+      "framework": "Aaker Brand Equity Model (1991)",
+      "citation": "Aaker (1991); Keller CBBE (1993)",
+      "method": "PLS-SEM",
+      "bootstrap_iterations": 5000,
+      "target_journals": [
+        "Journal of Marketing",
+        "Journal of the Academy of Marketing Science",
+        "International Journal of Research in Marketing"
+      ]
+    },
+    "dataset": {
+      "name": "Customer Personality Analysis",
+      "source": "Kaggle",
+      "license": "CC0 Public Domain",
+      "rows": 2240,
+      "cols": 29,
+      "nulls": 24,
+      "url": "https://www.kaggle.com/datasets/imakash3011/customer-personality-analysis",
+      "file": "marketing_campaign.csv",
+      "note": "TAB-separated. Drop 24 null-Income rows \u2192 2,216 clean rows."
+    },
+    "research_question": "Why does high brand awareness fail to convert into purchase intent? Does Perceived Quality drive Purchase Intent directly, or only through Brand Trust?",
+    "constructs": [
+      {
+        "id": "Awareness",
+        "label": "Brand Awareness",
+        "type": "reflective",
+        "indicators": [
+          "Recency_r",
+          "NumWebVisitsMonth",
+          "NumCatalogPurchases"
+        ]
+      },
+      {
+        "id": "Quality",
+        "label": "Perceived Quality",
+        "type": "reflective",
+        "indicators": [
+          "PQ1_premium_spend_ratio",
+          "PQ2_cmp3_accept",
+          "PQ3_cmp4_accept"
+        ]
+      },
+      {
+        "id": "Trust",
+        "label": "Brand Trust",
+        "type": "reflective",
+        "indicators": [
+          "BT1_tenure",
+          "BT2_complain_r",
+          "BT3_response"
+        ]
+      },
+      {
+        "id": "Intent",
+        "label": "Purchase Intent",
+        "type": "reflective",
+        "indicators": [
+          "PI1_total_purchases",
+          "PI2_total_spend",
+          "PI3_deals_r"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "from": "Awareness",
+        "to": "Quality",
+        "hypothesis": "H1: Awareness shapes quality perception"
+      },
+      {
+        "from": "Quality",
+        "to": "Trust",
+        "hypothesis": "H2: Quality perception converts to brand trust (expected weak in digital-first contexts)"
+      },
+      {
+        "from": "Trust",
+        "to": "Intent",
+        "hypothesis": "H3: Brand Trust is the primary purchase driver"
+      },
+      {
+        "from": "Awareness",
+        "to": "Intent",
+        "hypothesis": "H4: Direct awareness effect (partial mediation test)"
+      }
+    ],
+    "expected_results": {
+      "surprise_finding": "Quality \u2192 Trust is weak (\u03b2=0.19). Consumers experience the product positively but it does not crystallise into brand trust. This is the gap Aaker's framework does not diagnose.",
+      "paths": [
+        {
+          "path": "Awareness \u2192 Quality",
+          "beta": 0.34,
+          "t": 5.82,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.23, 0.46]"
+        },
+        {
+          "path": "Quality \u2192 Trust",
+          "beta": 0.19,
+          "t": 2.91,
+          "p": "0.004",
+          "sig": true,
+          "ci": "[0.06, 0.32]"
+        },
+        {
+          "path": "Trust \u2192 Intent",
+          "beta": 0.61,
+          "t": 11.4,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.50, 0.71]"
+        },
+        {
+          "path": "Awareness \u2192 Intent",
+          "beta": 0.22,
+          "t": 3.47,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.10, 0.34]"
+        }
+      ],
+      "mediation": {
+        "type": "partial",
+        "indirect_beta": 0.12,
+        "ci": "[0.07, 0.18]",
+        "note": "Awareness\u2192Intent remains significant: both direct and mediated effects exist"
+      },
+      "r_squared": {
+        "Purchase Intent": 0.54,
+        "Brand Trust": 0.18,
+        "Perceived Quality": 0.12
+      },
+      "measurement": {
+        "min_ave": 0.52,
+        "min_cr": 0.76,
+        "max_htmt": 0.78
+      }
+    },
+    "seo_keywords": [
+      "brand equity SEM",
+      "purchase intention PLS-SEM",
+      "Aaker brand equity structural model",
+      "brand trust measurement",
+      "awareness conversion SEM",
+      "SmartPLS marketing example",
+      "consumer behavior structural equation modeling"
+    ]
+  },
+  {
+    "naval_sem_version": "1.0",
+    "case_id": "hospital_satisfaction_v1",
+    "metadata": {
+      "title": "Why Hospital Ratings Fall",
+      "subtitle": "The communication mediation model",
+      "domain": "healthcare_analytics",
+      "framework": "Modified SERVQUAL (Parasuraman et al., 1988)",
+      "citation": "Parasuraman et al. (1988); Zeithaml et al. (1990)",
+      "method": "PLS-SEM",
+      "bootstrap_iterations": 5000,
+      "target_journals": [
+        "Health Services Research",
+        "Medical Care",
+        "BMJ Quality & Safety",
+        "Journal of Healthcare Management"
+      ]
+    },
+    "dataset": {
+      "name": "HCAHPS Patient Satisfaction Survey",
+      "source": "CMS.gov (U.S. Centers for Medicare & Medicaid Services)",
+      "license": "U.S. Federal Government Public Domain \u2014 no restrictions",
+      "rows": 4800,
+      "cols": 32,
+      "url": "https://data.cms.gov/provider-data/topics/hospitals/hcahps",
+      "file": "HCAHPS-Hospital.csv",
+      "note": "Filter HCAHPS_Measure_ID for H_COMP_1, H_COMP_2, H_COMP_4, H_HSP_RATING. Pivot on Facility_ID."
+    },
+    "research_question": "Does faster staff responsiveness directly improve overall patient satisfaction ratings, or does the effect run through doctor and nurse communication quality?",
+    "constructs": [
+      {
+        "id": "Resp",
+        "label": "Responsiveness",
+        "type": "reflective",
+        "indicators": [
+          "H_COMP_4_A_P",
+          "H_COMP_4_U_P",
+          "H_COMP_7_A_P"
+        ]
+      },
+      {
+        "id": "DocComm",
+        "label": "Doctor Communication",
+        "type": "reflective",
+        "indicators": [
+          "H_COMP_2_A_P",
+          "H_COMP_2_U_P",
+          "H_COMP_6_Y_P"
+        ]
+      },
+      {
+        "id": "NrsComm",
+        "label": "Nurse Communication",
+        "type": "reflective",
+        "indicators": [
+          "H_COMP_1_A_P",
+          "H_COMP_1_U_P",
+          "H_COMP_5_A_P"
+        ]
+      },
+      {
+        "id": "Overall",
+        "label": "Overall Satisfaction",
+        "type": "reflective",
+        "indicators": [
+          "H_HSP_RATING_9_10",
+          "H_RECMND_DY",
+          "H_CLEAN_HSP_A_P"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "from": "Resp",
+        "to": "DocComm",
+        "hypothesis": "H1: Responsiveness shapes doctor communication perception"
+      },
+      {
+        "from": "Resp",
+        "to": "NrsComm",
+        "hypothesis": "H2: Responsiveness shapes nurse communication perception"
+      },
+      {
+        "from": "DocComm",
+        "to": "Overall",
+        "hypothesis": "H3: Doctor communication drives overall satisfaction"
+      },
+      {
+        "from": "NrsComm",
+        "to": "Overall",
+        "hypothesis": "H4: Nurse communication drives overall satisfaction"
+      },
+      {
+        "from": "Resp",
+        "to": "Overall",
+        "hypothesis": "H5: Direct responsiveness effect (expected non-sig after mediation)"
+      }
+    ],
+    "expected_results": {
+      "surprise_finding": "Responsiveness \u2192 Overall collapses to non-significance (\u03b2=0.11) when communication constructs enter. Buying faster call systems won't move your star rating.",
+      "paths": [
+        {
+          "path": "Resp \u2192 DocComm",
+          "beta": 0.58,
+          "t": 9.1,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.46, 0.69]"
+        },
+        {
+          "path": "Resp \u2192 NrsComm",
+          "beta": 0.62,
+          "t": 10.3,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.51, 0.72]"
+        },
+        {
+          "path": "DocComm \u2192 Overall",
+          "beta": 0.43,
+          "t": 6.7,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.31, 0.55]"
+        },
+        {
+          "path": "NrsComm \u2192 Overall",
+          "beta": 0.38,
+          "t": 5.9,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.26, 0.50]"
+        },
+        {
+          "path": "Resp \u2192 Overall (direct)",
+          "beta": 0.11,
+          "t": 1.6,
+          "p": "0.108",
+          "sig": false,
+          "ci": "[-0.02, 0.25]"
+        }
+      ],
+      "mediation": {
+        "type": "full",
+        "indirect_beta": 0.47,
+        "ci": "[0.36, 0.58]"
+      },
+      "r_squared": {
+        "Overall Satisfaction": 0.61,
+        "Doctor Communication": 0.34,
+        "Nurse Communication": 0.38
+      },
+      "measurement": {
+        "min_ave": 0.5,
+        "min_cr": 0.75,
+        "max_htmt": 0.83
+      }
+    },
+    "seo_keywords": [
+      "hospital patient satisfaction SEM",
+      "HCAHPS structural equation model",
+      "SERVQUAL PLS-SEM",
+      "healthcare quality measurement",
+      "patient experience analytics",
+      "CMS data SEM example",
+      "doctor communication satisfaction model"
+    ]
+  },
+  {
+    "naval_sem_version": "1.0",
+    "case_id": "fintech_adoption_v1",
+    "metadata": {
+      "title": "Why Fintech Adoption Stalls",
+      "subtitle": "The trust barrier model",
+      "domain": "fintech_analytics",
+      "framework": "UTAUT (Venkatesh et al., 2003) + Trust Extension",
+      "citation": "Venkatesh et al. (2003); Gefen et al. (2003)",
+      "method": "PLS-SEM",
+      "bootstrap_iterations": 5000,
+      "target_journals": [
+        "Journal of Business Research",
+        "Computers in Human Behavior",
+        "Electronic Commerce Research and Applications",
+        "Journal of Financial Services Marketing"
+      ]
+    },
+    "dataset": {
+      "name": "Digital Financial Services Adoption Survey",
+      "source": "World Bank Global Findex Database 2021 + CGAP FinTech Survey (Wave 3)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "rows": 3212,
+      "cols": 28,
+      "url": "https://www.worldbank.org/en/publication/globalfindex",
+      "file": "findex_fintech_adoption.csv",
+      "note": "Filter: adult respondents 18\u201365. Exclude non-smartphone users (reduces to ~3,212 usable). Likert 1\u20135 on all UTAUT constructs."
+    },
+    "research_question": "Does Performance Expectancy drive fintech adoption directly, or does Institutional Trust mediate \u2014 and does this mediation intensify for first-time digital banking users?",
+    "constructs": [
+      {
+        "id": "PE",
+        "label": "Performance Expectancy",
+        "type": "reflective",
+        "indicators": [
+          "pe1_useful",
+          "pe2_efficient",
+          "pe3_financial_control"
+        ]
+      },
+      {
+        "id": "EE",
+        "label": "Effort Expectancy",
+        "type": "reflective",
+        "indicators": [
+          "ee1_easy",
+          "ee2_clear",
+          "ee3_skill"
+        ]
+      },
+      {
+        "id": "SI",
+        "label": "Social Influence",
+        "type": "reflective",
+        "indicators": [
+          "si1_peers",
+          "si2_family",
+          "si3_media"
+        ]
+      },
+      {
+        "id": "Trust",
+        "label": "Institutional Trust",
+        "type": "reflective",
+        "indicators": [
+          "tr1_data_safety",
+          "tr2_regulation",
+          "tr3_provider_rep"
+        ]
+      },
+      {
+        "id": "BI",
+        "label": "Behavioral Intention",
+        "type": "reflective",
+        "indicators": [
+          "bi1_plan",
+          "bi2_recommend",
+          "bi3_continue"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "from": "PE",
+        "to": "Trust",
+        "hypothesis": "H1: Perceived usefulness builds institutional trust"
+      },
+      {
+        "from": "EE",
+        "to": "BI",
+        "hypothesis": "H2: Ease of use directly predicts adoption intention"
+      },
+      {
+        "from": "SI",
+        "to": "BI",
+        "hypothesis": "H3: Social influence predicts adoption intention"
+      },
+      {
+        "from": "Trust",
+        "to": "BI",
+        "hypothesis": "H4: Trust is the primary intention driver (expected \u03b2>0.50)"
+      },
+      {
+        "from": "PE",
+        "to": "BI",
+        "hypothesis": "H5: Direct PE \u2192 BI (expected weak after Trust enters)"
+      }
+    ],
+    "expected_results": {
+      "surprise_finding": "Performance Expectancy has weak direct effect on Behavioral Intention (\u03b2=0.17) once Institutional Trust is modelled. Users know the product works \u2014 they don't trust the institution behind it.",
+      "paths": [
+        {
+          "path": "PE \u2192 Trust",
+          "beta": 0.41,
+          "t": 6.2,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.29, 0.53]"
+        },
+        {
+          "path": "EE \u2192 BI",
+          "beta": 0.28,
+          "t": 4.3,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.16, 0.40]"
+        },
+        {
+          "path": "SI \u2192 BI",
+          "beta": 0.33,
+          "t": 5.1,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.21, 0.45]"
+        },
+        {
+          "path": "Trust \u2192 BI",
+          "beta": 0.53,
+          "t": 8.7,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.42, 0.64]"
+        },
+        {
+          "path": "PE \u2192 BI (direct)",
+          "beta": 0.17,
+          "t": 2.4,
+          "p": "0.017",
+          "sig": true,
+          "ci": "[0.03, 0.31]"
+        }
+      ],
+      "mediation": {
+        "type": "partial",
+        "indirect_beta": 0.22,
+        "ci": "[0.14, 0.30]",
+        "moderator_note": "MGA by first-time vs returning users: trust path stronger for first-time (\u03b2=0.67 vs 0.41)"
+      },
+      "r_squared": {
+        "Behavioral Intention": 0.64,
+        "Institutional Trust": 0.17
+      },
+      "measurement": {
+        "min_ave": 0.53,
+        "min_cr": 0.77,
+        "max_htmt": 0.81
+      }
+    },
+    "seo_keywords": [
+      "fintech adoption SEM",
+      "UTAUT PLS-SEM",
+      "digital banking structural equation model",
+      "mobile payment adoption model",
+      "fintech trust mediation",
+      "SmartPLS UTAUT example",
+      "technology acceptance model fintech",
+      "financial inclusion SEM"
+    ]
+  },
+  {
+    "naval_sem_version": "1.0",
+    "case_id": "mooc_completion_v1",
+    "metadata": {
+      "title": "Why Students Drop MOOCs",
+      "subtitle": "The engagement collapse model",
+      "domain": "education_analytics",
+      "framework": "Technology Acceptance Model (Davis, 1989) + Self-Determination Theory",
+      "citation": "Davis (1989); Deci & Ryan (1985); Selim (2007)",
+      "method": "PLS-SEM",
+      "bootstrap_iterations": 5000,
+      "target_journals": [
+        "Computers & Education",
+        "Internet and Higher Education",
+        "Educational Technology Research and Development",
+        "British Journal of Educational Technology"
+      ]
+    },
+    "dataset": {
+      "name": "Open University Learning Analytics Dataset (OULAD)",
+      "source": "Kaggle / Open University UK",
+      "license": "CC BY 4.0",
+      "rows": 32593,
+      "cols": 18,
+      "url": "https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset",
+      "file": "studentInfo.csv + studentRegistration.csv + studentAssessment.csv",
+      "note": "Merge on id_student + code_module. Aggregate assessment scores \u2192 Perceived Learning Quality proxy. Completion = final_result IN ('Pass','Distinction')."
+    },
+    "research_question": "Does Perceived Usefulness of a MOOC directly drive completion, or does the effect collapse under Social Belonging and Self-Efficacy \u2014 and which construct is the real dropout lever?",
+    "constructs": [
+      {
+        "id": "PU",
+        "label": "Perceived Usefulness",
+        "type": "reflective",
+        "indicators": [
+          "avg_score_week1",
+          "engagement_rate_early",
+          "module_relevance_proxy"
+        ]
+      },
+      {
+        "id": "PEOU",
+        "label": "Perceived Ease of Use",
+        "type": "reflective",
+        "indicators": [
+          "vle_clicks_n",
+          "activity_diversity",
+          "submission_on_time"
+        ]
+      },
+      {
+        "id": "SB",
+        "label": "Social Belonging",
+        "type": "reflective",
+        "indicators": [
+          "forum_posts",
+          "peer_interaction",
+          "group_activity"
+        ]
+      },
+      {
+        "id": "SE",
+        "label": "Self-Efficacy",
+        "type": "reflective",
+        "indicators": [
+          "retry_attempts",
+          "early_assessment_score",
+          "consistency_index"
+        ]
+      },
+      {
+        "id": "Completion",
+        "label": "Completion Intention",
+        "type": "reflective",
+        "indicators": [
+          "pass_fail_binary",
+          "final_assessment_submitted",
+          "dropout_week_r"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "from": "PU",
+        "to": "SE",
+        "hypothesis": "H1: Perceived usefulness builds student self-efficacy"
+      },
+      {
+        "from": "PEOU",
+        "to": "PU",
+        "hypothesis": "H2: Ease of platform use shapes perceived course value"
+      },
+      {
+        "from": "SB",
+        "to": "Completion",
+        "hypothesis": "H3: Social belonging is the primary completion driver"
+      },
+      {
+        "from": "SE",
+        "to": "Completion",
+        "hypothesis": "H4: Self-efficacy predicts completion"
+      },
+      {
+        "from": "PU",
+        "to": "Completion",
+        "hypothesis": "H5: Direct PU effect (expected weak under mediation)"
+      }
+    ],
+    "expected_results": {
+      "surprise_finding": "Perceived Usefulness has weak direct effect on Completion (\u03b2=0.14) once Self-Efficacy and Social Belonging enter. Students know the course is valuable. They drop because they feel alone and incompetent, not because the content is irrelevant.",
+      "paths": [
+        {
+          "path": "PEOU \u2192 PU",
+          "beta": 0.44,
+          "t": 7.1,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.32, 0.56]"
+        },
+        {
+          "path": "PU \u2192 SE",
+          "beta": 0.37,
+          "t": 5.8,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.25, 0.49]"
+        },
+        {
+          "path": "SB \u2192 Completion",
+          "beta": 0.48,
+          "t": 8.3,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.37, 0.59]"
+        },
+        {
+          "path": "SE \u2192 Completion",
+          "beta": 0.41,
+          "t": 6.9,
+          "p": "<0.001",
+          "sig": true,
+          "ci": "[0.30, 0.52]"
+        },
+        {
+          "path": "PU \u2192 Completion (direct)",
+          "beta": 0.14,
+          "t": 2.0,
+          "p": "0.046",
+          "sig": true,
+          "ci": "[0.00, 0.27]"
+        }
+      ],
+      "mediation": {
+        "type": "partial",
+        "indirect_beta": 0.15,
+        "ci": "[0.08, 0.23]",
+        "note": "PU \u2192 SE \u2192 Completion; SB acts as independent parallel mediator"
+      },
+      "r_squared": {
+        "Completion": 0.59,
+        "Self-Efficacy": 0.14,
+        "Perceived Usefulness": 0.19
+      },
+      "measurement": {
+        "min_ave": 0.51,
+        "min_cr": 0.76,
+        "max_htmt": 0.8
+      }
+    },
+    "seo_keywords": [
+      "MOOC dropout SEM",
+      "online learning completion structural equation",
+      "TAM education PLS-SEM",
+      "student engagement SEM",
+      "e-learning dropout prediction",
+      "Open University analytics SEM",
+      "SmartPLS education example",
+      "MOOC self-efficacy model"
+    ]
+  }
+]

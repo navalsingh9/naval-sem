@@ -16,16 +16,16 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
 
-from app.engine import fit_model, run_bootstrap, compute_htmt, export_as_code
-from app.parser import parse_spss, parse_excel, parse_lavaan
-from app.schemas import ModelResult, BootstrapResult, HTMTResult
+from app.engine import fit_model, run_bootstrap, compute_htmt, export_as_code, compute_indirect_effects
+from app.parser import (parse_spss, parse_excel, parse_lavaan,parse_csv_robust,)
+from app.schemas import ModelResult, BootstrapResult, HTMTResult, IndirectResult
 
 _STATIC_DIR = os.environ.get(
     "NAVAL_SEM_STATIC",
     str(Path(__file__).parent.parent / "static"),
 )
 
-app = FastAPI(title="NAVAL-SEM API", version="0.2.0")
+app = FastAPI(title="NAVAL-SEM API", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
@@ -45,7 +45,48 @@ else:
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.4.0"}
+
+
+@app.post("/indirect", response_model=IndirectResult)
+async def indirect_effects(
+    file: UploadFile = File(...),
+    model: str = Form(...),
+    bootstrap_n: int = Form(500),
+    missing: str = Form("listwise"),
+):
+    """
+    Decompose indirect (mediation) effects for all variable pairs connected
+    via paths of length ≥ 2. Returns indirect effects with bootstrapped 95% CIs
+    and a total effects matrix (direct + indirect).
+    """
+    content = await file.read()
+    ext = file.filename.rsplit(".", 1)[-1].lower()
+    try:
+        if ext == "csv":
+            df = parse_csv_robust(content)
+        elif ext in ("xlsx", "xls"):
+            df = parse_excel(content)
+        elif ext == "sav":
+            df = parse_spss(content)
+        else:
+            raise HTTPException(400, f"Unsupported file type: {ext}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(422, f"File parse error: {e}")
+
+    if missing == "listwise":
+        df = df.dropna()
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+
+    try:
+        return compute_indirect_effects(df, model, n_bootstrap=bootstrap_n)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Indirect effects error: {e}")
 
 
 @app.post("/upload/preview")
@@ -54,7 +95,7 @@ async def upload_preview(file: UploadFile = File(...)):
     ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
         if ext == "csv":
-            df = pd.read_csv(io.BytesIO(content))
+            df = parse_csv_robust(content)
         elif ext in ("xlsx", "xls"):
             df = parse_excel(content)
         elif ext == "sav":
@@ -85,7 +126,7 @@ async def run_model(
     ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
         if ext == "csv":
-            df = pd.read_csv(io.BytesIO(content))
+            df = parse_csv_robust(content)
         elif ext in ("xlsx", "xls"):
             df = parse_excel(content)
         elif ext == "sav":
@@ -101,7 +142,7 @@ async def run_model(
     elif missing == "mean":
         df = df.fillna(df.mean(numeric_only=True))
     try:
-        result = fit_model(df, model, algorithm=algorithm)
+        result = fit_model(df, model, algorithm=algorithm, bootstrap_n=bootstrap_n)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
@@ -124,7 +165,7 @@ async def bootstrap_only(
     content = await file.read()
     ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
-        df = pd.read_csv(io.BytesIO(content)) if ext == "csv" else parse_excel(content)
+        df = parse_csv_robust(content) if ext == "csv" else parse_excel(content)
         df = df.dropna()
     except Exception as e:
         raise HTTPException(422, str(e))
@@ -139,7 +180,7 @@ async def htmt(file: UploadFile = File(...), model: str = Form(...)):
     content = await file.read()
     ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
-        df = pd.read_csv(io.BytesIO(content)) if ext == "csv" else parse_excel(content)
+        df = parse_csv_robust(content) if ext == "csv" else parse_excel(content)
         df = df.dropna()
     except Exception as e:
         raise HTTPException(422, str(e))

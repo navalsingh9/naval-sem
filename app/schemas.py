@@ -32,12 +32,12 @@ class FitIndices(BaseModel):
     bic: Optional[float] = None
     r_squared: Optional[Dict[str, float]] = None
 
-    # Measurement validity metrics
-    ave: Optional[Dict[str, float]] = None                          # AVE per LV
-    composite_reliability: Optional[Dict[str, float]] = None        # ρc per LV
-    cronbach_alpha: Optional[Dict[str, float]] = None               # α per LV
-    fornell_larcker: Optional[Dict[str, Dict[str, float]]] = None   # √AVE on diag, r off-diag
-    fornell_larcker_pass: Optional[bool] = None                     # True when all √AVE > off-diag r
+    # Measurement validity metrics (v0.3)
+    ave: Optional[Dict[str, float]] = None
+    composite_reliability: Optional[Dict[str, float]] = None
+    cronbach_alpha: Optional[Dict[str, float]] = None
+    fornell_larcker: Optional[Dict[str, Dict[str, float]]] = None
+    fornell_larcker_pass: Optional[bool] = None
 
     # Fit verdict helpers
     cfi_acceptable: Optional[bool] = None    # CFI >= 0.90
@@ -49,8 +49,8 @@ class FitIndices(BaseModel):
 
 class BootstrapResult(BaseModel):
     n_samples: int
-    parameters: List[Dict[str, Any]]    # Same shape as PathParameter + bs_se, bs_ci_lower/upper
-    converged_pct: float                # % of bootstrap samples that converged
+    parameters: List[Dict[str, Any]]
+    converged_pct: float
 
 
 class HTMTEntry(BaseModel):
@@ -65,6 +65,52 @@ class HTMTResult(BaseModel):
     all_acceptable: bool
 
 
+# ── v0.4 schemas ──────────────────────────────────────────────────────────────
+
+class OuterWeightEntry(BaseModel):
+    lv: str
+    indicator: str
+    estimate: float          # point estimate from full-data fit
+    bs_mean: float           # mean across bootstrap samples
+    bs_se: float             # bootstrap standard error
+    ci_lower_95: float
+    ci_upper_95: float
+    t_stat: Optional[float] = None   # estimate / bs_se
+    significant: bool                # CI excludes zero
+
+
+class VIFEntry(BaseModel):
+    lv: str
+    indicator: str
+    vif: float
+    acceptable: bool    # VIF < 5.0 (common threshold); < 3.3 for PLS-SEM strict
+
+
+class F2Entry(BaseModel):
+    lhs: str            # dependent variable
+    rhs: str            # predictor being tested
+    r2_full: float      # R² with predictor included
+    r2_reduced: float   # R² with predictor removed
+    f2: float           # Cohen's f² = (R²_full - R²_reduced) / (1 - R²_full)
+    effect: str         # "negligible" | "small" | "medium" | "large"
+
+
+class IndirectEffect(BaseModel):
+    from_var: str
+    to_var: str
+    through: List[str]              # mediator variable(s) in order
+    indirect_effect: float
+    bs_se: Optional[float] = None
+    ci_lower_95: Optional[float] = None
+    ci_upper_95: Optional[float] = None
+    significant: Optional[bool] = None   # True when CI excludes zero
+
+
+class IndirectResult(BaseModel):
+    effects: List[IndirectEffect]
+    total_effects: Dict[str, Dict[str, float]]  # {from_var: {to_var: total}}
+
+
 class ModelResult(BaseModel):
     algorithm: str
     n_obs: int
@@ -76,4 +122,10 @@ class ModelResult(BaseModel):
     observed_variables: List[str]
     bootstrap: Optional[BootstrapResult] = None
     bootstrap_error: Optional[str] = None
+    # v0.4
+    vif: Optional[List[VIFEntry]] = None
+    f2: Optional[List[F2Entry]] = None
+    indirect: Optional[IndirectResult] = None
+    outer_weights: Optional[List[OuterWeightEntry]] = None
     warnings: List[str] = []
+

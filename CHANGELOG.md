@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.4.0] — 2026-05-19 · Formative Measurement & Docs
+
+### Added
+- **Case studies library** (`cases/cases.json`) — structured repository of
+  real-world SEM use cases across disciplines for in-app reference.
+- **Cases documentation page** (`docs/cases/index.html`) — browsable HTML
+  index of all bundled case studies.
+- **SmartPLS comparison page** (`docs/compare/smartpls-vs-naval-sem.html`) —
+  feature-by-feature comparison of naval-sem vs SmartPLS.
+- **Build documentation** (`docs/building.md`) — instructions for building
+  from source on Windows and Linux.
+- **Sitemap** (`docs/sitemap.xml`) — full XML sitemap for docs discoverability.
+
+### Changed
+- **README** — restructured and updated to reflect v0.4 feature set.
+
+---
+
 ## [v0.3.0] — 2025-05-11 · Measurement Completion
 
 ### Added
