@@ -31,6 +31,11 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
       - name: Bandit Scan
         uses: shundor/python-bandit-scan@ab1d87dfccc5a0ffab88be3aaac6ffe35c10d6cd
