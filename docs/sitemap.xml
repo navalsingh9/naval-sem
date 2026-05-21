@@ -5,28 +5,28 @@
 
   <!-- ─── CORE PAGES ─── -->
   <url>
-    <loc>https://naval-sem.dev/</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/cases</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/cases</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.95</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/api</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/api</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/docs</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/docs</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
@@ -34,7 +34,7 @@
 
   <!-- ─── CASE LIBRARY ─── -->
   <url>
-    <loc>https://naval-sem.dev/cases/hr-attrition</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/cases/hr-attrition</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.85</priority>
@@ -42,7 +42,7 @@
   <!-- SEO keywords embedded in URL: HR attrition SEM, employee attrition structural equation model -->
 
   <url>
-    <loc>https://naval-sem.dev/cases/brand-trust</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/cases/brand-trust</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.85</priority>
@@ -50,7 +50,7 @@
   <!-- SEO keywords: brand trust SEM, brand equity PLS-SEM, Aaker structural equation model -->
 
   <url>
-    <loc>https://naval-sem.dev/cases/hospital-patient-satisfaction</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/cases/hospital-patient-satisfaction</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.85</priority>
@@ -58,7 +58,7 @@
   <!-- SEO keywords: HCAHPS SEM, patient satisfaction PLS-SEM, SERVQUAL structural equation model -->
 
   <url>
-    <loc>https://naval-sem.dev/cases/fintech-adoption</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/cases/fintech-adoption</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.85</priority>
@@ -66,7 +66,7 @@
   <!-- SEO keywords: fintech adoption SEM, UTAUT PLS-SEM, mobile banking structural equation model -->
 
   <url>
-    <loc>https://naval-sem.dev/cases/mooc-completion</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/cases/mooc-completion</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.85</priority>
@@ -75,28 +75,28 @@
 
   <!-- ─── COMPARISON PAGES (high-intent SEO) ─── -->
   <url>
-    <loc>https://naval-sem.dev/compare/smartpls-vs-naval-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/compare/smartpls-vs-naval-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.92</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/compare/seminr-vs-naval-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/compare/seminr-vs-naval-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/compare/lavaan-vs-naval-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/compare/lavaan-vs-naval-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/compare/amos-vs-naval-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/compare/amos-vs-naval-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.78</priority>
@@ -104,35 +104,35 @@
 
   <!-- ─── DOCS ─── -->
   <url>
-    <loc>https://naval-sem.dev/docs/model-json-schema</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/docs/model-json-schema</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/docs/migration-from-smartpls</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/docs/migration-from-smartpls</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.82</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/docs/pls-sem-tutorial</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/docs/pls-sem-tutorial</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/docs/mediation-analysis-guide</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/docs/mediation-analysis-guide</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.83</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/docs/htmt-discriminant-validity</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/docs/htmt-discriminant-validity</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.75</priority>
@@ -140,28 +140,28 @@
 
   <!-- ─── FRAMEWORK GUIDES ─── -->
   <url>
-    <loc>https://naval-sem.dev/guides/jd-r-theory-pls-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/guides/jd-r-theory-pls-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.78</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/guides/utaut-pls-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/guides/utaut-pls-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.78</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/guides/servqual-pls-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/guides/servqual-pls-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.78</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/guides/tam-pls-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/guides/tam-pls-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>quarterly</changefreq>
     <priority>0.78</priority>
@@ -169,35 +169,35 @@
 
   <!-- ─── BLOG / TUTORIALS (planned) ─── -->
   <url>
-    <loc>https://naval-sem.dev/blog/pls-sem-vs-cb-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/blog/pls-sem-vs-cb-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.70</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/blog/what-is-htmt</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/blog/what-is-htmt</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.70</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/blog/mediation-vs-moderation-sem</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/blog/mediation-vs-moderation-sem</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.72</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/blog/bootstrapping-sem-how-many-iterations</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/blog/bootstrapping-sem-how-many-iterations</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.70</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/blog/reflective-vs-formative-constructs</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/blog/reflective-vs-formative-constructs</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.72</priority>
@@ -205,21 +205,21 @@
 
   <!-- ─── API DOCS ─── -->
   <url>
-    <loc>https://naval-sem.dev/api/reference</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/api/reference</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/api/quickstart/python</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/api/quickstart/python</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
 
   <url>
-    <loc>https://naval-sem.dev/api/quickstart/r</loc>
+    <loc>https://navalsingh9.github.io/naval-sem/api/quickstart/r</loc>
     <lastmod>2025-06-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.78</priority>
