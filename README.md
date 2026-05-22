@@ -5,7 +5,7 @@
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
 [![Latest Release](https://img.shields.io/github/v/release/navalsingh9/naval-sem)](https://github.com/navalsingh9/naval-sem/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/navalsingh9/naval-sem/releases)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20124109.svg)](https://doi.org/10.5281/zenodo.20124109)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20124108.svg)](https://doi.org/10.5281/zenodo.20124108)
 [![Discussions](https://img.shields.io/github/discussions/navalsingh9/naval-sem)](https://github.com/navalsingh9/naval-sem/discussions)
 
 ---
