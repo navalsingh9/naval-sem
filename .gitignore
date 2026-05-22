@@ -34,5 +34,3 @@ installer/*.wixobj
 installer/*.wixpdb
 
 
-sf_deploy
-sf_deploy.pub
