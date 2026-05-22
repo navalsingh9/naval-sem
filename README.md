@@ -7,7 +7,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/navalsingh9/naval-sem/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20124108.svg)](https://doi.org/10.5281/zenodo.20124108)
 [![Discussions](https://img.shields.io/github/discussions/navalsingh9/naval-sem)](https://github.com/navalsingh9/naval-sem/discussions)
-[![Download NAVAL-SEM](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/naval-sem/files/latest/download)
+[![Download NAVAL-SEM](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/naval-sem/)
 ---
 
 ## Google Calendar: 
