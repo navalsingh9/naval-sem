@@ -1,0 +1,35 @@
+{
+  "title": "NAVAL-SEM",
+  "description": "NAVAL-SEM is a free, fully offline desktop application for Structural Equation Modelling (SEM). It supports PLS-SEM and CB-SEM (ML, WLS), visual drag-and-drop model building with auto-generated lavaan syntax, bootstrapping with confidence intervals, HTMT, AVE, Composite Reliability, Cronbach's Alpha, Fornell-Larcker discriminant validity, and fit indices (CFI, RMSEA, SRMR, \u03c7\u00b2, AIC, BIC, R\u00b2). Accepts CSV, Excel, and SPSS data files. No internet connection required after installation. Designed as an accessible alternative to commercial SEM tools for researchers and students globally.",
+  "notes": "If you use NAVAL-SEM in academic research, please cite this software.",
+  "upload_type": "software",
+  "license": "cc-by-nc-nd-4.0",
+  "creators": [
+    {
+      "name": "Singh, Naval",
+      "affiliation": ""
+    }
+  ],
+  "keywords": [
+    "SEM",
+    "PLS-SEM",
+    "CB-SEM",
+    "Structural Equation Modelling",
+    "Quantitative Research",
+    "Research Methods",
+    "SmartPLS alternative",
+    "lavaan",
+    "bootstrapping",
+    "HTMT",
+    "discriminant validity",
+    "free SEM software"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/navalsingh9/naval-sem",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "language": "eng"
+}

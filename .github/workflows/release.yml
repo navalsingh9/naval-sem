@@ -258,3 +258,41 @@ jobs:
             ### ⚠️ macOS Note
 
             Right-click → Open the first time to bypass Gatekeeper.
+
+      # ── SourceForge upload ──────────────────────────────────────────────────
+      # Uploads all 5 release artifacts to SourceForge File Release System (FRS)
+      # under /home/frs/project/naval-sem/<tag>/
+      #
+      # Required GitHub Secret:
+      #   SOURCEFORGE_SSH_KEY — the *private* half of an SSH key pair whose
+      #   public half is added to your SourceForge account at:
+      #   https://sourceforge.net/auth/shell_services
+      - name: Upload to SourceForge
+        env:
+          SF_KEY: ${{ secrets.SOURCEFORGE_SSH_KEY }}
+          SF_USER: ${{ secrets.SOURCEFORGE_USERNAME }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Write the private key
+          mkdir -p ~/.ssh
+          echo "$SF_KEY" > ~/.ssh/sf_deploy
+          chmod 600 ~/.ssh/sf_deploy
+
+          # Trust frs.sourceforge.net without interactive prompt
+          ssh-keyscan -H frs.sourceforge.net >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Create remote directory for this version
+          ssh -i ~/.ssh/sf_deploy -o StrictHostKeyChecking=no \
+            "$SF_USER@shell.sourceforge.net" \
+            "mkdir -p /home/frs/project/naval-sem/$TAG"
+
+          # Upload all artifacts (scp is simpler than sftp batch for multiple files)
+          scp -i ~/.ssh/sf_deploy -o StrictHostKeyChecking=no \
+            release-assets/NAVAL-SEM.exe \
+            release-assets/NAVAL-SEM-Setup.msi \
+            release-assets/NAVAL-SEM.dmg \
+            release-assets/NAVAL-SEM \
+            release-assets/naval-sem_*.deb \
+            "$SF_USER@frs.sourceforge.net:/home/frs/project/naval-sem/$TAG/"
+
+          echo "✅ Uploaded to SourceForge: /home/frs/project/naval-sem/$TAG/"
