@@ -15,25 +15,31 @@
 
 ## Download
 
-Download from SourceForge:
-Click the green button for the latest release.
-[![Download NAVAL-SEM](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/naval-sem/)
+Get the latest NAVAL-SEM release for Windows, macOS, and Linux.
 
-Download from GitHub:
+### Recommended Download
+
+<a href="https://sourceforge.net/projects/naval-sem/files/latest/download" target="_blank">
+  <img src="https://a.fsdn.com/con/app/sf-download-button" alt="Download NAVAL-SEM">
+</a>
+
+Fastest way to get the newest stable release.
+
+### Release Mirrors
+
+- SourceForge: https://sourceforge.net/projects/naval-sem/
+- GitHub Releases: https://github.com/navalsingh9/naval-sem/releases/latest
 
 | Platform | File | Notes |
 |----------|------|-------|
-| **Windows** | `NAVAL-SEM-Setup.msi` | Recommended — Start Menu + uninstall |
-| **Windows** | `NAVAL-SEM.exe` | Portable — run anywhere, no install needed |
-| **macOS** | `NAVAL-SEM.dmg` | Drag to Applications |
-| **Linux** | `naval-sem_*.deb` | Debian/Ubuntu installer |
+| **Windows** | `NAVAL-SEM-Setup.msi` | Recommended — Start Menu integration + uninstall |
+| **Windows** | `NAVAL-SEM.exe` | Portable — no installation required |
+| **macOS** | `NAVAL-SEM.dmg` | Drag into Applications |
+| **Linux** | `naval-sem_*.deb` | Debian / Ubuntu installer |
 | **Linux** | `NAVAL-SEM` | Portable binary |
 
-👉 **[Download latest release →](https://github.com/navalsingh9/naval-sem/releases/latest)**
-
-> **Windows:** SmartScreen may warn on first run — click *More info → Run anyway*. Normal for unsigned apps.
-> **macOS:** Right-click → Open the first time to bypass Gatekeeper.
-
+> **Windows:** SmartScreen may appear on first launch. Click *More info → Run anyway*.  
+> **macOS:** Right-click → *Open* on first launch to bypass Gatekeeper for unsigned apps.
 ---
 
 ## What is NAVAL-SEM?
