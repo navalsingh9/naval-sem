@@ -12,7 +12,7 @@
 
 ## Release Roadmap
 
-![Roadmap](Product Roadmap.png)
+![Roadmap]([Product Roadmap.png](https://github.com/navalsingh9/naval-sem/blob/master/Product%20Roadmap.png?raw=true))
 
 ---
 
