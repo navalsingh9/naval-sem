@@ -13,6 +13,52 @@ from typing import Dict, List
 
 # ─── Lavaan Syntax Parser ─────────────────────────────────────────────────────
 
+def preprocess_lavaan(raw_model: str) -> str:
+    # 1. Strip leading/trailing whitespace
+    raw_model = raw_model.strip()
+    
+    # 2. Remove R-style variable assignments (e.g., big5_model <- ' ... ')
+    # Matches the start of the string, variable name, <- or =, and an opening quote
+    raw_model = re.sub(r"^[a-zA-Z0-9_.]+\s*(?:<-|=)\s*['\"]", "", raw_model)
+    
+    # 3. Remove the trailing quote if it was wrapped in one
+    if raw_model.endswith("'") or raw_model.endswith('"'):
+        raw_model = raw_model[:-1]
+
+    # Continue with existing logic
+    lines = raw_model.split('\n')
+    cleaned_lines = []
+    current_line = ""
+
+    for line in lines:
+        stripped = line.strip()
+        
+        # Preserve comments and blank lines
+        if not stripped or stripped.startswith('#'):
+            if current_line:
+                cleaned_lines.append(current_line)
+                current_line = ""
+            cleaned_lines.append(line)
+            continue
+
+        # Build the continuous equation
+        if current_line:
+            current_line += " " + stripped
+        else:
+            current_line = stripped
+
+        # If the line ends with a continuation operator, keep reading
+        # Otherwise, the equation is finished
+        if not (current_line.endswith('+') or current_line.endswith('=~') or current_line.endswith('~~') or current_line.endswith('~')):
+            cleaned_lines.append(current_line)
+            current_line = ""
+
+    # Catch any leftover string at the very end
+    if current_line:
+        cleaned_lines.append(current_line)
+
+    return "\n".join(cleaned_lines)
+
 def parse_lavaan(model: str) -> Dict:
     """
     Parse lavaan-style syntax into structured components.
@@ -31,6 +77,7 @@ def parse_lavaan(model: str) -> Dict:
         "observed_vars": ["t1", "t2", ...],
       }
     """
+    model = preprocess_lavaan(model)
     lines = []
     for raw in model.strip().splitlines():
         line = raw.strip()

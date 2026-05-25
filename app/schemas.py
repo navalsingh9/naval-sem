@@ -8,19 +8,21 @@ from pydantic import BaseModel
 
 class PathParameter(BaseModel):
     lhs: str
-    op: str            # =~ (measurement) or ~ (structural)
+    op: str            # =~ (measurement) or ~ (structural) or ~~ (covariance)
     rhs: str
     estimate: float
-    std_error: float
-    z_value: float
-    p_value: float
+    std_estimate: Optional[float] = None   # standardized estimate (std.all)
+    std_error: Optional[float] = None      # None for ~~ rows — not hypothesis-tested
+    z_value: Optional[float] = None        # None for ~~ rows — not hypothesis-tested
+    p_value: Optional[float] = None        # None for ~~ rows — not hypothesis-tested
     ci_lower: Optional[float] = None
     ci_upper: Optional[float] = None
-    significant: bool  # p < 0.05
+    significant: bool = False              # always False when p_value is None
 
 
 class FitIndices(BaseModel):
     cfi: Optional[float] = None
+    tli: Optional[float] = None    # Tucker-Lewis Index (NNFI)
     rmsea: Optional[float] = None
     rmsea_ci_lower: Optional[float] = None
     rmsea_ci_upper: Optional[float] = None
@@ -42,6 +44,8 @@ class FitIndices(BaseModel):
     # Fit verdict helpers
     cfi_acceptable: Optional[bool] = None    # CFI >= 0.90
     cfi_good: Optional[bool] = None          # CFI >= 0.95
+    tli_acceptable: Optional[bool] = None    # TLI >= 0.90
+    tli_good: Optional[bool] = None          # TLI >= 0.95
     rmsea_acceptable: Optional[bool] = None  # RMSEA <= 0.08
     rmsea_good: Optional[bool] = None        # RMSEA <= 0.06
     srmr_good: Optional[bool] = None         # SRMR <= 0.08
@@ -69,6 +73,7 @@ class HTMTResult(BaseModel):
 
 class OuterWeightEntry(BaseModel):
     lv: str
+    latent_variable: Optional[str] = None  # alias for lv — JSON compat with frontend
     indicator: str
     estimate: float          # point estimate from full-data fit
     bs_mean: float           # mean across bootstrap samples
@@ -77,6 +82,11 @@ class OuterWeightEntry(BaseModel):
     ci_upper_95: float
     t_stat: Optional[float] = None   # estimate / bs_se
     significant: bool                # CI excludes zero
+
+    def model_post_init(self, __context: Any) -> None:
+        """Keep latent_variable in sync with lv so the JSON always has both."""
+        if self.latent_variable is None:
+            object.__setattr__(self, "latent_variable", self.lv)
 
 
 class VIFEntry(BaseModel):
@@ -111,6 +121,54 @@ class IndirectResult(BaseModel):
     total_effects: Dict[str, Dict[str, float]]  # {from_var: {to_var: total}}
 
 
+# ── v0.7 summary schemas ──────────────────────────────────────────────────────────────────
+
+class StructuralPathSummary(BaseModel):
+    """One row per structural path in the inner model."""
+    from_var:    str
+    to_var:      str
+    beta:        float
+    t_stat:      Optional[float] = None
+    p_value:     Optional[float] = None
+    ci_lower_95: Optional[float] = None
+    ci_upper_95: Optional[float] = None
+    significant: bool
+    f2:          Optional[float] = None
+    f2_label:    Optional[str]  = None
+
+
+class ConstructValiditySummary(BaseModel):
+    """One row per latent variable."""
+    construct_name:        str
+    n_indicators:          int
+    avg_loading:           Optional[float] = None
+    min_loading:           Optional[float] = None
+    ave:                   Optional[float] = None
+    ave_sqrt:              Optional[float] = None
+    composite_reliability: Optional[float] = None
+    cronbach_alpha:        Optional[float] = None
+    ave_ok:                Optional[bool]  = None
+    cr_ok:                 Optional[bool]  = None
+    alpha_ok:              Optional[bool]  = None
+
+
+class ModelSummary(BaseModel):
+    """High-level digest of ModelResult for the Results Summary panel."""
+    algorithm:            str
+    n_obs:                int
+    bootstrap_n:          int
+    structural_paths:     List[StructuralPathSummary]
+    construct_validity:   List[ConstructValiditySummary]
+    fornell_larcker_pass: Optional[bool]  = None
+    all_loadings_ok:      Optional[bool]  = None
+    srmr:                 Optional[float] = None
+    srmr_ok:              Optional[bool]  = None
+    r_squared:            Optional[Dict[str, float]] = None
+    cfi:                  Optional[float] = None
+    rmsea:                Optional[float] = None
+    verdict:              str
+
+
 class ModelResult(BaseModel):
     algorithm: str
     n_obs: int
@@ -128,4 +186,52 @@ class ModelResult(BaseModel):
     indirect: Optional[IndirectResult] = None
     outer_weights: Optional[List[OuterWeightEntry]] = None
     warnings: List[str] = []
+    # v0.6 — reproducibility
+    run_id: Optional[str] = None
+    fingerprint: Optional[str] = None
+    # v0.7 — results summary
+    summary: Optional[ModelSummary] = None
+# ── v0.5 schemas ──────────────────────────────────────────────────────────────
+
+class Q2Entry(BaseModel):
+    lv: str                      # endogenous LV
+    q2: float                    # Stone-Geisser Q² (1 - SSE/SSO)
+    sse: float                   # sum of squared errors (blindfolded)
+    sso: float                   # sum of squared observations
+    omission_distance: int       # D used in the omission loop
+    predictive_relevance: str    # "none" | "small" | "medium" | "large"
+
+
+class PLSPredictEntry(BaseModel):
+    lv: str                      # endogenous LV
+    indicator: str
+    rmse_model: float            # RMSE of PLS-SEM predictions
+    rmse_lm: float               # RMSE of LM (naive) benchmark
+    mae_model: float
+    mae_lm: float
+    q2_predict: float            # 1 - (RMSE_model² / RMSE_lm²)
+    better_than_lm: bool         # model outperforms linear baseline
+
+
+class CVPATResult(BaseModel):
+    lv: str
+    cvpat_statistic: float       # mean loss difference: LM - model
+    p_value: Optional[float]     # one-sample t-test p-value
+    significant: bool            # model significantly better than LM
+    n_folds: int
+
+
+class CMBMarkerResult(BaseModel):
+    marker_variable: str
+    correlations_with_substantive: Dict[str, float]   # {indicator: r}
+    mean_marker_correlation: float
+    max_marker_correlation: float
+    cmb_concern: bool            # True when max r > 0.20 (Lindell & Whitney)
+    note: str
+
+
+class PredictResult(BaseModel):
+    q2: List[Q2Entry]
+    plspredict: Optional[List[PLSPredictEntry]] = None
+    cvpat: Optional[List[CVPATResult]] = None
 
