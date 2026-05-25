@@ -6,6 +6,7 @@
 <title>NAVAL-SEM</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg0:#0e0f11;--bg1:#13151a;--bg2:#1a1d24;--bg3:#22262f;--bg4:#2a2f3a;
@@ -19,7 +20,28 @@
     --r:5px;--r2:8px;
   }
   html,body{height:100%;background:var(--bg0);color:var(--txt0);font-family:var(--sans);font-size:13px}
-  .shell{display:grid;grid-template-rows:44px 1fr;grid-template-columns:210px 1fr;height:100vh;overflow:hidden}
+  
+  /* Layout Grid with Collapse Support */
+  .shell{
+    display:grid;
+    grid-template-rows:44px 1fr;
+    grid-template-columns:210px 1fr;
+    height:100vh;
+    overflow:hidden;
+    transition: grid-template-columns 0.2s ease-in-out;
+  }
+  .shell.sidebar-closed {
+    grid-template-columns: 0px 1fr;
+  }
+  .shell.sidebar-closed .sidebar {
+    display: none;
+  }
+  
+  /* The hide utility class */
+  .collapsed-panel {
+    display: none !important;
+  }
+
   /* topbar */
   .topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg1)}
   .logo{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:2px;color:var(--txt0)}
@@ -32,8 +54,12 @@
   .ttab{padding:5px 14px;font-size:11px;font-family:var(--mono);border:1px solid var(--line);border-radius:var(--r);background:transparent;color:var(--txt2);cursor:pointer;transition:all .15s;letter-spacing:.5px}
   .ttab:hover:not(.active){border-color:var(--line2);color:var(--txt1)}
   .ttab.active{background:var(--blue-bg);border-color:var(--blue-line);color:var(--blue)}
+  
   /* sidebar */
-  .sidebar{border-right:1px solid var(--line);background:var(--bg1);overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:14px}
+  .sidebar{
+    grid-column: 1; 
+    grid-row: 2;
+    border-right:1px solid var(--line);background:var(--bg1);overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:14px}
   .sec{display:flex;flex-direction:column;gap:6px}
   .sec-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);padding-left:2px}
   .tool-btn{width:100%;padding:7px 10px;text-align:left;border:1px solid var(--line);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-size:12px;color:var(--txt1);display:flex;align-items:center;gap:9px;transition:all .15s;font-family:var(--sans)}
@@ -55,8 +81,12 @@
   .clear-btn:hover{color:var(--red);border-color:rgba(240,96,96,.4)}
   .del-btn{width:100%;padding:6px;background:var(--red-bg);border:1px solid rgba(240,96,96,.35);border-radius:var(--r);color:var(--red);font-size:11px;cursor:pointer;font-family:var(--sans)}
   .sel-info{font-size:11px;color:var(--txt2);min-height:28px;font-family:var(--mono);line-height:1.5}
+  
   /* main */
-  .main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg0)}
+  .main{
+    grid-column: 2; 
+    grid-row: 2;
+    display:flex;flex-direction:column;overflow:hidden;background:var(--bg0)}
   .upload-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);background:var(--bg1);min-height:38px}
   .up-tag{font-size:10px;padding:4px 10px;border-radius:var(--r);background:var(--bg2);border:1px solid var(--line);color:var(--txt2);cursor:pointer;white-space:nowrap;font-family:var(--mono);transition:all .15s;flex-shrink:0}
   .up-tag:hover{border-color:var(--line2);color:var(--txt1)}
@@ -64,11 +94,57 @@
   .col-pills{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;flex:1}
   .col-pill{font-size:10px;padding:3px 8px;border-radius:20px;border:1px solid var(--line);color:var(--txt2);background:var(--bg2);cursor:pointer;white-space:nowrap;font-family:var(--mono);transition:all .15s;flex-shrink:0}
   .col-pill:hover{border-color:var(--blue-line);color:var(--blue)}
-  .canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg0)}
-  canvas#sem-canvas{display:block;width:100%;height:100%}
+  
+  /* Add these utility classes to ensure smooth flexing */
+  .canvas-wrap{
+    flex:1;
+    position:relative;
+    overflow:hidden;
+    background:var(--bg0); 
+    display: flex; 
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  canvas#sem-canvas{
+    display:block;
+    width:100%;
+    height:100%; 
+    flex-grow: 1;
+  }
+
   .canvas-hint{position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--txt3);font-family:var(--mono);pointer-events:none}
   .canvas-status{position:absolute;top:8px;left:12px;font-size:11px;color:var(--amber);font-family:var(--mono);pointer-events:none}
   .canvas-error{position:absolute;top:8px;left:12px;font-size:11px;color:var(--red);font-family:var(--mono);pointer-events:none}
+
+  /* Floating Toggle Buttons (Fixed) */
+  .panel-toggle-btn {
+    position: absolute;
+    z-index: 999;
+    background: var(--bg2);
+    color: var(--txt1);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+  }
+  .panel-toggle-btn:hover {
+    background: var(--bg3);
+    color: var(--txt0);
+    border-color: var(--blue-line);
+    transform: translateY(-1px);
+  }
+  #toggle-sidebar-btn { top: 12px; left: 12px; }
+  #toggle-bottom-btn { bottom: 12px; right: 12px; }
+
+
   /* results */
   .results-panel{display:none;border-top:2px solid var(--line);background:var(--bg1);height:280px;min-height:120px;max-height:75vh;overflow:hidden;flex-direction:column;flex-shrink:0}
   .results-panel.show{display:flex}
@@ -108,8 +184,26 @@
   .bs-key{font-size:9px;color:var(--txt2);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono)}
   .bs-val{font-size:14px;color:var(--blue);font-family:var(--mono)}
   .warn-box{margin-top:10px;padding:8px 12px;background:var(--amber-bg);border:1px solid rgba(240,168,64,.3);border-radius:var(--r);font-size:11px;color:var(--amber);font-family:var(--mono)}
-  .syntax-area{width:100%;min-height:180px;font-family:var(--mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--bg1);color:var(--txt0);resize:vertical;outline:none;line-height:1.9;transition:border-color .15s}
+  
+  /* Update to allow resizing */
+  .syntax-panel {
+    border-top:2px solid var(--line);
+    background:var(--bg1);
+    height:250px;
+    min-height:120px;
+    max-height:75vh;
+    display:flex;
+    flex-direction:column;
+    flex-shrink:0;
+  }
+
+  .syntax-area{width:100%;flex: 1; font-family:var(--mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--bg1);color:var(--txt0);resize:none;outline:none;line-height:1.9;transition:border-color .15s}
   .syntax-area:focus{border-color:var(--blue-line)}
+  .canvas-toolbar{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg2);border-bottom:1px solid var(--line);flex-shrink:0}
+  .ctool-btn{padding:3px 10px;font-size:10px;font-family:var(--mono);border:1px solid var(--line);border-radius:var(--r);background:transparent;color:var(--txt2);cursor:pointer;transition:all .15s;letter-spacing:.5px}
+  .ctool-btn:hover{border-color:var(--blue-line);color:var(--blue)}
+  .ctool-btn.active-tool{border-color:var(--blue-line);color:var(--blue);background:rgba(77,156,248,.08)}
+  .ctool-sep{width:1px;height:16px;background:var(--line);margin:0 2px;flex-shrink:0}
   .mv-section{margin-top:14px}
   .mv-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--line)}
   .mv-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);margin-bottom:4px}
@@ -179,10 +273,82 @@
   .dl-btn{padding:4px 12px;font-size:10px;font-family:var(--mono);border:1px solid var(--blue-line);border-radius:var(--r);background:transparent;color:var(--blue);cursor:pointer;white-space:nowrap;transition:all .15s}
   .dl-btn:hover{background:rgba(77,156,248,.1)}
   .dl-empty{font-size:10px;color:var(--txt3);font-family:var(--mono);padding:6px 0;font-style:italic}
+  /* Predictive tab (v0.5) */
+  .pred-section{margin-top:14px}
+  .pred-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .pred-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
+  .pred-table th{text-align:left;padding:5px 10px;color:var(--txt2);font-size:9px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .pred-table td{padding:6px 10px;border-bottom:1px solid var(--line);color:var(--txt0)}
+  .pred-table tr:last-child td{border-bottom:none}
+  .pred-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-family:var(--mono)}
+  .pred-large{background:rgba(61,214,140,.15);color:var(--green)}
+  .pred-medium{background:rgba(77,156,248,.15);color:var(--blue)}
+  .pred-small{background:rgba(240,168,64,.15);color:var(--amber)}
+  .pred-none{background:var(--bg3);color:var(--txt3)}
+  .cmb-panel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:12px 14px;margin-top:14px}
+  .cmb-concern{color:var(--red);font-weight:600}
+  .cmb-ok{color:var(--green);font-weight:600}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .log-step{color:var(--blue)}
+  .log-ok{color:var(--green)}
+  .log-info{color:var(--txt1)}
+  .log-warn{color:var(--amber)}
+  .log-error{color:var(--red)}
+  .log-ts{color:var(--txt3);margin-right:8px;user-select:none}
+  .log-icon{margin-right:6px}
+  #live-log::-webkit-scrollbar{width:4px}
+  #live-log::-webkit-scrollbar-track{background:transparent}
+  #live-log::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px}
+  .hint-pill{display:inline-block;padding:1px 6px;border-radius:3px;border:1px solid rgba(77,156,248,.35);color:var(--blue);background:var(--blue-bg);cursor:pointer;font-size:10px;margin:0 2px;font-family:var(--mono)}
+  .hint-pill:hover{background:rgba(77,156,248,.18)}
+
+  /* ── Report View ──────────────────────────────────────────────────────────── */
+  #report-view{display:none;flex:1;flex-direction:column;overflow:hidden;background:var(--bg0)}
+  .report-toolbar{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--bg1);flex-shrink:0;flex-wrap:wrap}
+  .report-toolbar-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono)}
+  .rpt-btn{padding:5px 14px;font-size:10px;font-family:var(--mono);border:1px solid var(--blue-line);border-radius:var(--r);background:var(--blue-bg);color:var(--blue);cursor:pointer;white-space:nowrap;transition:all .15s;letter-spacing:.5px}
+  .rpt-btn:hover{background:rgba(77,156,248,.2)}
+  .rpt-btn.pdf{border-color:rgba(240,168,64,.4);background:rgba(240,168,64,.08);color:var(--amber)}
+  .rpt-btn.pdf:hover{background:rgba(240,168,64,.18)}
+  .rpt-btn.png{border-color:rgba(61,214,140,.4);background:rgba(61,214,140,.08);color:var(--green)}
+  .rpt-btn.png:hover{background:rgba(61,214,140,.18)}
+  .rpt-note-input{flex:1;min-width:200px;max-width:420px;padding:5px 10px;font-size:11px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg2);color:var(--txt0);font-family:var(--mono);outline:none;transition:border-color .15s}
+  .rpt-note-input:focus{border-color:var(--blue-line)}
+  .rpt-note-input::placeholder{color:var(--txt3)}
+  .report-scroll{flex:1;overflow-y:auto;padding:20px 24px;background:var(--bg0)}
+
+  /* The printable report card */
+  #report-card{
+    background:var(--bg1);border:1px solid var(--line);border-radius:10px;
+    padding:28px 30px;max-width:1000px;margin:0 auto;
+    font-family:var(--sans);color:var(--txt0);
+  }
+  .rpt-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;padding-bottom:16px;border-bottom:2px solid var(--line)}
+  .rpt-logo{font-family:var(--mono);font-size:16px;font-weight:500;letter-spacing:3px;color:var(--txt0)}
+  .rpt-logo em{color:var(--blue);font-style:normal}
+  .rpt-meta{text-align:right;font-family:var(--mono);font-size:10px;color:var(--txt3);line-height:1.8}
+  .rpt-meta .run-id{color:var(--blue);font-size:11px}
+  .rpt-section{margin-bottom:22px}
+  .rpt-section-title{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);padding-bottom:7px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .rpt-env-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .rpt-env-kv{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px}
+  .rpt-env-k{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:3px}
+  .rpt-env-v{font-size:12px;color:var(--blue);font-family:var(--mono);word-break:break-all}
+  .rpt-syntax-box{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--txt1);line-height:1.8;white-space:pre-wrap;word-break:break-all}
+  .rpt-diagram-img{width:100%;border-radius:var(--r);border:1px solid var(--line);display:block;background:var(--bg0)}
+  .rpt-diagram-placeholder{background:var(--bg2);border:1px dashed var(--line2);border-radius:var(--r);padding:18px;font-size:11px;color:var(--txt3);font-family:var(--mono);text-align:center}
+  .rpt-user-note{background:var(--amber-bg);border:1px solid rgba(240,168,64,.3);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);font-family:var(--sans);line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .rpt-no-data{font-size:11px;color:var(--txt3);font-family:var(--mono);padding:6px 0;font-style:italic}
+  .rpt-spinner{display:none;position:absolute;inset:0;background:rgba(14,15,17,.7);align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px);border-radius:10px;flex-direction:column;gap:14px;font-family:var(--mono);font-size:11px;color:var(--txt1)}
+  .rpt-spinner.show{display:flex}
+  .rpt-spinner .spinner{width:28px;height:28px;border:2px solid var(--line2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+  #report-card-wrap{position:relative}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<div class="shell">
+<div class="shell" id="app-shell">
   <div class="topbar">
     <span class="logo">NAVAL<em>-</em>SEM</span>
     <span class="srv-dot" id="srv-dot"></span>
@@ -190,11 +356,12 @@
     <div class="top-tabs">
       <button class="ttab active" onclick="switchView('builder')">Model builder</button>
       <button class="ttab" onclick="switchView('syntax')">Syntax</button>
-      <button class="ttab" onclick="switchView('htmt')">HTMT</button>
+      <button class="ttab" id="live-tab-btn" onclick="switchView('live')">Live <span id="live-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);display:inline-block;vertical-align:middle;margin-left:4px;animation:pulse 1s infinite"></span></button>
+      <button class="ttab" id="report-tab-btn" onclick="switchView('report')">⬛ Report</button>
     </div>
   </div>
 
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <div class="sec">
       <div class="sec-label">Add nodes</div>
       <button class="tool-btn active-tool" id="tool-lv" onclick="setTool('lv')"><span class="icon-lv"></span>Latent variable</button>
@@ -203,7 +370,8 @@
     </div>
     <div class="sec">
       <div class="sec-label">Node label</div>
-      <input class="sid-input" id="node-label" placeholder="e.g. Trust" value="Trust">
+      <input class="sid-input" id="node-label" placeholder="e.g. Trust" value="Trust" oninput="validateNodeLabel()">
+      <div id="label-hint" style="display:none;font-size:10px;font-family:var(--mono);line-height:1.6;color:var(--txt2);padding:4px 2px;"></div>
     </div>
     <div class="sec">
       <div class="sec-label">Algorithm</div>
@@ -231,55 +399,114 @@
       </select>
     </div>
     <button class="run-btn" id="run-btn" onclick="runAnalysis()" disabled>Run analysis</button>
-    <div class="export-wrap" id="export-wrap">
-      <button class="export-btn" id="export-btn" onclick="toggleExport()">
-        <span>Export code</span><span class="arr">&#9660;</span>
-      </button>
-      <div class="export-drop" id="export-drop">
-        <button class="export-opt" onclick="doExport('r')">&#128196; R <span class="badge">lavaan</span></button>
-        <button class="export-opt" onclick="doExport('python')">&#128013; Python <span class="badge">semopy</span></button>
-        <button class="export-opt" onclick="doExport('lav')">&#128462; JASP / jamovi <span class="badge">.lav</span></button>
-      </div>
-    </div>
-    <button class="clear-btn" onclick="clearCanvas()">Clear canvas</button>
     <div class="sec">
-      <div class="sec-label">Selected</div>
-      <div class="sel-info" id="sel-info">Click a node to select</div>
+      <div class="sec-label">CMB Marker variable <span style="color:var(--txt3);font-size:9px">(optional)</span></div>
+      <input class="sid-input" id="cmb-marker" placeholder="e.g. marker_col" style="font-size:10px"
+        onblur="triggerCmb()" onkeydown="if(event.key==='Enter')triggerCmb()">
     </div>
-    <div id="delete-wrap" style="display:none">
-      <button class="del-btn" onclick="deleteSelected()">Delete selected</button>
+
+    <div class="sec" id="style-panel" style="display:none;flex-direction:column;gap:6px">
+      <div class="sec-label">Node style</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:10px;color:var(--txt2);font-family:var(--mono);flex:1">Fill</label>
+        <input type="color" id="node-fill-color" value="#1a1d24" style="width:34px;height:22px;border:1px solid var(--line);border-radius:3px;background:var(--bg2);cursor:pointer;padding:1px 2px" oninput="applyNodeStyle()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:10px;color:var(--txt2);font-family:var(--mono);flex:1">Border</label>
+        <input type="color" id="node-border-color" value="#3a4052" style="width:34px;height:22px;border:1px solid var(--line);border-radius:3px;background:var(--bg2);cursor:pointer;padding:1px 2px" oninput="applyNodeStyle()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:10px;color:var(--txt2);font-family:var(--mono);flex:1">Text</label>
+        <input type="color" id="node-text-color" value="#e8eaf0" style="width:34px;height:22px;border:1px solid var(--line);border-radius:3px;background:var(--bg2);cursor:pointer;padding:1px 2px" oninput="applyNodeStyle()">
+      </div>
+      <button onclick="resetNodeStyle()" style="width:100%;padding:4px;font-size:10px;font-family:var(--mono);border:1px solid var(--line);border-radius:var(--r);background:transparent;color:var(--txt3);cursor:pointer;margin-top:2px" onmouseover="this.style.color='var(--txt1)'" onmouseout="this.style.color='var(--txt3)'">↺ Reset defaults</button>
+    </div>
+
+    <div class="sec" id="edge-style-panel" style="display:none;flex-direction:column;gap:6px">
+      <div class="sec-label">Edge style</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:10px;color:var(--txt2);font-family:var(--mono);flex:1">Color</label>
+        <input type="color" id="edge-color" value="#4d9cf8" style="width:34px;height:22px;border:1px solid var(--line);border-radius:3px;background:var(--bg2);cursor:pointer;padding:1px 2px" oninput="applyEdgeStyle()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:10px;color:var(--txt2);font-family:var(--mono);flex:1">Thickness</label>
+        <input type="range" id="edge-thickness" min="0.5" max="6" step="0.5" value="1" style="flex:1;accent-color:var(--blue)" oninput="applyEdgeStyle()">
+        <span id="edge-thickness-val" style="font-size:10px;color:var(--txt2);font-family:var(--mono);width:18px;text-align:right">1</span>
+      </div>
+      <button onclick="resetEdgeStyle()" style="width:100%;padding:4px;font-size:10px;font-family:var(--mono);border:1px solid var(--line);border-radius:var(--r);background:transparent;color:var(--txt3);cursor:pointer;margin-top:2px" onmouseover="this.style.color='var(--txt1)'" onmouseout="this.style.color='var(--txt3)'">↺ Reset defaults</button>
     </div>
   </div>
 
   <div class="main">
-    <!-- Builder -->
     <div id="builder-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;position:relative">
       <div class="upload-bar">
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.sav" style="display:none" onchange="handleUpload(this)">
         <button class="up-tag" id="up-btn" onclick="document.getElementById('fileInput').click()">+ Upload CSV / Excel / SPSS</button>
         <div class="col-pills" id="col-pills"></div>
       </div>
+      <div class="canvas-toolbar">
+        <button class="ctool-btn" onclick="undo()" title="Undo (Ctrl+Z)">⇦ Undo</button>
+        <button class="ctool-btn" onclick="redo()" title="Redo (Ctrl+Y)">Redo ⇨</button>
+        <button class="ctool-btn" onclick="downloadCanvasAsPNG()" title="Download canvas as PNG">⬇ PNG</button>
+        <div class="ctool-sep"></div>
+        <button class="ctool-btn" id="tool-hand" onclick="setTool('hand')" title="Hand — pan &amp; zoom (H / Space)">✥ Hand</button>
+        <button class="ctool-btn" onclick="zoomIn()"  title="Zoom in  (+)">＋</button>
+        <button class="ctool-btn" onclick="zoomOut()" title="Zoom out (−)">－</button>
+        <button class="ctool-btn" onclick="resetView()" title="Reset view (0)">⊡ Reset</button>
+        <div style="flex:1"></div>
+        <button class="ctool-btn" style="color:var(--red);border-color:rgba(240,96,96,.25)" onclick="clearCanvas()">✕ Clear canvas</button>
+      </div>
       <div class="canvas-wrap">
+        
+        <button id="toggle-sidebar-btn" class="panel-toggle-btn" title="Toggle Sidebar">☰</button>
+        <button id="toggle-bottom-btn" class="panel-toggle-btn" title="Toggle Syntax/Results">▼</button>
+
         <canvas id="sem-canvas"></canvas>
         <div class="canvas-hint">Click to place node · drag to move · path tool: source → target</div>
         <div class="canvas-status" id="canvas-status"></div>
         <div class="canvas-error" id="canvas-error"></div>
+        <div id="sel-badge" style="display:none;position:absolute;top:10px;right:10px;background:var(--bg2);border:1px solid var(--blue-line);border-radius:var(--r);padding:5px 10px;font-size:11px;font-family:var(--mono);color:var(--blue);display:none;align-items:center;gap:8px;z-index:5">
+          <span id="sel-info"></span>
+          <button onclick="deleteSelected()" style="padding:2px 8px;font-size:10px;background:transparent;border:1px solid rgba(240,96,96,.4);border-radius:3px;color:var(--red);cursor:pointer;font-family:var(--mono)">✕ Delete</button>
+        </div>
         <div class="spinner-overlay" id="spinner">
           <div class="spinner-box">
             <div class="spinner"></div>
             <div class="spinner-msg" id="spinner-msg">FITTING MODEL…</div>
             <div class="spinner-counter" id="spinner-counter">0s</div>
             <div class="spinner-status" id="spinner-status"></div>
+            <button id="stop-btn" onclick="stopAnalysis()" style="margin-top:8px;padding:5px 18px;font-size:10px;font-family:var(--mono);letter-spacing:1px;background:var(--red-bg);border:1px solid rgba(240,96,96,.4);border-radius:var(--r);color:var(--red);cursor:pointer;transition:all .15s" onmouseover="this.style.background='rgba(240,96,96,.2)'" onmouseout="this.style.background='var(--red-bg)'">■ STOP</button>
           </div>
         </div>
       </div>
+      
+      <div class="syntax-panel" id="syntax-panel">
+        <div class="res-drag-handle" id="syntax-drag-handle" title="Drag to resize"></div>
+        <div style="padding: 12px; display: flex; flex-direction: column; flex: 1;">
+          <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="font-size:10px;color:var(--txt2);font-family:var(--mono);letter-spacing:1px">LAVAAN SYNTAX</div>
+            <div style="font-size:10px;color:var(--txt3);font-family:var(--mono);">
+              <strong style="color:var(--blue)">=~</strong> measurement &nbsp;|&nbsp;
+              <strong style="color:var(--blue)">~</strong> structural &nbsp;|&nbsp;
+              <strong style="color:var(--blue)">~~</strong> covariance
+            </div>
+          </div>
+          <textarea class="syntax-area" id="syntax-area" placeholder="Draw a model on canvas or type lavaan syntax here…"></textarea>
+          <div style="display:flex; justify-content: flex-end; margin-top: 8px;">
+             <button class="run-btn" id="run-from-syntax-btn" style="max-width:200px" onclick="runFromSyntax()">Run from syntax</button>
+          </div>
+        </div>
+      </div>
+
       <div class="results-panel" id="results-panel">
         <div class="res-tabs" id="res-tabs">
           <div class="res-drag-handle" id="res-drag-handle" title="Drag to resize"></div>
           <div class="res-tabs-row">
             <button class="rtab active" data-tab="fit"       onclick="showRes('fit')">Fit indices</button>
             <button class="rtab"        data-tab="validity"  onclick="showRes('validity')">Validity</button>
+            <button class="rtab"        data-tab="htmt"      onclick="showRes('htmt')">HTMT</button>
             <button class="rtab"        data-tab="effects"   onclick="showRes('effects')">Effects</button>
+            <button class="rtab"        data-tab="predictive" onclick="showRes('predictive')">Predictive</button>
             <button class="rtab"        data-tab="params"    onclick="showRes('params')">Parameters</button>
             <button class="rtab"        data-tab="chart"     onclick="showRes('chart')">Path chart</button>
             <button class="rtab" id="bs-tab" data-tab="bootstrap" style="display:none" onclick="showRes('bootstrap')">Bootstrap</button>
@@ -290,29 +517,200 @@
       </div>
     </div>
 
-    <!-- Syntax -->
-    <div id="syntax-view" style="display:none;flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:10px;color:var(--txt2);font-family:var(--mono);letter-spacing:1px">LAVAAN SYNTAX — generated from canvas (editable)</div>
-      <textarea class="syntax-area" id="syntax-area" placeholder="Draw a model on canvas or type lavaan syntax here…"></textarea>
-      <div style="font-size:10px;color:var(--txt3);font-family:var(--mono);line-height:1.7">
+    <div id="live-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--bg1);flex-shrink:0">
+        <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--txt3);text-transform:uppercase">Live Engine Log</span>
+        <span id="live-run-id" style="font-family:var(--mono);font-size:9px;color:var(--txt3)"></span>
+        <div style="flex:1"></div>
+        <button onclick="clearLiveLog()" style="font-family:var(--mono);font-size:9px;padding:3px 10px;background:transparent;border:1px solid var(--line2);border-radius:var(--r);color:var(--txt2);cursor:pointer">Clear</button>
+        <button onclick="toggleLiveScroll()" id="live-scroll-btn" style="font-family:var(--mono);font-size:9px;padding:3px 10px;background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:var(--r);color:var(--blue);cursor:pointer">Auto-scroll ON</button>
+      </div>
+      <div id="live-log" style="flex:1;overflow-y:auto;padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.8;background:var(--bg0)"></div>
+      <div id="live-fp-bar" style="display:none;border-top:1px solid var(--line);background:var(--bg1);padding:10px 16px">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:6px">Run Fingerprint (SHA-256)</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <code id="live-fp-code" style="font-family:var(--mono);font-size:11px;color:var(--green);background:var(--green-bg);padding:4px 10px;border-radius:var(--r);border:1px solid rgba(61,214,140,.2);word-break:break-all"></code>
+          <button onclick="downloadAuditJSON()" style="font-family:var(--mono);font-size:9px;padding:4px 12px;background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:var(--r);color:var(--blue);cursor:pointer;white-space:nowrap">⬇ Audit JSON</button>
+        </div>
+        <div style="margin-top:6px;font-size:9px;color:var(--txt3);font-family:var(--mono)">
+          This fingerprint covers: model syntax · data hash · environment snapshot · key results.
+          Download the audit JSON to verify or anchor to a public blockchain registry.
+        </div>
+      </div>
+    </div>
+
+    <div id="report-view" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="report-toolbar">
+        <div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap">
+          <span class="report-toolbar-label">Results Report</span>
+          <input class="rpt-note-input" id="rpt-name"  placeholder="Name (optional)" maxlength="120" style="min-width:120px;max-width:180px" onblur="updateReportMeta()" oninput="clearTimeout(window._rptMetaTimer);window._rptMetaTimer=setTimeout(updateReportMeta,300)">
+          <input class="rpt-note-input" id="rpt-email" placeholder="Email (optional)" maxlength="120" style="min-width:140px;max-width:210px" onblur="updateReportMeta()" oninput="clearTimeout(window._rptMetaTimer);window._rptMetaTimer=setTimeout(updateReportMeta,300)">
+          <input class="rpt-note-input" id="rpt-org"   placeholder="Organisation (optional)" maxlength="120" style="min-width:140px;max-width:210px" onblur="updateReportMeta()" oninput="clearTimeout(window._rptMetaTimer);window._rptMetaTimer=setTimeout(updateReportMeta,300)">
+          <input class="rpt-note-input" id="rpt-note"  placeholder="Annotation (optional)" maxlength="600" style="min-width:160px;flex:1" onblur="updateReportNote()" oninput="clearTimeout(window._rptNoteTimer);window._rptNoteTimer=setTimeout(updateReportNote,300)">
+          <button class="rpt-btn png" onclick="downloadReport('png')">⬇ PNG</button>
+          <button class="rpt-btn pdf" onclick="downloadReport('pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="report-scroll">
+        <div id="report-card-wrap">
+          <div id="rpt-spinner" class="rpt-spinner">
+            <div class="spinner"></div>
+            <span id="rpt-spinner-msg">Rendering…</span>
+          </div>
+          <div id="report-card">
+            <div class="rpt-no-data" style="padding:40px 0;text-align:center;font-size:12px">
+              Run an analysis first, then open this tab to generate a consolidated report.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="syntax-view" style="display:none;flex:1;flex-direction:column;padding:20px 24px;gap:12px;overflow-y:auto">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono)">Lavaan Syntax</div>
+      <div style="font-size:10px;color:var(--txt3);font-family:var(--mono)">
         <strong style="color:var(--blue)">=~</strong> measurement &nbsp;|&nbsp;
         <strong style="color:var(--blue)">~</strong> structural &nbsp;|&nbsp;
         <strong style="color:var(--blue)">~~</strong> covariance
       </div>
-      <button class="run-btn" style="max-width:200px" onclick="runFromSyntax()">Run from syntax</button>
-    </div>
-
-    <!-- HTMT -->
-    <div id="htmt-view" style="display:none;flex:1;padding:16px;overflow-y:auto">
-      <div style="font-size:11px;color:var(--txt2);margin-bottom:12px;font-family:var(--mono)">
-        Heterotrait-Monotrait Ratio — threshold: &lt;0.85 (strict) · &lt;0.90 (lenient)
+      <textarea class="syntax-area" id="syntax-area-tab"
+        placeholder="Paste or type lavaan syntax here…&#10;&#10;Example:&#10;Trust =~ t1 + t2 + t3&#10;Satisfaction =~ s1 + s2 + s3&#10;Satisfaction ~ Trust"
+        style="min-height:260px;resize:vertical;flex:1"></textarea>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="run-btn" id="run-from-syntax-tab-btn" style="max-width:220px" onclick="runFromSyntaxTab()">▶ Run from syntax</button>
+        <span style="font-size:10px;color:var(--txt3);font-family:var(--mono)">Synced with Model builder canvas</span>
       </div>
-      <div id="htmt-body"><div class="no-data">Run a model first, then come here for HTMT.</div></div>
+      <div id="syntax-tab-error" style="font-size:11px;color:var(--red);font-family:var(--mono);min-height:16px"></div>
     </div>
   </div>
 </div>
 
 <script>
+// --- History Stack variables ---
+let undoStack = [];
+let redoStack = [];
+
+function saveState() {
+  undoStack.push(JSON.stringify({ nodes, edges }));
+  redoStack = []; 
+}
+
+function undo() {
+  if (undoStack.length > 0) {
+    redoStack.push(JSON.stringify({ nodes, edges }));
+    const prevState = JSON.parse(undoStack.pop());
+    nodes = prevState.nodes;
+    edges = prevState.edges;
+    selected = null; selectedEdge = null; // Clear selection to avoid ghost references
+    hideSelBadge(); hideStylePanels();
+    updateSyntax();
+    draw();
+  }
+}
+
+function redo() {
+  if (redoStack.length > 0) {
+    undoStack.push(JSON.stringify({ nodes, edges }));
+    const nextState = JSON.parse(redoStack.pop());
+    nodes = nextState.nodes;
+    edges = nextState.edges;
+    selected = null; selectedEdge = null;
+    hideSelBadge(); hideStylePanels();
+    updateSyntax();
+    draw();
+  }
+}
+
+// Global Keyboard Shortcut Listener
+document.addEventListener('keydown', function(event) {
+  // Prevent undo/redo if user is actively typing in an input or textarea
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+      return;
+  }
+  
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
+
+  if (cmdOrCtrl && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) {
+          redo(); 
+      } else {
+          undo(); 
+      }
+  }
+  if (cmdOrCtrl && event.key.toLowerCase() === 'y' && !isMac) {
+      event.preventDefault();
+      redo();
+  }
+});
+
+// PNG Download function
+function downloadCanvasAsPNG() {
+    // The background is already rendered by your draw() function loop
+    const imageURL = canvas.toDataURL("image/png");
+    const link = document.createElement('a');
+    link.href = imageURL;
+    link.download = 'naval_sem_model.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function generateCanvasFromSyntax(syntax) {
+  nodes = [];
+  edges = [];
+  
+  const lines = syntax.split('\n');
+  let currentLvX = 150; 
+  const lvY = 150;      
+
+  lines.forEach(line => {
+    line = line.trim();
+    if (!line || line.startsWith('#')) return; 
+
+    if (line.includes('=~')) {
+      const parts = line.split('=~');
+      const lvLabel = parts[0].trim();
+      const inds = parts[1].split('+').map(i => i.trim());
+
+      let lvNode = nodes.find(n => n.label === lvLabel);
+      if (!lvNode) {
+        lvNode = { id: uid(), type: 'lv', x: currentLvX, y: lvY, label: lvLabel };
+        nodes.push(lvNode);
+        currentLvX += 300; 
+      }
+
+      let indY = lvNode.y + 120; 
+      let indX = lvNode.x - ((inds.length - 1) * 45); 
+
+      inds.forEach(indLabel => {
+        let indNode = nodes.find(n => n.label === indLabel);
+        if (!indNode) {
+          indNode = { id: uid(), type: 'obs', x: indX, y: indY, label: indLabel };
+          nodes.push(indNode);
+        }
+        edges.push({ from: lvNode.id, to: indNode.id, type: 'measurement' });
+        indX += 90; 
+      });
+    } 
+    else if (line.includes('~') && !line.includes('~~')) {
+      const parts = line.split('~');
+      const targetLabel = parts[0].trim();
+      const predictors = parts[1].split('+').map(i => i.trim());
+
+      predictors.forEach(predLabel => {
+        let sNode = nodes.find(n => n.label === predLabel);
+        let tNode = nodes.find(n => n.label === targetLabel);
+        
+        if (sNode && tNode) {
+          edges.push({ from: sNode.id, to: tNode.id, type: 'structural' });
+        }
+      });
+    }
+  });
+}
+
 const API = '';
 // ── server health ──────────────────────────────────────────────────────────
 async function pingServer() {
@@ -336,9 +734,45 @@ setInterval(pingServer,5000); pingServer();
 const canvas=document.getElementById('sem-canvas');
 const ctx=canvas.getContext('2d');
 let nodes=[],edges=[],tool='lv';
-let selected=null,arrowStart=null,dragging=null,dragOx=0,dragOy=0;
+function showSelBadge(text){
+  const b=document.getElementById('sel-badge');
+  const s=document.getElementById('sel-info');
+  if(b&&s){s.textContent=text;b.style.display='flex';}
+}
+function hideSelBadge(){
+  const b=document.getElementById('sel-badge');
+  if(b) b.style.display='none';
+}
+
+let selected=null,selectedEdge=null,arrowStart=null,dragging=null,dragOx=0,dragOy=0;
+// ── Pan / zoom state ──────────────────────────────────────────────────────────
+let panX=0,panY=0,zoom=1;
+let isPanning=false,panStartX=0,panStartY=0,panOriginX=0,panOriginY=0;
+let prevTool='lv'; // for Space-key temporary hand switch
+
+function toCanvas(clientX,clientY){
+  const r=canvas.getBoundingClientRect();
+  return {x:(clientX-r.left-panX)/zoom, y:(clientY-r.top-panY)/zoom};
+}
+function zoomAt(factor,cx,cy){
+  const r=canvas.getBoundingClientRect();
+  const wx=cx!==undefined?cx:r.width/2, wy=cy!==undefined?cy:r.height/2;
+  panX=(panX-wx)*factor+wx; panY=(panY-wy)*factor+wy;
+  zoom=Math.min(Math.max(zoom*factor,0.2),4);
+  draw();
+}
+function zoomIn() {zoomAt(1.25);}
+function zoomOut(){zoomAt(0.8);}
+function resetView(){panX=0;panY=0;zoom=1;draw();}
 let results=null,resTab='fit';
+let _lastDiagramDataUrl=null; // cached after each run so report works from any tab
+let _reportSnapshot=null;     // frozen at analysis time — report always reads from this
 let W=0,H=0,uploadedFile=null;
+let csvColumns=[];   // populated on upload; used to validate observed-node labels
+
+// Track initial state for dragging to enable undo
+let dragStartState = null;
+let dragMoved = false;
 
 function resize(){
   const r=canvas.parentElement.getBoundingClientRect();
@@ -352,47 +786,79 @@ function resize(){
 function draw(){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#0e0f11';ctx.fillRect(0,0,W,H);
+  // Grid follows pan/zoom so it feels anchored
   ctx.strokeStyle='rgba(46,51,64,0.4)';ctx.lineWidth=0.5;
-  for(let x=40;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(let y=40;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  const gStep=40*zoom;
+  const gOx=((panX%gStep)+gStep)%gStep, gOy=((panY%gStep)+gStep)%gStep;
+  for(let x=gOx;x<W;x+=gStep){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=gOy;y<H;y+=gStep){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  // Apply transform for nodes/edges
+  ctx.save();
+  ctx.translate(panX,panY);
+  ctx.scale(zoom,zoom);
   edges.forEach(drawEdge);
   nodes.forEach(drawNode);
+  ctx.restore();
+  // Debounced snapshot — fires 600ms after the last draw() call
+  // Captures node colours, positions, labels, edge styles — everything
+  clearTimeout(draw._snapTimer);
+  draw._snapTimer = setTimeout(()=>{
+    try{
+      const url = canvas.toDataURL('image/png');
+      _lastDiagramDataUrl = url;
+      // Keep the report snapshot diagram in sync with canvas position/style changes.
+      // Only the diagramDataUrl is updated — all scientific fields stay frozen.
+      if(_reportSnapshot) _reportSnapshot.diagramDataUrl = url;
+    }catch(e){}
+  }, 600);
 }
 
 function drawNode(n){
   const sel=selected===n.id,isLV=n.type==='lv';
+  const defFill=isLV?'#1a1d24':'#13151a';
+  const defBorder=isLV?'#3a4052':'#2e3340';
+  const fillColor=n.fillColor||defFill;
+  const borderColor=n.borderColor||defBorder;
+  const textColor=n.textColor||'#e8eaf0';
   ctx.save();
   if(isLV){
-    ctx.beginPath();ctx.ellipse(n.x,n.y,46,29,0,0,Math.PI*2);
-    ctx.fillStyle=sel?'rgba(77,156,248,0.12)':'#1a1d24';ctx.fill();
-    ctx.strokeStyle=sel?'#4d9cf8':'#3a4052';ctx.lineWidth=sel?1.5:1;ctx.stroke();
+    const rx=Math.max(46,ctx.measureText(n.label).width/2+10);ctx.beginPath();ctx.ellipse(n.x,n.y,rx,29,0,0,Math.PI*2);
+    ctx.fillStyle=sel?'rgba(77,156,248,0.12)':fillColor;ctx.fill();
+    ctx.strokeStyle=sel?'#4d9cf8':borderColor;ctx.lineWidth=sel?1.5:1;ctx.stroke();
   } else {
-    ctx.beginPath();ctx.roundRect(n.x-34,n.y-15.5,68,31,4);
-    ctx.fillStyle=sel?'rgba(77,156,248,0.12)':'#13151a';ctx.fill();
-    ctx.strokeStyle=sel?'#4d9cf8':'#2e3340';ctx.lineWidth=sel?1.5:1;ctx.stroke();
+    const bw=Math.max(68,ctx.measureText(n.label).width+20);ctx.beginPath();ctx.roundRect(n.x-bw/2,n.y-15.5,bw,31,4);
+    ctx.fillStyle=sel?'rgba(77,156,248,0.12)':fillColor;ctx.fill();
+    ctx.strokeStyle=sel?'#4d9cf8':borderColor;ctx.lineWidth=sel?1.5:1;ctx.stroke();
   }
-  ctx.fillStyle=sel?'#4d9cf8':'#e8eaf0';
+  ctx.fillStyle=sel?'#4d9cf8':textColor;
   ctx.font=(sel?'500 ':'400 ')+'11px "IBM Plex Mono",monospace';
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(n.label.length>8?n.label.slice(0,8)+'…':n.label,n.x,n.y);
+  ctx.fillText(n.label,n.x,n.y);
   if(isLV){ctx.font='9px "IBM Plex Mono",monospace';ctx.fillStyle='#6e7a94';ctx.fillText('LV',n.x,n.y+15);}
   ctx.restore();
 }
 
 function drawEdge(e){
   const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
-  if(!s||!t)return;
+  if(!s||t==null)return;
   const dx=t.x-s.x,dy=t.y-s.y,dist=Math.sqrt(dx*dx+dy*dy)||1;
   const ux=dx/dist,uy=dy/dist;
-  const sr=s.type==='lv'?46:34,tr=t.type==='lv'?46:34;
+  ctx.font='11px "IBM Plex Mono",monospace';const sr=s.type==='lv'?Math.max(46,ctx.measureText(s.label).width/2+10):34,tr=t.type==='lv'?Math.max(46,ctx.measureText(t.label).width/2+10):34;
   const x1=s.x+ux*sr,y1=s.y+uy*sr,x2=t.x-ux*tr,y2=t.y-uy*tr;
+  const defColor=e.type==='measurement'?'#4d9cf8':'#b0b8cc';
+  const edgeColor=e.color||defColor;
+  const edgeThick=e.thickness||1;
+  const isSel=selectedEdge===e;
   ctx.save();
   ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
-  ctx.strokeStyle=e.type==='measurement'?'#4d9cf8':'#b0b8cc';ctx.lineWidth=1;ctx.stroke();
+  ctx.strokeStyle=isSel?'#f0a840':edgeColor;ctx.lineWidth=edgeThick+(isSel?1:0);ctx.stroke();
+  if(isSel){
+    ctx.strokeStyle='rgba(240,168,64,0.25)';ctx.lineWidth=edgeThick+5;ctx.stroke();
+  }
   const ang=Math.atan2(y2-y1,x2-x1);
   ctx.translate(x2,y2);ctx.rotate(ang);
   ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-9,-4);ctx.lineTo(-9,4);ctx.closePath();
-  ctx.fillStyle=e.type==='measurement'?'#4d9cf8':'#b0b8cc';ctx.fill();
+  ctx.fillStyle=isSel?'#f0a840':edgeColor;ctx.fill();
   ctx.restore();
   if(e.label){
     const mx=(x1+x2)/2,my=(y1+y2)/2;
@@ -404,8 +870,29 @@ function drawEdge(e){
 function hitTest(x,y){
   for(let i=nodes.length-1;i>=0;i--){
     const n=nodes[i],dx=x-n.x,dy=y-n.y;
-    if(n.type==='lv'){if((dx*dx)/(46*46)+(dy*dy)/(29*29)<=1)return n;}
+    if(n.type==='lv'){ctx.font='11px "IBM Plex Mono",monospace';const hrx=Math.max(46,ctx.measureText(n.label).width/2+10);if((dx*dx)/(hrx*hrx)+(dy*dy)/(29*29)<=1)return n;}
     else{if(Math.abs(dx)<=34&&Math.abs(dy)<=15)return n;}
+  }
+  return null;
+}
+
+function hitTestEdge(x,y){
+  const thresh=Math.max(6,6/zoom);
+  for(let i=edges.length-1;i>=0;i--){
+    const e=edges[i];
+    const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
+    if(!s||!t)continue;
+    const dx=t.x-s.x,dy=t.y-s.y,dist=Math.sqrt(dx*dx+dy*dy)||1;
+    const ux=dx/dist,uy=dy/dist;
+    ctx.font='11px "IBM Plex Mono",monospace';
+    const sr=s.type==='lv'?Math.max(46,ctx.measureText(s.label).width/2+10):34;
+    const tr=t.type==='lv'?Math.max(46,ctx.measureText(t.label).width/2+10):34;
+    const x1=s.x+ux*sr,y1=s.y+uy*sr,x2=t.x-ux*tr,y2=t.y-uy*tr;
+    const segLen=Math.sqrt((x2-x1)**2+(y2-y1)**2);
+    if(segLen<1)continue;
+    const tParam=Math.max(0,Math.min(1,((x-x1)*(x2-x1)+(y-y1)*(y2-y1))/(segLen*segLen)));
+    const px=x1+tParam*(x2-x1),py=y1+tParam*(y2-y1);
+    if(Math.sqrt((x-px)**2+(y-py)**2)<thresh)return e;
   }
   return null;
 }
@@ -414,14 +901,39 @@ let idctr=1;
 function uid(){return 'n'+(idctr++);}
 
 canvas.addEventListener('mousedown',e=>{
-  const r=canvas.getBoundingClientRect();
-  const x=e.clientX-r.left,y=e.clientY-r.top;
+  const {x,y}=toCanvas(e.clientX,e.clientY);
   const hit=hitTest(x,y);
   clrStatus();
+
+  // ── Hand tool ────────────────────────────────────────────────────────
+  if(tool==='hand'){
+    if(hit){
+      // Click on node: select it (same as other tools)
+      selected=hit.id;selectedEdge=null;dragging=hit;dragOx=x-hit.x;dragOy=y-hit.y;
+      dragStartState=JSON.stringify({nodes,edges});dragMoved=false;
+      showSelBadge((hit.type==='lv'?'Latent':'Indicator')+': '+hit.label);
+      showNodeStylePanel(hit);draw();
+      return;
+    }
+    const eHit=hitTestEdge(x,y);
+    if(eHit){
+      selectedEdge=eHit;selected=null;
+      showSelBadge((eHit.type==='measurement'?'Measurement':'Structural')+' path');
+      showEdgeStylePanel(eHit);draw();
+      return;
+    }
+    // Empty space: deselect + start panning
+    selected=null;selectedEdge=null;hideSelBadge();hideStylePanels();draw();
+    isPanning=true;panStartX=e.clientX;panStartY=e.clientY;panOriginX=panX;panOriginY=panY;
+    canvas.style.cursor='grabbing';
+    return;
+  }
+
   if(tool==='arrow'){
     if(hit){
       if(!arrowStart){arrowStart=hit.id;document.getElementById('canvas-status').textContent='→ click target node';}
       else if(arrowStart!==hit.id){
+        saveState();
         const src=nodes.find(n=>n.id===arrowStart);
         edges.push({from:arrowStart,to:hit.id,type:src.type==='lv'&&hit.type!=='lv'?'measurement':'structural'});
         arrowStart=null;updateSyntax();draw();
@@ -429,42 +941,203 @@ canvas.addEventListener('mousedown',e=>{
     }
     return;
   }
-  if(hit){selected=hit.id;dragging=hit;dragOx=x-hit.x;dragOy=y-hit.y;
-    document.getElementById('sel-info').textContent=(hit.type==='lv'?'Latent':'Indicator')+': '+hit.label;
-    document.getElementById('delete-wrap').style.display='block';draw();return;}
+
+  if(hit){
+    selected=hit.id;selectedEdge=null;dragging=hit;dragOx=x-hit.x;dragOy=y-hit.y;
+    dragStartState=JSON.stringify({nodes,edges});dragMoved=false;
+    showSelBadge((hit.type==='lv'?'Latent':'Indicator')+': '+hit.label);
+    showNodeStylePanel(hit);draw();
+    return;
+  }
+
+  // Check for edge click (select edge, don't place node)
+  const eHit=hitTestEdge(x,y);
+  if(eHit){
+    selectedEdge=eHit;selected=null;
+    showSelBadge((eHit.type==='measurement'?'Measurement':'Structural')+' path');
+    showEdgeStylePanel(eHit);draw();
+    return;
+  }
+
+  // Empty canvas: place new node
+  selected=null;selectedEdge=null;hideSelBadge();hideStylePanels();
   const label=document.getElementById('node-label').value.trim()||(tool==='lv'?'LV':'x1');
+  if(tool==='obs'&&csvColumns.length>0&&!csvColumns.includes(label)){
+    const lc=label.toLowerCase();
+    const suggestions=csvColumns.filter(c=>c.toLowerCase().startsWith(lc)).slice(0,3);
+    let msg=`✗ "${label}" not found in CSV`;
+    if(suggestions.length) msg+=` — try: ${suggestions.join(', ')}`;
+    document.getElementById('canvas-error').textContent=msg;
+    return;
+  }
+
+  saveState();
   const nn={id:uid(),type:tool,x,y,label};
   nodes.push(nn);selected=nn.id;
-  document.getElementById('sel-info').textContent='Added: '+label;
-  document.getElementById('delete-wrap').style.display='block';
+  showSelBadge('Added: '+label);
   updateSyntax();draw();
 });
-canvas.addEventListener('mousemove',e=>{
-  if(!dragging)return;
-  const r=canvas.getBoundingClientRect();
-  dragging.x=e.clientX-r.left-dragOx;dragging.y=e.clientY-r.top-dragOy;draw();
-});
-canvas.addEventListener('mouseup',()=>{if(dragging)updateSyntax();dragging=null;});
 
-function setTool(t){tool=t;arrowStart=null;clrStatus();
-  ['lv','obs','arrow'].forEach(x=>document.getElementById('tool-'+x).classList.toggle('active-tool',x===t));}
+canvas.addEventListener('mousemove',e=>{
+  // Hand pan
+  if(isPanning){
+    panX=panOriginX+(e.clientX-panStartX);
+    panY=panOriginY+(e.clientY-panStartY);
+    draw();
+    return;
+  }
+  if(!dragging)return;
+  dragMoved=true;
+  const {x,y}=toCanvas(e.clientX,e.clientY);
+  dragging.x=x-dragOx;dragging.y=y-dragOy;draw();
+});
+
+canvas.addEventListener('mouseup',()=>{
+  if(isPanning){isPanning=false;canvas.style.cursor=tool==='hand'?'grab':'';}
+  if(dragging){
+    if(dragMoved&&dragStartState){undoStack.push(dragStartState);redoStack=[];}
+    updateSyntax();
+  }
+  dragging=null;dragStartState=null;dragMoved=false;
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  if(isPanning){isPanning=false;canvas.style.cursor='';}
+});
+
+// ── Scroll to zoom ────────────────────────────────────────────────────────────
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=canvas.getBoundingClientRect();
+  const cx=e.clientX-r.left, cy=e.clientY-r.top;
+  const factor=e.deltaY<0?1.1:0.9;
+  panX=(panX-cx)*factor+cx; panY=(panY-cy)*factor+cy;
+  zoom=Math.min(Math.max(zoom*factor,0.2),4);
+  draw();
+},{passive:false});
+
+// ── Style panel helpers ───────────────────────────────────────────────────────
+function showNodeStylePanel(node){
+  const p=document.getElementById('style-panel');
+  const ep=document.getElementById('edge-style-panel');
+  if(p) p.style.display='flex';
+  if(ep) ep.style.display='none';
+  const defFill=node.type==='lv'?'#1a1d24':'#13151a';
+  const defBorder=node.type==='lv'?'#3a4052':'#2e3340';
+  const fc=document.getElementById('node-fill-color');
+  const bc=document.getElementById('node-border-color');
+  const tc=document.getElementById('node-text-color');
+  if(fc) fc.value=node.fillColor||defFill;
+  if(bc) bc.value=node.borderColor||defBorder;
+  if(tc) tc.value=node.textColor||'#e8eaf0';
+}
+function showEdgeStylePanel(edge){
+  const p=document.getElementById('style-panel');
+  const ep=document.getElementById('edge-style-panel');
+  if(p) p.style.display='none';
+  if(ep) ep.style.display='flex';
+  const defColor=edge.type==='measurement'?'#4d9cf8':'#b0b8cc';
+  const ec=document.getElementById('edge-color');
+  const et=document.getElementById('edge-thickness');
+  const ev=document.getElementById('edge-thickness-val');
+  if(ec) ec.value=edge.color||defColor;
+  if(et){et.value=edge.thickness||1;}
+  if(ev) ev.textContent=edge.thickness||1;
+}
+function hideStylePanels(){
+  const p=document.getElementById('style-panel');
+  const ep=document.getElementById('edge-style-panel');
+  if(p) p.style.display='none';
+  if(ep) ep.style.display='none';
+}
+function applyNodeStyle(){
+  if(!selected)return;
+  const node=nodes.find(n=>n.id===selected);if(!node)return;
+  const fc=document.getElementById('node-fill-color');
+  const bc=document.getElementById('node-border-color');
+  const tc=document.getElementById('node-text-color');
+  if(fc) node.fillColor=fc.value;
+  if(bc) node.borderColor=bc.value;
+  if(tc) node.textColor=tc.value;
+  draw();
+}
+function applyEdgeStyle(){
+  if(!selectedEdge)return;
+  const ec=document.getElementById('edge-color');
+  const et=document.getElementById('edge-thickness');
+  const ev=document.getElementById('edge-thickness-val');
+  if(ec) selectedEdge.color=ec.value;
+  if(et){
+    selectedEdge.thickness=parseFloat(et.value);
+    if(ev) ev.textContent=selectedEdge.thickness;
+  }
+  draw();
+}
+function resetNodeStyle(){
+  if(!selected)return;
+  const node=nodes.find(n=>n.id===selected);if(!node)return;
+  delete node.fillColor;delete node.borderColor;delete node.textColor;
+  showNodeStylePanel(node);draw();
+}
+function resetEdgeStyle(){
+  if(!selectedEdge)return;
+  delete selectedEdge.color;delete selectedEdge.thickness;
+  showEdgeStylePanel(selectedEdge);draw();
+}
+
+function setTool(t){
+  prevTool=tool!=='hand'?tool:prevTool;
+  tool=t;arrowStart=null;clrStatus();
+  ['lv','obs','arrow'].forEach(x=>document.getElementById('tool-'+x).classList.toggle('active-tool',x===t));
+  const hb=document.getElementById('tool-hand');
+  if(hb) hb.classList.toggle('active-tool',t==='hand');
+  canvas.style.cursor=t==='hand'?'grab':'';
+  validateNodeLabel();
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='h'||e.key==='H'){setTool('hand');return;}
+  if(e.key===' '&&tool!=='hand'){e.preventDefault();prevTool=tool;setTool('hand');return;}
+  if(e.key==='+'||e.key==='='){ zoomIn();return;}
+  if(e.key==='-'){ zoomOut();return;}
+  if(e.key==='0'){ resetView();return;}
+  if(e.key==='Escape'&&tool==='hand'){setTool(prevTool||'lv');}
+});
+document.addEventListener('keyup',e=>{
+  // Release Space to return to previous tool
+  if(e.key===' '&&tool==='hand'){setTool(prevTool||'lv');}
+});
 function clrStatus(){
   document.getElementById('canvas-status').textContent='';
   document.getElementById('canvas-error').textContent='';
 }
 function deleteSelected(){
+  if(selectedEdge){
+    saveState();
+    edges=edges.filter(e=>e!==selectedEdge);
+    selectedEdge=null;hideSelBadge();hideStylePanels();
+    updateSyntax();draw();return;
+  }
   if(!selected)return;
+  saveState(); // Save before deleting
   nodes=nodes.filter(n=>n.id!==selected);edges=edges.filter(e=>e.from!==selected&&e.to!==selected);
-  selected=null;document.getElementById('sel-info').textContent='Click a node to select';
-  document.getElementById('delete-wrap').style.display='none';updateSyntax();draw();
+  selected=null;hideSelBadge();hideStylePanels();
+  updateSyntax();draw();
 }
 function clearCanvas(){
-  nodes=[];edges=[];selected=null;arrowStart=null;results=null;htmtData=null;
+  saveState(); // Save before clearing
+  nodes=[];edges=[];selected=null;selectedEdge=null;arrowStart=null;results=null;htmtData=null;predictiveData=null;cmbData=null;
+  panX=0;panY=0;zoom=1;
+  
   document.getElementById('results-panel').classList.remove('show');
+  document.getElementById('syntax-panel').classList.remove('collapsed-panel');
+  document.getElementById('toggle-bottom-btn').innerHTML = '▼';
+  
   document.getElementById('syntax-area').value='';
-  document.getElementById('sel-info').textContent='Click a node to select';
-  document.getElementById('delete-wrap').style.display='none';
-  clrStatus();draw();
+  hideSelBadge();hideStylePanels();
+  draw(); // Repaint immediately so canvas clears visually at once
 }
 function updateSyntax(){
   const lines=[];
@@ -477,7 +1150,22 @@ function updateSyntax(){
     const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
     if(s&&t)lines.push(t.label+' ~ '+s.label);
   });
-  document.getElementById('syntax-area').value=lines.join('\n');
+  const syntax=lines.join('\n');
+  const ta=document.getElementById('syntax-area');
+  if(ta) ta.value=syntax;
+  const tab=document.getElementById('syntax-area-tab');
+  if(tab&&document.activeElement!==tab) tab.value=syntax;
+}
+
+async function runFromSyntaxTab(){
+  const tabArea=document.getElementById('syntax-area-tab');
+  const errEl=document.getElementById('syntax-tab-error');
+  const syntax=tabArea?tabArea.value.trim():'';
+  if(!syntax){if(errEl)errEl.textContent='Enter lavaan syntax first.';return;}
+  if(errEl)errEl.textContent='';
+  const mainArea=document.getElementById('syntax-area');
+  if(mainArea) mainArea.value=syntax;
+  await runFromSyntax();
 }
 
 // ── upload ─────────────────────────────────────────────────────────────────
@@ -492,22 +1180,75 @@ async function handleUpload(input){
     const r=await fetch(API+'/upload/preview',{method:'POST',body:fd});
     if(r.ok){
       const d=await r.json();
+      csvColumns=d.columns;
       document.getElementById('col-pills').innerHTML=
         d.columns.slice(0,16).map(h=>`<span class="col-pill" title="${h}" onclick="usePill('${h}')">${h}</span>`).join('')+
         (d.columns.length>16?`<span class="col-pill" style="opacity:.5">+${d.columns.length-16}</span>`:'');
+      validateNodeLabel();
     }
   } catch {
     if(file.name.endsWith('.csv')){
       const reader=new FileReader();
       reader.onload=ev=>{
         const hs=ev.target.result.trim().split('\n')[0].split(',').map(h=>h.trim().replace(/"/g,''));
+        csvColumns=hs;
         document.getElementById('col-pills').innerHTML=hs.slice(0,16).map(h=>`<span class="col-pill" onclick="usePill('${h}')">${h}</span>`).join('');
+        validateNodeLabel();
       };
       reader.readAsText(file);
     }
   }
 }
-function usePill(l){document.getElementById('node-label').value=l;}
+function usePill(l){document.getElementById('node-label').value=l;validateNodeLabel();}
+
+// ── label validation ────────────────────────────────────────────────────────
+function validateNodeLabel(){
+  const input=document.getElementById('node-label');
+  const hint=document.getElementById('label-hint');
+  const label=(input.value||'').trim();
+  if(!hint)return;
+
+  // Only validate for observed nodes when columns are known
+  if(tool!=='obs'||csvColumns.length===0||!label){
+    input.style.borderColor='';hint.style.display='none';return;
+  }
+
+  const match=csvColumns.includes(label);
+  if(match){
+    input.style.borderColor='rgba(61,214,140,.5)';
+    hint.style.display='none';
+  } else {
+    input.style.borderColor='rgba(240,96,96,.55)';
+    hint.style.display='block';
+    // Suggest closest column if any start with same letters
+    const lc=label.toLowerCase();
+    const suggestions=csvColumns.filter(c=>c.toLowerCase().startsWith(lc)).slice(0,3);
+    hint.innerHTML=`<span style="color:var(--red)">✗ not in CSV</span>`+
+      (suggestions.length?` — did you mean: `+suggestions.map(s=>`<span class="hint-pill" onclick="usePill('${s}')">${s}</span>`).join(' '):'');
+  }
+}
+
+// ── Report snapshot ────────────────────────────────────────────────────────
+// Called immediately after analysis succeeds. Captures everything the report
+// needs from the live DOM so it can never drift if settings change later.
+function _freezeReportSnapshot(){
+  // Snapshot the canvas right now — model & loadings are freshly drawn
+  let diagramUrl = null;
+  try{ diagramUrl = canvas.toDataURL('image/png'); }catch(e){}
+  _lastDiagramDataUrl = diagramUrl;
+
+  _reportSnapshot = {
+    diagramDataUrl : diagramUrl,
+    algo           : document.getElementById('algo-sel')?.value   || '—',
+    bsN            : document.getElementById('bs-sel')?.value     || '—',
+    miss           : document.getElementById('missing-sel')?.value|| '—',
+    fname          : uploadedFile ? uploadedFile.name : '—',
+    cmb            : document.getElementById('cmb-marker')?.value?.trim() || '—',
+    syntax         : document.getElementById('syntax-area')?.value?.trim() || '',
+    runId          : _liveRunId || ('local-' + Date.now().toString(16)),
+    ts             : new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC',
+  };
+}
 
 // ── run ────────────────────────────────────────────────────────────────────
 async function runAnalysis(){
@@ -515,79 +1256,241 @@ async function runAnalysis(){
   const syntax=document.getElementById('syntax-area').value.trim();
   if(!syntax){document.getElementById('canvas-error').textContent='✗ Build a model on the canvas first';return;}
   clrStatus();showSpinner('FITTING MODEL…');
+  const _rid = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(16));
+  clearLiveLog();
+  _startLiveStream(_rid);
   const fd=new FormData();
   fd.append('file',uploadedFile);fd.append('model',syntax);
   fd.append('algorithm',document.getElementById('algo-sel').value);
   fd.append('bootstrap_n',document.getElementById('bs-sel').value);
   fd.append('missing',document.getElementById('missing-sel').value);
+  fd.append('run_id',_rid);
   try{
-    const r=await fetch(API+'/run',{method:'POST',body:fd});
+    const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();
     if(!r.ok){document.getElementById('canvas-error').textContent='✗ '+(data.detail||'Server error');return;}
     results=data;
-    data.parameters.forEach(p=>{
-      edges.forEach(e=>{
-        const s=nodes.find(n=>n.id===e.from),t=nodes.find(n=>n.id===e.to);
-        if(s&&t){
-          if((p.op==='=~'&&p.lhs===s.label&&p.rhs===t.label)||
-             (p.op==='~' &&p.lhs===t.label&&p.rhs===s.label))
-            e.label=p.estimate.toFixed(3);
-        }
+    
+    edges.forEach(e => e.label = null);
+    const labeledEdgeIds = new Set();
+
+    if (data.outer_weights && data.outer_weights.length) {
+      data.outer_weights.forEach(w => {
+        const lvLabel  = w.latent_variable || w.lv || w.LV || w.construct || w.Latent;
+        const indLabel = w.indicator || w.ind || w.manifest || w.Indicator || w.observed;
+        const weight   = w.outer_weight  != null ? w.outer_weight
+                       : w.outer_loading != null ? w.outer_loading
+                       : w.loading       != null ? w.loading
+                       : w.estimate      != null ? w.estimate : null;
+        if (lvLabel == null || indLabel == null || weight == null) return;
+        edges.forEach(e => {
+          const s = nodes.find(n => n.id === e.from);
+          const t = nodes.find(n => n.id === e.to);
+          if (s && t && e.type === 'measurement' &&
+              s.label === lvLabel && t.label === indLabel) {
+            e.label = Number(weight).toFixed(3);
+            labeledEdgeIds.add(e.from + '|' + e.to);
+          }
+        });
       });
-    });
+    }
+
+    if (data.parameters) {
+      data.parameters.forEach(p => {
+        if (p.op !== '=~') return;
+        const est = p.estimate != null ? p.estimate
+                  : p.Estimate != null ? p.Estimate : null;
+        if (est == null) return;
+        edges.forEach(e => {
+          if (labeledEdgeIds.has(e.from + '|' + e.to)) return; 
+          const s = nodes.find(n => n.id === e.from); 
+          const t = nodes.find(n => n.id === e.to);   
+          if (!s || !t || e.type !== 'measurement') return;
+          if ((s.label === p.lhs && t.label === p.rhs) ||
+              (s.label === p.rhs && t.label === p.lhs)) {
+            e.label = Number(est).toFixed(3);
+          }
+        });
+      });
+    }
+
+    if (data.parameters) {
+      data.parameters.forEach(p => {
+        if (p.op !== '~') return;
+        const est = p.estimate != null ? p.estimate
+                  : p.Estimate != null ? p.Estimate : null;
+        if (est == null) return;
+        edges.forEach(e => {
+          const s = nodes.find(n => n.id === e.from);
+          const t = nodes.find(n => n.id === e.to);
+          if (s && t && e.type === 'structural' &&
+              p.lhs === t.label && p.rhs === s.label) {
+            e.label = Number(est).toFixed(3);
+          }
+        });
+      });
+    }
+
     draw();renderResults('fit');
-    document.getElementById('results-panel').classList.add('show');
+    _freezeReportSnapshot();
+    
+    const panel = document.getElementById('results-panel');
+    panel.classList.remove('collapsed-panel'); 
+    panel.classList.add('show');
+    // Hide syntax panel so results have room — user can re-expand with the toggle
+    document.getElementById('syntax-panel').classList.add('collapsed-panel');
+    const bottomBtn = document.getElementById('toggle-bottom-btn');
+    if(bottomBtn) bottomBtn.innerHTML = '▼';
+    setTimeout(resize, 30);
+    
     document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none';
     triggerHtmt();
-  } catch(err){hideSpinner();document.getElementById('canvas-error').textContent='✗ '+err.message;}
+    triggerPredict();
+  } catch(err){hideSpinner();if(err.name!=='AbortError')document.getElementById('canvas-error').textContent='✗ '+err.message;}
 }
 
 async function runFromSyntax(){
   if(!uploadedFile){alert('Upload a data file first.');return;}
   const syntax=document.getElementById('syntax-area').value.trim();
   if(!syntax){alert('Enter lavaan syntax first.');return;}
+  
+  saveState(); 
+  generateCanvasFromSyntax(syntax);
+  draw(); 
+
   showSpinner('FITTING MODEL…');
+  const _rid2 = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(16));
+  clearLiveLog();
+  _startLiveStream(_rid2);
   const fd=new FormData();fd.append('file',uploadedFile);fd.append('model',syntax);
   fd.append('algorithm',document.getElementById('algo-sel').value);
   fd.append('bootstrap_n',document.getElementById('bs-sel').value);
   fd.append('missing',document.getElementById('missing-sel').value);
+  fd.append('run_id',_rid2);
   try{
-    const r=await fetch(API+'/run',{method:'POST',body:fd});
+    const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();
     if(!r.ok){alert(data.detail||'Error');return;}
     results = data;
 
-    // clear old labels first
     edges.forEach(e => e.label = null);
 
-    // apply new estimates to edges
-    data.parameters.forEach(p => {
-      edges.forEach(e => {
-        const s = nodes.find(n => n.id === e.from);
-        const t = nodes.find(n => n.id === e.to);
+    const labeledEdgeIds = new Set();
 
-        if (s && t) {
-          if (
-            (p.op === '=~' && p.lhs === s.label && p.rhs === t.label) ||
-            (p.op === '~'  && p.lhs === t.label && p.rhs === s.label)
-          ) {
-            e.label = Number(p.estimate).toFixed(3);
+    if (data.outer_weights && data.outer_weights.length) {
+      data.outer_weights.forEach(w => {
+        const lvLabel  = w.latent_variable || w.lv || w.LV || w.construct || w.Latent;
+        const indLabel = w.indicator || w.ind || w.manifest || w.Indicator || w.observed;
+        const weight   = w.outer_weight  != null ? w.outer_weight
+                       : w.outer_loading != null ? w.outer_loading
+                       : w.loading       != null ? w.loading
+                       : w.estimate      != null ? w.estimate : null;
+        if (lvLabel == null || indLabel == null || weight == null) return;
+        edges.forEach(e => {
+          const s = nodes.find(n => n.id === e.from);
+          const t = nodes.find(n => n.id === e.to);
+          if (s && t && e.type === 'measurement' &&
+              s.label === lvLabel && t.label === indLabel) {
+            e.label = Number(weight).toFixed(3);
+            labeledEdgeIds.add(e.from + '|' + e.to);
           }
-        }
+        });
       });
-    });
+    }
+
+    if (data.parameters) {
+      data.parameters.forEach(p => {
+        if (p.op !== '=~') return;
+        const est = p.estimate != null ? p.estimate
+                  : p.Estimate != null ? p.Estimate : null;
+        if (est == null) return;
+        edges.forEach(e => {
+          if (labeledEdgeIds.has(e.from + '|' + e.to)) return;
+          const s = nodes.find(n => n.id === e.from);
+          const t = nodes.find(n => n.id === e.to);
+          if (!s || !t || e.type !== 'measurement') return;
+          if ((s.label === p.lhs && t.label === p.rhs) ||
+              (s.label === p.rhs && t.label === p.lhs)) {
+            e.label = Number(est).toFixed(3);
+          }
+        });
+      });
+    }
+
+    if (data.parameters) {
+      data.parameters.forEach(p => {
+        if (p.op !== '~') return;
+        const est = p.estimate != null ? p.estimate
+                  : p.Estimate != null ? p.Estimate : null;
+        if (est == null) return;
+        edges.forEach(e => {
+          const s = nodes.find(n => n.id === e.from);
+          const t = nodes.find(n => n.id === e.to);
+          if (s && t && e.type === 'structural' &&
+              p.lhs === t.label && p.rhs === s.label) {
+            e.label = Number(est).toFixed(3);
+          }
+        });
+      });
+    }
 
     draw();
-
+    _freezeReportSnapshot();
     switchView('builder');
     renderResults('fit');
-    document.getElementById('results-panel').classList.add('show');
+    
+    const panel = document.getElementById('results-panel');
+    panel.classList.remove('collapsed-panel'); 
+    panel.classList.add('show');
+    document.getElementById('syntax-panel').classList.add('collapsed-panel');
+    const bottomBtn = document.getElementById('toggle-bottom-btn');
+    if(bottomBtn) bottomBtn.innerHTML = '▼';
+    setTimeout(resize, 30);
+
     document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none';
     triggerHtmt();
-  } catch(err){hideSpinner();alert(err.message);}
+    triggerPredict();
+  } catch(err){hideSpinner();if(err.name!=='AbortError')alert(err.message);}
 }
 
-// ── HTMT ───────────────────────────────────────────────────────────────────
+// ── Predictive Relevance + CMB (v0.5) ──────────────────────────────────────
+let predictiveData=null;
+let cmbData=null;
+
+async function triggerPredict(){
+  if(!uploadedFile)return;
+  const syntax=document.getElementById('syntax-area').value.trim();if(!syntax)return;
+  const fd=new FormData();
+  fd.append('file',uploadedFile);fd.append('model',syntax);
+  fd.append('omission_distance','7');fd.append('k_folds','10');
+  fd.append('missing',document.getElementById('missing-sel').value);
+  try{
+    const r=await fetch(API+'/predict',{method:'POST',body:fd});
+    if(!r.ok)return;
+    predictiveData=await r.json();
+    if(document.querySelector('.rtab[data-tab="predictive"]')?.classList.contains('active')){
+      renderResults('predictive');
+    }
+  } catch {}
+}
+
+async function triggerCmb(){
+  const marker=document.getElementById('cmb-marker')?.value.trim();
+  if(!marker||!uploadedFile)return;
+  const syntax=document.getElementById('syntax-area').value.trim();if(!syntax)return;
+  const fd=new FormData();
+  fd.append('file',uploadedFile);fd.append('model',syntax);
+  fd.append('marker_variable',marker);
+  fd.append('missing',document.getElementById('missing-sel').value);
+  try{
+    const r=await fetch(API+'/cmb',{method:'POST',body:fd});
+    if(!r.ok){cmbData={error:(await r.json()).detail||'CMB error'};return;}
+    cmbData=await r.json();
+    if(document.querySelector('.rtab[data-tab="predictive"]')?.classList.contains('active')){
+      renderResults('predictive');
+    }
+  } catch {}
+}
 let htmtData=null;
 async function triggerHtmt(){
   if(!uploadedFile)return;
@@ -597,7 +1500,10 @@ async function triggerHtmt(){
     const r=await fetch(API+'/htmt',{method:'POST',body:fd});
     if(!r.ok)return;
     htmtData=await r.json();
-    renderHtmt(htmtData);
+    // Refresh panel if HTMT tab is currently active
+    if(document.querySelector('.rtab[data-tab="htmt"]')?.classList.contains('active')){
+      renderResults('htmt');
+    }
   } catch {}
 }
 function renderHtmt(data){
@@ -626,19 +1532,51 @@ function renderResults(tab){
     const f=results.fit;
     const chip=(label,val,cls)=>`<span class="fit-chip ${cls}">${label} = ${val!=null?Number(val).toFixed(3):'—'}</span>`;
     let html='<div class="fit-row">';
-    const cfi=f.cfi,rmsea=f.rmsea,srmr=f.srmr;
+    const cfi=f.cfi,tli=f.tli,rmsea=f.rmsea,srmr=f.srmr;
     html+=chip('CFI',cfi,cfi!=null?(cfi>=0.95?'fc-good':cfi>=0.90?'fc-ok':'fc-bad'):'fc-neu');
+    html+=chip('TLI',tli,tli!=null?(tli>=0.95?'fc-good':tli>=0.90?'fc-ok':'fc-bad'):'fc-neu');
     html+=chip('RMSEA',rmsea,rmsea!=null?(rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'):'fc-neu');
     html+=chip('SRMR',srmr,srmr!=null?(srmr<=0.08?'fc-good':'fc-ok'):'fc-neu');
     if(f.chi_square!=null)html+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
     if(f.df!=null)html+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
-    if(f.p_value!=null)html+=`<span class="fit-chip fc-neu">p = ${Number(f.p_value).toFixed(4)}</span>`;
+    if(f.p_value!=null){
+      const pCls=f.p_value<0.001?'fc-neu':f.p_value<0.05?'fc-ok':'fc-bad';
+      const pStr=f.p_value<0.001?'< .001':Number(f.p_value).toFixed(3);
+      html+=`<span class="fit-chip ${pCls}">p = ${pStr}</span>`;
+    }
     if(f.aic!=null)html+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
     if(f.bic!=null)html+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
     if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
     html+=`</div><div style="font-size:10px;color:var(--txt3);font-family:var(--mono)">Algorithm: ${results.algorithm} · N = ${results.n_obs} · k = ${results.n_params}</div>`;
     if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
     body.innerHTML=html;
+  }
+
+  if(tab==='htmt'){
+    if(!htmtData||!htmtData.matrix||!htmtData.matrix.length){
+      body.innerHTML='<div class="no-data">Need ≥ 2 latent variables with indicators for HTMT. Run a model first.</div>';
+      return;
+    }
+    const overallOk = htmtData.all_acceptable;
+    const rows = htmtData.matrix.map(e=>{
+      const c = e.acceptable ? 'sig' : 'nsig';
+      return `<tr>
+        <td>${e.construct_a}</td><td>${e.construct_b}</td>
+        <td class="${c}" style="font-weight:500">${e.htmt.toFixed(4)}</td>
+        <td class="${c}">${e.acceptable?'✓ OK':'✗ Poor'}</td>
+      </tr>`;
+    }).join('');
+    body.innerHTML = `
+      <div style="margin-bottom:10px;font-size:11px;font-family:var(--mono);color:${overallOk?'var(--green)':'var(--red)'}">
+        ${overallOk?'✓ All HTMT values acceptable':'✗ One or more HTMT values exceed threshold'}
+      </div>
+      <table class="htmt-table">
+        <thead><tr><th>Construct A</th><th>Construct B</th><th>HTMT</th><th>Verdict</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="margin-top:10px;font-size:10px;color:var(--txt3);font-family:var(--mono)">
+        Threshold: &lt; 0.85 (strict) · &lt; 0.90 (lenient) · Values above 0.90 indicate poor discriminant validity
+      </div>`;
   }
 
   if(tab==='validity'){
@@ -648,7 +1586,6 @@ function renderResults(tab){
     const lvs=Object.keys(ave).length?Object.keys(ave):Object.keys(cr).length?Object.keys(cr):Object.keys(alpha);
     let html='';
 
-    // ── AVE / CR / Alpha table ──────────────────────────────────────────────
     if(lvs.length){
       const aveThresh=0.50, crThresh=0.70, aThresh=0.70;
       const verdict=(val,thresh)=>val==null?'<span style="color:var(--txt3)">—</span>'
@@ -675,7 +1612,6 @@ function renderResults(tab){
       html+='<div class="no-data">No measurement model — validity metrics require latent variables with indicators.</div>';
     }
 
-    // ── Fornell-Larcker matrix ──────────────────────────────────────────────
     if(Object.keys(fl).length){
       const flLvs=Object.keys(fl);
       const hdrCells=flLvs.map(lv=>`<th>${lv}</th>`).join('');
@@ -713,7 +1649,6 @@ function renderResults(tab){
     const ind    = results.indirect;
     let html = '';
 
-    // ── VIF ────────────────────────────────────────────────────────────────
     if(vif.length){
       const rows = vif.map(v=>`<tr>
         <td style="color:var(--blue)">${v.lv}</td>
@@ -727,7 +1662,6 @@ function renderResults(tab){
         </tr></thead><tbody>${rows}</tbody></table></div></div>`;
     }
 
-    // ── f² ─────────────────────────────────────────────────────────────────
     if(f2.length){
       const rows = f2.map(e=>`<tr>
         <td style="color:var(--blue)">${e.lhs}</td>
@@ -744,7 +1678,6 @@ function renderResults(tab){
         </tr></thead><tbody>${rows}</tbody></table></div></div>`;
     }
 
-    // ── Outer weights ───────────────────────────────────────────────────────
     if(ow.length){
       const rows = ow.map(e=>`<tr>
         <td style="color:var(--blue)">${e.lv}</td>
@@ -764,7 +1697,6 @@ function renderResults(tab){
       html += `<div class="no-data">Run the model with bootstrap &gt; 0 to see outer weight significance.</div>`;
     }
 
-    // ── Indirect effects ────────────────────────────────────────────────────
     if(ind && ind.effects && ind.effects.length){
       const rows = ind.effects.map(e=>`<tr>
         <td style="color:var(--blue)">${e.from_var}</td>
@@ -776,7 +1708,6 @@ function renderResults(tab){
         <td class="${e.significant?'eff-sig':'eff-nsig'}">${e.significant!=null?(e.significant?'✓':'✗'):'—'}</td>
       </tr>`).join('');
 
-      // Total effects matrix
       let teHtml = '';
       const te = ind.total_effects;
       const teKeys = Object.keys(te);
@@ -799,6 +1730,89 @@ function renderResults(tab){
     body.innerHTML = html;
   }
 
+  if(tab==='predictive'){
+    let html='';
+    const pd=predictiveData;
+
+    if(pd&&pd.q2&&pd.q2.length){
+      const rows=pd.q2.map(e=>`<tr>
+        <td style="color:var(--blue)">${e.lv}</td>
+        <td style="font-weight:500;color:${e.q2>0?'var(--txt0)':'var(--txt3)'}">${e.q2.toFixed(4)}</td>
+        <td>${e.sse.toFixed(3)}</td><td>${e.sso.toFixed(3)}</td>
+        <td>${e.omission_distance}</td>
+        <td><span class="pred-badge pred-${e.predictive_relevance}">${e.predictive_relevance}</span></td>
+      </tr>`).join('');
+      html+=`<div class="pred-section">
+        <div class="pred-title">Q² Blindfolding <span style="color:var(--txt3);font-size:9px">none &lt;0.02 · small ≥0.02 · medium ≥0.15 · large ≥0.35</span></div>
+        <div style="overflow-x:auto"><table class="pred-table"><thead><tr>
+          <th>LV</th><th>Q²</th><th>SSE</th><th>SSO</th><th>D</th><th>Relevance</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`;
+    } else {
+      html+=`<div class="pred-section"><div class="pred-title">Q² Blindfolding</div>
+        <div class="no-data">${pd?'No endogenous LVs found.':'Computing… (auto-runs after model fit)'}</div>
+      </div>`;
+    }
+
+    if(pd&&pd.plspredict&&pd.plspredict.length){
+      const rows=pd.plspredict.map(e=>`<tr>
+        <td style="color:var(--blue)">${e.lv}</td>
+        <td>${e.indicator}</td>
+        <td>${e.rmse_model.toFixed(4)}</td>
+        <td>${e.rmse_lm.toFixed(4)}</td>
+        <td>${e.mae_model.toFixed(4)}</td>
+        <td>${e.q2_predict.toFixed(4)}</td>
+        <td class="${e.better_than_lm?'sig':'nsig'}">${e.better_than_lm?'✓':'✗'}</td>
+      </tr>`).join('');
+      html+=`<div class="pred-section">
+        <div class="pred-title">PLSpredict — k-fold vs LM baseline <span style="color:var(--txt3);font-size:9px">✓ = model RMSE &lt; LM RMSE</span></div>
+        <div style="overflow-x:auto"><table class="pred-table"><thead><tr>
+          <th>LV</th><th>Indicator</th><th>RMSE model</th><th>RMSE LM</th><th>MAE model</th><th>Q²_pred</th><th>&lt; LM?</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`;
+    }
+
+    if(pd&&pd.cvpat&&pd.cvpat.length){
+      const rows=pd.cvpat.map(e=>`<tr>
+        <td style="color:var(--blue)">${e.lv}</td>
+        <td style="font-weight:500">${e.cvpat_statistic.toFixed(6)}</td>
+        <td>${e.p_value!=null?e.p_value.toFixed(4):'—'}</td>
+        <td>${e.n_folds}</td>
+        <td class="${e.significant?'sig':'nsig'}">${e.significant?'✓ Outperforms LM':'✗ Not better than LM'}</td>
+      </tr>`).join('');
+      html+=`<div class="pred-section">
+        <div class="pred-title">CVPAT — Cross-validated predictive ability <span style="color:var(--txt3);font-size:9px">mean loss diff: LM − model</span></div>
+        <div style="overflow-x:auto"><table class="pred-table"><thead><tr>
+          <th>LV</th><th>Statistic</th><th>p-value</th><th>Folds</th><th>Verdict</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`;
+    }
+
+    html+=`<div class="pred-section"><div class="pred-title">CMB Marker Variable Analysis <span style="color:var(--txt3);font-size:9px">Lindell &amp; Whitney 2001 · threshold |r| &gt;0.20</span></div>`;
+    if(cmbData&&!cmbData.error){
+      const corRows=Object.entries(cmbData.correlations_with_substantive)
+        .map(([k,v])=>`<tr><td>${k}</td><td style="color:${Math.abs(v)>0.20?'var(--red)':'var(--txt0)'}">${Number(v).toFixed(4)}</td></tr>`).join('');
+      html+=`<div class="cmb-panel">
+        <div style="margin-bottom:8px;font-size:11px;font-family:var(--mono)">
+          Marker: <span style="color:var(--blue)">${cmbData.marker_variable}</span>
+          &nbsp;·&nbsp; Mean |r|: ${cmbData.mean_marker_correlation.toFixed(4)}
+          &nbsp;·&nbsp; Max |r|: <span class="${cmbData.cmb_concern?'cmb-concern':'cmb-ok'}">${cmbData.max_marker_correlation.toFixed(4)}</span>
+        </div>
+        <div style="margin-bottom:10px;font-size:11px;font-family:var(--mono);color:${cmbData.cmb_concern?'var(--red)':'var(--green)'}">${cmbData.note}</div>
+        <table class="pred-table"><thead><tr><th>Indicator</th><th>r with marker</th></tr></thead>
+        <tbody>${corRows}</tbody></table>
+      </div>`;
+    } else if(cmbData&&cmbData.error){
+      html+=`<div class="warn-box">${cmbData.error}</div>`;
+    } else {
+      html+=`<div class="no-data" style="text-align:left;padding:8px 0">Enter a marker variable column name in the sidebar and press Enter to run CMB analysis.</div>`;
+    }
+    html+=`</div>`;
+
+    if(!pd&&!cmbData) html='<div class="no-data">Run a model first — predictive metrics compute automatically after each analysis.</div>';
+    body.innerHTML=html;
+  }
+
   if(tab==='params'){
     const isPLS = (results.algorithm||'').includes('PLS');
     const hasBS = results.bootstrap || (results.outer_weights && results.outer_weights.length);
@@ -807,29 +1821,56 @@ function renderResults(tab){
       : '';
     const pLabel = isPLS ? (hasBS ? 'Sig (BS)' : 'p-value*') : 'p-value';
     const rows=results.parameters.map(p=>{
-      const pDisplay = isPLS && hasBS
-        ? `<td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'✗'}</td>`
-        : `<td class="${p.significant?'sig':'nsig'}">${Number(p.p_value).toFixed(4)}</td>`;
-      return `<tr>
+      const isCov = p.op === '~~';
+      const rowStyle = isCov ? ' style="opacity:0.75;font-style:italic"' : '';
+
+      // p-value cell
+      let pDisplay;
+      if (isCov) {
+        // Covariance/variance rows are not hypothesis-tested in standard SEM.
+        // Displaying a p-value here would be misleading.
+        pDisplay = `<td title="~~  rows are not hypothesis-tested. Interpret the standardised estimate as a correlation (off-diagonal) or variance (diagonal)." style="color:var(--txt3);cursor:help">n/a ⓘ</td>`;
+      } else if (isPLS && hasBS) {
+        pDisplay = `<td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'✗'}</td>`;
+      } else if (p.p_value != null) {
+        const pStr = p.p_value < 0.001 ? '< .001' : Number(p.p_value).toFixed(4);
+        pDisplay = `<td class="${p.significant?'sig':'nsig'}">${pStr}</td>`;
+      } else {
+        pDisplay = `<td style="color:var(--txt3)">—</td>`;
+      }
+
+      const seCell  = p.std_error != null ? Number(p.std_error).toFixed(4) : '—';
+      const zCell   = p.z_value   != null ? Number(p.z_value).toFixed(3)   : '—';
+      const stdCell = p.std_estimate != null
+        ? `<td style="color:var(--blue)">${Number(p.std_estimate).toFixed(4)}</td>`
+        : `<td style="color:var(--txt3)">—</td>`;
+
+      return `<tr${rowStyle}>
         <td>${p.lhs}</td><td class="op">${p.op}</td><td>${p.rhs}</td>
         <td style="font-weight:500">${Number(p.estimate).toFixed(4)}</td>
-        <td>${p.std_error?Number(p.std_error).toFixed(4):'—'}</td>
-        <td>${p.z_value?Number(p.z_value).toFixed(3):'—'}</td>
+        ${stdCell}
+        <td>${seCell}</td>
+        <td>${zCell}</td>
         ${pDisplay}
         <td class="ci">${p.ci_lower!=null?Number(p.ci_lower).toFixed(3):'—'}</td>
         <td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td>
       </tr>`;
     }).join('');
     body.innerHTML=`${plsNote}<div style="overflow-x:auto"><table class="param-table"><thead><tr>
-      <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th>SE</th><th>z</th><th>${pLabel}</th><th>CI lo</th><th>CI hi</th>
-    </tr></thead><tbody>${rows}</tbody></table></div>`;
+      <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th title="Standardised estimate (std.all): loadings use λ√φ/√(λ²φ+θ); covariances shown as correlations">Std. Est.</th><th>SE</th><th>z</th><th>${pLabel}</th><th>CI lo</th><th>CI hi</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="margin-top:10px;font-size:11px;color:var(--txt3);font-family:var(--mono);line-height:2;border-top:1px solid var(--border);padding-top:8px">
+      <strong style="color:var(--txt2)">How to read this table:</strong><br>
+      <span style="color:var(--blue)">■</span> <strong>Use Std. Est. (blue) for reporting</strong> whenever it is available — this is the standardised value comparable to other software (e.g. lavaan std.all).<br>
+      <span style="color:var(--txt2)">■</span> <strong>Use Estimate (white) only when Std. Est. is —</strong> — this applies to structural paths (~), which require factor scores for full standardisation.<br>
+      <span style="font-style:italic">■ Italic rows</span> are covariance / variance parameters (~~ operator): off-diagonal blue values are <strong>correlations</strong>; diagonal blue values are variances (scale-fixing — do not report).
+    </div>`;
   }
 
   if(tab==='chart'){
     const isPLS = (results.algorithm||'').includes('PLS');
     const hasBS = results.bootstrap || (results.outer_weights && results.outer_weights.length);
     const lvSet = new Set(results.latent_variables||[]);
-    // Only show structural paths between latent variables (not measurement loadings)
     const str = results.parameters.filter(p =>
       p.op==='~' && lvSet.has(p.lhs) && lvSet.has(p.rhs)
     );
@@ -873,7 +1914,6 @@ function renderResults(tab){
     const hasValidity  = f&&(f.ave||f.composite_reliability);
     const hasEffects   = results.vif||results.f2||results.outer_weights||results.indirect;
     const hasBootstrap = results.bootstrap;
-    const hasJson      = true;
 
     const dlBtn=(label,kind,note='')=>`
       <div class="dl-row">
@@ -893,6 +1933,15 @@ function renderResults(tab){
       html+=dlBtn('Fornell-Larcker matrix (.csv)','validity-csv','Included in validity export');
     } else {
       html+=`<div class="dl-empty">No validity data — model needs latent variables with indicators.</div>`;
+    }
+    html+=`<div class="dl-section-title" style="margin-top:14px">v0.5 Predictive Relevance</div>`;
+    if(predictiveData){
+      html+=dlBtn('Predictive metrics (.csv)','predictive-csv','Q², PLSpredict, CVPAT results');
+    } else {
+      html+=`<div class="dl-empty">Run a model to generate predictive metrics.</div>`;
+    }
+    if(cmbData&&!cmbData.error){
+      html+=dlBtn('CMB analysis (.csv)','cmb-csv','Marker correlations and verdict');
     }
     html+=`<div class="dl-section-title" style="margin-top:14px">v0.4 Effects</div>`;
     if(hasEffects){
@@ -925,6 +1974,7 @@ function downloadResults(kind){
       ['N',results.n_obs,'',''],
       ['k (params)',results.n_params,'',''],
       ['CFI',f.cfi!=null?f.cfi.toFixed(6):'','>= 0.95 (good)',f.cfi!=null?(f.cfi>=0.95?'good':f.cfi>=0.90?'acceptable':'poor'):''],
+      ['TLI',f.tli!=null?f.tli.toFixed(6):'','>= 0.95 (good)',f.tli!=null?(f.tli>=0.95?'good':f.tli>=0.90?'acceptable':'poor'):''],
       ['RMSEA',f.rmsea!=null?f.rmsea.toFixed(6):'','<= 0.06 (good)',f.rmsea!=null?(f.rmsea<=0.06?'good':f.rmsea<=0.08?'acceptable':'poor'):''],
       ['SRMR',f.srmr!=null?f.srmr.toFixed(6):'','<= 0.08 (good)',f.srmr!=null?(f.srmr<=0.08?'good':'poor'):''],
       ['Chi-square',f.chi_square!=null?f.chi_square.toFixed(6):'','',''],
@@ -971,16 +2021,45 @@ function downloadResults(kind){
       cronbach_alpha:f.cronbach_alpha,
       fornell_larcker:f.fornell_larcker,
       fornell_larcker_pass:f.fornell_larcker_pass,
-      fit:{cfi:f.cfi,rmsea:f.rmsea,srmr:f.srmr,chi_square:f.chi_square,df:f.df,p_value:f.p_value,aic:f.aic,bic:f.bic,r_squared:f.r_squared},
+      fit:{cfi:f.cfi,tli:f.tli,rmsea:f.rmsea,srmr:f.srmr,chi_square:f.chi_square,df:f.df,p_value:f.p_value,aic:f.aic,bic:f.bic,r_squared:f.r_squared},
     };
     content=JSON.stringify(payload,null,2);
     filename='naval_sem_results.json';
     mime='application/json';
   }
 
+  if(kind==='predictive-csv'){
+    if(!predictiveData){return;}
+    const lines=['"Section","LV","Field","Value","Note"'];
+    (predictiveData.q2||[]).forEach(e=>{
+      lines.push(`"Q2","${e.lv}","q2","${e.q2}","${e.predictive_relevance}"`);
+      lines.push(`"Q2","${e.lv}","sse","${e.sse}","D=${e.omission_distance}"`);
+      lines.push(`"Q2","${e.lv}","sso","${e.sso}",""`);
+    });
+    (predictiveData.plspredict||[]).forEach(e=>{
+      lines.push(`"PLSpredict","${e.lv}","${e.indicator} RMSE_model","${e.rmse_model}","better_than_lm=${e.better_than_lm}"`);
+      lines.push(`"PLSpredict","${e.lv}","${e.indicator} RMSE_lm","${e.rmse_lm}","q2_predict=${e.q2_predict}"`);
+    });
+    (predictiveData.cvpat||[]).forEach(e=>{
+      lines.push(`"CVPAT","${e.lv}","statistic","${e.cvpat_statistic}","p=${e.p_value!=null?e.p_value.toFixed(4):'NA'} sig=${e.significant}"`);
+    });
+    content=lines.join('\n');filename='naval_sem_predictive.csv';
+  }
+
+  if(kind==='cmb-csv'){
+    if(!cmbData||cmbData.error)return;
+    const lines=['"Indicator","r with marker"'];
+    Object.entries(cmbData.correlations_with_substantive).forEach(([k,v])=>lines.push(`"${k}","${v}"`));
+    lines.push(`"MEAN |r|","${cmbData.mean_marker_correlation}"`);
+    lines.push(`"MAX |r|","${cmbData.max_marker_correlation}"`);
+    lines.push(`"CMB concern","${cmbData.cmb_concern}"`);
+    lines.push(`"Note","${cmbData.note.replace(/"/g,"'")}"`);
+    content=lines.join('\n');filename='naval_sem_cmb.csv';
+  }
+
   if(kind==='params-csv'){
     const rows=[['LHS','Op','RHS','Estimate','SE','z','p-value','CI Lower','CI Upper','Significant']];
-    (results.parameters||[]).forEach(p=>rows.push([p.lhs,p.op,p.rhs,p.estimate,p.std_error,p.z_value,p.p_value,p.ci_lower??'',p.ci_upper??'',p.significant?'yes':'no']));
+    (results.parameters||[]).forEach(p=>rows.push([p.lhs,p.op,p.rhs,p.estimate,p.std_estimate??'',p.std_error??'',p.z_value??'',p.p_value??'n/a',p.ci_lower??'',p.ci_upper??'',p.significant?'yes':'no']));
     content=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
     filename='naval_sem_parameters.csv';
   }
@@ -1025,70 +2104,118 @@ function downloadResults(kind){
     }
     content=lines.join('\n');filename='naval_sem_effects.csv';
   }
+
+  if(!content&&mime==='text/csv') return;
+  const blob=new Blob([content],{type:mime});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
   document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
 }
+
+// ── Event Listeners for Collapsible Panels ──────────────────────────────────
+document.querySelectorAll('.panel-toggle-btn').forEach(btn => {
+  btn.addEventListener('mousedown', e => e.stopPropagation());
+  btn.addEventListener('touchstart', e => e.stopPropagation());
+});
+
+document.getElementById('toggle-sidebar-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const shell = document.getElementById('app-shell'); 
+  if (shell) {
+    shell.classList.toggle('sidebar-closed');
+    setTimeout(resize, 50); 
+  }
+});
+
+document.getElementById('toggle-bottom-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const btn = document.getElementById('toggle-bottom-btn');
+  const resultsPanel = document.getElementById('results-panel');
+  const syntaxPanel = document.getElementById('syntax-panel');
+  
+  const isResultsMode = results !== null && syntaxPanel.classList.contains('collapsed-panel');
+
+  if (isResultsMode) {
+      resultsPanel.classList.toggle('collapsed-panel');
+      btn.innerHTML = resultsPanel.classList.contains('collapsed-panel') ? '▲' : '▼';
+  } else {
+      syntaxPanel.classList.toggle('collapsed-panel');
+      btn.innerHTML = syntaxPanel.classList.contains('collapsed-panel') ? '▲' : '▼';
+  }
+  setTimeout(resize, 50); 
+});
+
 // ── Results panel drag-to-resize ───────────────────────────────────────────
-(function(){
-  const handle = document.getElementById('res-drag-handle');
-  const panel  = document.getElementById('results-panel');
-  if(!handle||!panel) return;
-  let dragging=false, startY=0, startH=0;
-  handle.addEventListener('mousedown', e=>{
-    dragging=true;
-    startY=e.clientY;
-    startH=panel.offsetHeight;
-    document.body.style.userSelect='none';
-    document.body.style.cursor='ns-resize';
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', e=>{
-    if(!dragging) return;
-    // dragging UP = bigger panel (delta is negative → subtract from height)
-    const delta = startY - e.clientY;
-    const newH  = Math.min(Math.max(startH + delta, 120), window.innerHeight * 0.75);
-    panel.style.height = newH + 'px';
-    if(typeof resize==='function') resize();
-  });
-  document.addEventListener('mouseup', ()=>{
-    if(!dragging) return;
-    dragging=false;
-    document.body.style.userSelect='';
-    document.body.style.cursor='';
-  });
-  // Touch support
-  handle.addEventListener('touchstart', e=>{
-    dragging=true;
-    startY=e.touches[0].clientY;
-    startH=panel.offsetHeight;
-    e.preventDefault();
-  },{passive:false});
-  document.addEventListener('touchmove', e=>{
-    if(!dragging) return;
-    const delta = startY - e.touches[0].clientY;
-    const newH  = Math.min(Math.max(startH + delta, 120), window.innerHeight * 0.75);
-    panel.style.height = newH + 'px';
-    if(typeof resize==='function') resize();
-  },{passive:false});
-  document.addEventListener('touchend', ()=>{ dragging=false; });
-})();
+function _initDragResize(){
+  const handleRes = document.getElementById('res-drag-handle');
+  const handleSyn = document.getElementById('syntax-drag-handle');
+  const panelRes  = document.getElementById('results-panel');
+  const panelSyn  = document.getElementById('syntax-panel');
+
+  function attachDrag(handle, panel) {
+      if(!handle||!panel) return;
+      let dragging=false, startY=0, startH=0;
+      
+      handle.addEventListener('mousedown', e=>{
+        dragging=true;
+        startY=e.clientY;
+        startH=panel.offsetHeight;
+        document.body.style.userSelect='none';
+        document.body.style.cursor='ns-resize';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', e=>{
+        if(!dragging) return;
+        const delta = startY - e.clientY;
+        const newH  = Math.min(Math.max(startH + delta, 120), window.innerHeight * 0.75);
+        panel.style.height = newH + 'px';
+        if(typeof resize==='function') resize();
+      });
+      document.addEventListener('mouseup', ()=>{
+        if(!dragging) return;
+        dragging=false;
+        document.body.style.userSelect='';
+        document.body.style.cursor='';
+      });
+  }
+
+  attachDrag(handleRes, panelRes);
+  attachDrag(handleSyn, panelSyn);
+}
+_initDragResize();
 
 function showRes(tab){renderResults(tab);}
 
 // ── view switch ────────────────────────────────────────────────────────────
 function switchView(v){
   document.getElementById('builder-view').style.display=v==='builder'?'flex':'none';
-  document.getElementById('syntax-view').style.display=v==='syntax'?'flex':'none';
-  document.getElementById('htmt-view').style.display=v==='htmt'?'block':'none';
-  document.querySelectorAll('.ttab').forEach((b,i)=>b.classList.toggle('active',['builder','syntax','htmt'][i]===v));
+  const sv=document.getElementById('syntax-view');
+  if(sv) sv.style.display=v==='syntax'?'flex':'none';
+  const lv=document.getElementById('live-view');
+  if(lv) lv.style.display=v==='live'?'flex':'none';
+  const rv=document.getElementById('report-view');
+  if(rv) rv.style.display=v==='report'?'flex':'none';
+
+  document.querySelectorAll('.top-tabs .ttab').forEach(b=>{
+    const txt=b.innerText.trim().toLowerCase();
+    b.classList.toggle('active',
+      (v==='builder'&&txt.includes('builder'))||
+      (v==='syntax' &&txt.includes('syntax'))||
+      (v==='live'   &&txt.includes('live'))||
+      (v==='report' &&txt.includes('report'))
+    );
+  });
+
   if(v==='builder')setTimeout(resize,10);
-  if(v==='htmt'){
-    if(htmtData)renderHtmt(htmtData);
-    else if(results)triggerHtmt();
+  if(v==='syntax'){
+    const main=document.getElementById('syntax-area');
+    const tab=document.getElementById('syntax-area-tab');
+    if(main&&tab&&main.value) tab.value=main.value;
   }
+  if(v==='builder'&&predictiveData===null&&results)triggerPredict();
+  if(v==='report') buildReport();
 }
 let _spinnerTimer = null;
 const _spinnerMsgs = [
@@ -1103,17 +2230,30 @@ const _spinnerMsgs = [
   'Bootstrapping outer weights…',
   'Assembling results…',
 ];
+let _currentAbortController = null;
+
+function _setRunningState(running){
+  const ids = ['run-btn','run-from-syntax-btn','run-from-syntax-tab-btn'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.disabled = running;
+    el.style.opacity = running ? '0.4' : '';
+    el.style.cursor  = running ? 'not-allowed' : '';
+  });
+}
+
 function showSpinner(msg){
+  _currentAbortController = new AbortController();
   document.getElementById('spinner-msg').textContent = msg || 'FITTING MODEL…';
   document.getElementById('spinner-counter').textContent = '0s';
   document.getElementById('spinner-status').textContent = _spinnerMsgs[0];
   document.getElementById('spinner').classList.add('show');
-  document.getElementById('run-btn').disabled = true;
+  _setRunningState(true);
   let elapsed = 0, msgIdx = 0;
   _spinnerTimer = setInterval(() => {
     elapsed++;
     document.getElementById('spinner-counter').textContent = elapsed + 's';
-    // rotate status message every 3 seconds, cycle through list
     if (elapsed % 3 === 0) {
       msgIdx = (msgIdx + 1) % _spinnerMsgs.length;
       const el = document.getElementById('spinner-status');
@@ -1128,11 +2268,18 @@ function showSpinner(msg){
 function hideSpinner(){
   clearInterval(_spinnerTimer);
   _spinnerTimer = null;
+  _currentAbortController = null;
   document.getElementById('spinner').classList.remove('show');
-  document.getElementById('run-btn').disabled = false;
+  _setRunningState(false);
+}
+function stopAnalysis(){
+  if(_currentAbortController){
+    _currentAbortController.abort();
+  }
+  hideSpinner();
+  document.getElementById('canvas-error').textContent = '✗ Analysis stopped by user';
 }
 
-// ── demo ───────────────────────────────────────────────────────────────────
 function loadDemo(){
   clearCanvas();
   const cx=W/2,cy=H/2;
@@ -1154,9 +2301,6 @@ function loadDemo(){
   ];
   updateSyntax();draw();
 }
-
-
-// -- export code ----------------------------------------------------------
 
 function showExportToast(filename){
   document.getElementById('export-toast-sub').textContent='Paste into editor → save as: '+filename;
@@ -1185,7 +2329,6 @@ async function doExport(fmt){
     const text=await r.text();
     const ext={r:'R',python:'py',lav:'lav'}[fmt]||'txt';
     const filename='naval_sem_model.'+ext;
-    // Copy to clipboard (works in pywebview + browser)
     try{await navigator.clipboard.writeText(text);}
     catch(e){
       const ta=document.createElement('textarea');
@@ -1199,6 +2342,492 @@ async function doExport(fmt){
 const ro=new ResizeObserver(resize);
 ro.observe(canvas.parentElement);
 setTimeout(()=>{resize();loadDemo();},80);
+
+// ── Live log state ────────────────────────────────────────────────────────────
+let _liveRunId = null;
+let _liveEs = null;          // EventSource
+let _liveAutoScroll = true;
+let _liveAuditData = null;
+const _levelIcon = {step:'▶',ok:'✓',info:'·',warn:'⚠',error:'✗'};
+
+function _liveAppend(level, msg, ts){
+  const log = document.getElementById('live-log');
+  if(!log) return;
+  const d = document.createElement('div');
+  const timeStr = ts ? new Date(ts).toISOString().slice(11,23) : new Date().toISOString().slice(11,23);
+  const icon = _levelIcon[level] || '·';
+  d.innerHTML = `<span class="log-ts">${timeStr}</span><span class="log-icon log-${level}">${icon}</span><span class="log-${level}">${msg}</span>`;
+  log.appendChild(d);
+  if(_liveAutoScroll) log.scrollTop = log.scrollHeight;
+}
+
+function clearLiveLog(){
+  const log = document.getElementById('live-log');
+  if(log) log.innerHTML = '';
+  const fp = document.getElementById('live-fp-bar');
+  if(fp) fp.style.display = 'none';
+}
+
+function toggleLiveScroll(){
+  _liveAutoScroll = !_liveAutoScroll;
+  const btn = document.getElementById('live-scroll-btn');
+  if(btn){
+    btn.textContent = 'Auto-scroll ' + (_liveAutoScroll ? 'ON' : 'OFF');
+    btn.style.background = _liveAutoScroll ? 'var(--blue-bg)' : 'var(--bg2)';
+    btn.style.color = _liveAutoScroll ? 'var(--blue)' : 'var(--txt2)';
+  }
+}
+
+function downloadAuditJSON(){
+  if(!_liveAuditData) return;
+  const blob = new Blob([JSON.stringify(_liveAuditData, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `naval_sem_audit_${(_liveRunId||'run').slice(0,8)}.json`;
+  a.click();
+}
+
+function _startLiveStream(runId){
+  _liveRunId = runId;
+  if(_liveEs){ _liveEs.close(); _liveEs = null; }
+
+  // Show pulsing dot on Live tab
+  const dot = document.getElementById('live-dot');
+  if(dot) dot.style.display = 'inline-block';
+  document.getElementById('live-run-id').textContent = 'run: ' + runId.slice(0,8) + '…';
+  _liveAppend('info', `New run started · id: ${runId.slice(0,8)}…`);
+
+  _liveEs = new EventSource(`${API}/logs/${runId}`);
+  _liveEs.onmessage = ev => {
+    try {
+      const d = JSON.parse(ev.data);
+      if(d.done){
+        _liveEs.close(); _liveEs = null;
+        const dot = document.getElementById('live-dot');
+        if(dot) dot.style.animation = 'none'; dot && (dot.style.background = 'var(--green)');
+        _liveAppend('ok', 'Run complete');
+        if(d.fingerprint){
+          const fpBar = document.getElementById('live-fp-bar');
+          const fpCode = document.getElementById('live-fp-code');
+          if(fpBar && fpCode){
+            fpCode.textContent = d.fingerprint;
+            fpBar.style.display = 'block';
+          }
+          _liveAuditData = d.audit;
+          _liveAppend('ok', 'Fingerprint anchored — download Audit JSON to verify');
+        }
+        return;
+      }
+      if(d.level && d.msg) _liveAppend(d.level, d.msg, d.t);
+    } catch(e){}
+  };
+  _liveEs.onerror = () => {
+    _liveAppend('warn', 'SSE connection lost — results still loading');
+    _liveEs && _liveEs.close(); _liveEs = null;
+  };
+}
+
+// ── Report Builder ─────────────────────────────────────────────────────────────
+function buildReport(){
+  const card = document.getElementById('report-card');
+  if(!results || !_reportSnapshot){
+    card.innerHTML='<div class="rpt-no-data" style="padding:40px 0;text-align:center;font-size:12px">Run an analysis first, then open this tab to generate the consolidated report.</div>';
+    return;
+  }
+  // Everything read from the frozen snapshot — never from live DOM —
+  // so changing settings after a run cannot alter the report.
+  const snap = _reportSnapshot;
+  const runId = snap.runId;
+  const ts    = snap.ts;
+  const f     = results.fit || {};
+  const syntax = snap.syntax;
+
+  // ── diagram capture ──────────────────────────────────────────────────────
+  const diagramDataUrl = snap.diagramDataUrl || null;
+
+  // ── ENV section ──────────────────────────────────────────────────────────
+  const algo  = snap.algo;
+  const bsN   = snap.bsN;
+  const miss  = snap.miss;
+  const fname = snap.fname;
+  const cmb   = snap.cmb;
+  const nObs  = results.n_obs  != null ? results.n_obs  : '—';
+  const nPar  = results.n_params != null ? results.n_params : '—';
+
+  function envKV(k,v){ return `<div class="rpt-env-kv"><div class="rpt-env-k">${k}</div><div class="rpt-env-v">${v}</div></div>`; }
+
+  // ── FIT chips ────────────────────────────────────────────────────────────
+  function chipClass(metric,val){
+    if(val==null)return'fc-neu';
+    if(metric==='cfi'||metric==='tli')return val>=0.95?'fc-good':val>=0.90?'fc-ok':'fc-bad';
+    if(metric==='rmsea')return val<=0.06?'fc-good':val<=0.08?'fc-ok':'fc-bad';
+    if(metric==='srmr')return val<=0.08?'fc-good':'fc-ok';
+    return 'fc-neu';
+  }
+  function chip(label,val,metric){
+    return `<span class="fit-chip ${chipClass(metric,val)}">${label} = ${val!=null?Number(val).toFixed(3):'—'}</span>`;
+  }
+  let fitHtml = '<div class="fit-row" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">';
+  fitHtml += chip('CFI',f.cfi,'cfi')+chip('TLI',f.tli,'tli')+chip('RMSEA',f.rmsea,'rmsea')+chip('SRMR',f.srmr,'srmr');
+  if(f.chi_square!=null)fitHtml+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
+  if(f.df!=null)fitHtml+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
+  if(f.p_value!=null){const pStr=f.p_value<0.001?'< .001':Number(f.p_value).toFixed(3);fitHtml+=`<span class="fit-chip fc-neu">p = ${pStr}</span>`;}
+  if(f.aic!=null)fitHtml+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
+  if(f.bic!=null)fitHtml+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
+  if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>fitHtml+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
+  fitHtml += '</div>';
+
+  // ── validity ─────────────────────────────────────────────────────────────
+  const ave=f.ave||{}, cr=f.composite_reliability||{}, alpha=f.cronbach_alpha||{};
+  const lvs=Object.keys(ave).length?Object.keys(ave):Object.keys(cr).length?Object.keys(cr):Object.keys(alpha);
+  let validHtml='';
+  if(lvs.length){
+    const verdict=(val,thresh)=>val==null?'<span style="color:var(--txt3)">—</span>'
+      :`<span style="color:${val>=thresh?'var(--green)':'var(--red)'}">${Number(val).toFixed(3)} ${val>=thresh?'✓':'✗'}</span>`;
+    const rows=lvs.map(lv=>`<tr><td class="lv-name">${lv}</td><td>${verdict(ave[lv],0.50)}</td><td>${verdict(cr[lv],0.70)}</td><td>${verdict(alpha[lv],0.70)}</td></tr>`).join('');
+    validHtml+=`<div style="overflow-x:auto"><table class="mv-table"><thead><tr><th>Construct</th><th>AVE &gt;0.50</th><th>CR ρc &gt;0.70</th><th>Cronbach α &gt;0.70</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  } else { validHtml='<div class="rpt-no-data">No convergent validity data.</div>'; }
+
+  // Fornell-Larcker
+  const fl=f.fornell_larcker||{};
+  const flLvs=Object.keys(fl);
+  let flHtml='';
+  if(flLvs.length){
+    const hdr=flLvs.map(lv=>`<th>${lv}</th>`).join('');
+    const dr=flLvs.map(lv=>`<tr><td style="color:var(--blue)">${lv}</td>${flLvs.map(lv2=>{const v=fl[lv][lv2];const d=(lv===lv2);return d?`<td class="fl-diag">${v!=null?Number(v).toFixed(3):'—'}</td>`:`<td>${v!=null?Number(v).toFixed(3):'—'}</td>`;}).join('')}</tr>`).join('');
+    const fp=f.fornell_larcker_pass;
+    flHtml=`<div style="margin-top:12px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt3);font-family:var(--mono);margin-bottom:6px">Fornell-Larcker</div><div style="overflow-x:auto"><table class="fl-matrix"><thead><tr><th></th>${hdr}</tr></thead><tbody>${dr}</tbody></table></div>${fp!=null?`<div class="fl-verdict ${fp?'fl-pass':'fl-fail'}" style="margin-top:8px">${fp?'✓ Discriminant validity confirmed':'✗ Discriminant validity not confirmed'}</div>`:''}`;
+  }
+
+  // ── HTMT ─────────────────────────────────────────────────────────────────
+  let htmtHtml='<div class="rpt-no-data">No HTMT data.</div>';
+  if(htmtData&&htmtData.matrix&&htmtData.matrix.length){
+    const rows=htmtData.matrix.map(e=>`<tr><td>${e.construct_a}</td><td>${e.construct_b}</td><td class="${e.acceptable?'sig':'nsig'}" style="font-weight:500">${e.htmt.toFixed(4)}</td><td class="${e.acceptable?'sig':'nsig'}">${e.acceptable?'✓ OK':'✗ Poor'}</td></tr>`).join('');
+    htmtHtml=`<table class="htmt-table"><thead><tr><th>Construct A</th><th>Construct B</th><th>HTMT</th><th>Verdict</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // ── Parameters ────────────────────────────────────────────────────────────
+  let paramsHtml='<div class="rpt-no-data">No parameter data.</div>';
+  if(results.parameters&&results.parameters.length){
+    const isPLS=(results.algorithm||'').includes('PLS');
+    const hasBS=results.bootstrap||(results.outer_weights&&results.outer_weights.length);
+    const pLabel=isPLS?(hasBS?'Sig (BS)':'p-value*'):'p-value';
+    const rows=results.parameters.slice(0,80).map(p=>{
+      const isCov=p.op==='~~';
+      let pDisplay;
+      if(isCov) pDisplay=`<td style="color:var(--txt3)">n/a</td>`;
+      else if(isPLS&&hasBS) pDisplay=`<td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'✗'}</td>`;
+      else if(p.p_value!=null) pDisplay=`<td class="${p.significant?'sig':'nsig'}">${p.p_value<0.001?'< .001':Number(p.p_value).toFixed(4)}</td>`;
+      else pDisplay=`<td style="color:var(--txt3)">—</td>`;
+      return `<tr${isCov?' style="opacity:.75;font-style:italic"':''}><td>${p.lhs}</td><td class="op">${p.op}</td><td>${p.rhs}</td><td style="font-weight:500">${Number(p.estimate).toFixed(4)}</td><td style="color:var(--blue)">${p.std_estimate!=null?Number(p.std_estimate).toFixed(4):'—'}</td><td>${p.std_error!=null?Number(p.std_error).toFixed(4):'—'}</td><td>${p.z_value!=null?Number(p.z_value).toFixed(3):'—'}</td>${pDisplay}<td class="ci">${p.ci_lower!=null?Number(p.ci_lower).toFixed(3):'—'}</td><td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td></tr>`;
+    }).join('');
+    paramsHtml=`<div style="overflow-x:auto"><table class="param-table"><thead><tr><th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th>Std. Est.</th><th>SE</th><th>z</th><th>${pLabel}</th><th>CI lo</th><th>CI hi</th></tr></thead><tbody>${rows}</tbody></table>${results.parameters.length>80?`<div style="font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:6px">Showing first 80 of ${results.parameters.length} rows — download JSON for full data.</div>`:''}</div>`;
+  }
+
+  // ── Structural path chart ─────────────────────────────────────────────────
+  let pathChartHtml='<div class="rpt-no-data">No structural paths.</div>';
+  if(results.parameters){
+    const lvSet=new Set(results.latent_variables||[]);
+    const str=results.parameters.filter(p=>p.op==='~'&&lvSet.has(p.lhs)&&lvSet.has(p.rhs));
+    if(str.length){
+      const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
+      const bars=str.map(p=>{
+        const pct=mx>0?(Math.abs(p.estimate)/mx*100).toFixed(0):0;
+        return `<div class="bar-row"><div class="bar-label">${p.rhs} → ${p.lhs}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${p.significant?'var(--blue)':'var(--txt3)'}"></div></div><div class="bar-val" style="color:${p.significant?'var(--txt0)':'var(--txt2)'}">${Number(p.estimate).toFixed(3)}${p.significant?'':' ns'}</div></div>`;
+      }).join('');
+      pathChartHtml=`<div class="bar-chart">${bars}</div>`;
+    }
+  }
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
+  let bsHtml='<div class="rpt-no-data">No bootstrap data.</div>';
+  if(results.bootstrap){
+    const bs=results.bootstrap;
+    const rows=(bs.parameters||[]).slice(0,60).map(p=>`<tr><td>${p.lhs||''}</td><td class="op">${p.op||''}</td><td>${p.rhs||''}</td><td>${Number(p.bs_mean).toFixed(4)}</td><td>${Number(p.bs_se).toFixed(4)}</td><td class="ci">[${Number(p.ci_lower_95).toFixed(3)}, ${Number(p.ci_upper_95).toFixed(3)}]</td><td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'✗'}</td></tr>`).join('');
+    bsHtml=`<div class="bs-stat"><div class="bs-kv"><div class="bs-key">Samples</div><div class="bs-val">${bs.n_samples.toLocaleString()}</div></div><div class="bs-kv"><div class="bs-key">Converged</div><div class="bs-val">${bs.converged_pct}%</div></div></div><div style="overflow-x:auto"><table class="param-table" style="margin-top:10px"><thead><tr><th>LHS</th><th>Op</th><th>RHS</th><th>BS Mean</th><th>BS SE</th><th>95% CI</th><th>Sig</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  // ── VIF / Effects ─────────────────────────────────────────────────────────
+  let effHtml='<div class="rpt-no-data">No effects data. Run with bootstrap > 0.</div>';
+  const vif=results.vif||[], f2=results.f2||[];
+  if(vif.length||f2.length){
+    effHtml='';
+    if(vif.length){
+      const rows=vif.map(v=>`<tr><td style="color:var(--blue)">${v.lv}</td><td>${v.indicator}</td><td style="color:${v.vif<3.3?'var(--green)':v.vif<5?'var(--amber)':'var(--red)'}">${v.vif.toFixed(3)}</td><td class="${v.acceptable?'sig':'nsig'}">${v.acceptable?'✓':'✗'}</td></tr>`).join('');
+      effHtml+=`<div class="eff-section"><div class="eff-title">VIF <span style="font-size:9px;color:var(--txt3)">&lt;3.3 strict · &lt;5.0 acceptable</span></div><div style="overflow-x:auto"><table class="eff-table"><thead><tr><th>LV</th><th>Indicator</th><th>VIF</th><th>Verdict</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    }
+    if(f2.length){
+      const rows=f2.map(e=>`<tr><td style="color:var(--blue)">${e.lhs}</td><td style="color:var(--txt2)">←</td><td>${e.rhs}</td><td>${e.r2_full.toFixed(3)}</td><td>${e.r2_reduced.toFixed(3)}</td><td>${e.f2.toFixed(3)}</td><td><span class="eff-badge eff-${e.effect}">${e.effect}</span></td></tr>`).join('');
+      effHtml+=`<div class="eff-section" style="margin-top:12px"><div class="eff-title">Cohen's f² <span style="font-size:9px;color:var(--txt3)">small ≥0.02 · medium ≥0.15 · large ≥0.35</span></div><div style="overflow-x:auto"><table class="eff-table"><thead><tr><th>LV</th><th></th><th>Predictor</th><th>R² full</th><th>R² reduced</th><th>f²</th><th>Effect</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    }
+  }
+
+  // ── Predictive ─────────────────────────────────────────────────────────────
+  let predHtml='<div class="rpt-no-data">No predictive data.</div>';
+  if(predictiveData&&predictiveData.q2&&predictiveData.q2.length){
+    const rows=predictiveData.q2.map(e=>`<tr><td style="color:var(--blue)">${e.lv}</td><td style="color:${e.q2>0?'var(--txt0)':'var(--txt3)'};font-weight:500">${e.q2.toFixed(4)}</td><td>${e.sse.toFixed(3)}</td><td>${e.sso.toFixed(3)}</td><td>${e.omission_distance}</td><td><span class="pred-badge pred-${e.predictive_relevance}">${e.predictive_relevance}</span></td></tr>`).join('');
+    predHtml=`<div style="overflow-x:auto"><table class="pred-table"><thead><tr><th>LV</th><th>Q²</th><th>SSE</th><th>SSO</th><th>D</th><th>Relevance</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  // ── User note ────────────────────────────────────────────────────────────
+  const note = (document.getElementById('rpt-note')?.value||'').trim();
+  const noteHtml = note ? `<div class="rpt-section"><div class="rpt-section-title">Analyst Notes</div><div class="rpt-user-note">${note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>` : '';
+
+  // ── Warnings ─────────────────────────────────────────────────────────────
+  const warnHtml = results.warnings&&results.warnings.length
+    ? `<div class="warn-box" style="margin-top:0">${results.warnings.join('<br>')}</div>` : '';
+
+  // ── Assemble ─────────────────────────────────────────────────────────────
+  card.innerHTML = `
+    <div class="rpt-header">
+      <div>
+        <div class="rpt-logo">NAVAL<em>-</em>SEM</div>
+        <div style="font-size:10px;color:var(--txt3);font-family:var(--mono);margin-top:4px">Structural Equation Modelling · Results Report</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="rpt-meta">
+          <div class="run-id">ID: ${runId}</div>
+          <div>Generated: ${ts}</div>
+        </div>
+        <div id="rpt-meta-block" style="text-align:right;font-family:var(--mono);font-size:10px;color:var(--txt2);line-height:1.8"></div>
+      </div>
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Environment</div>
+      <div class="rpt-env-grid">
+        ${envKV('Algorithm',results.algorithm||algo)}
+        ${envKV('Bootstrap N',bsN==='0'?'None':bsN)}
+        ${envKV('Missing Data',miss)}
+        ${envKV('Data File',fname)}
+        ${envKV('N Observations',nObs)}
+        ${envKV('N Parameters',nPar)}
+        ${cmb!=='—'?envKV('CMB Marker',cmb):''}
+      </div>
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Model Syntax (lavaan)</div>
+      <div class="rpt-syntax-box">${syntax||'<span style="color:var(--txt3)">No syntax captured</span>'}</div>
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Path Diagram</div>
+      ${diagramDataUrl
+        ? `<img id="rpt-diagram-img" src="${diagramDataUrl}" class="rpt-diagram-img" style="width:100%;border-radius:var(--r);border:1px solid var(--line);display:block;background:#0e0f11">`
+        : `<div id="rpt-diagram-img" class="rpt-diagram-placeholder">Diagram not available — build a model on the canvas first.</div>`}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Model Fit Indices</div>
+      ${fitHtml}
+      ${warnHtml}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Structural Paths — Relative Magnitude</div>
+      ${pathChartHtml}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Parameter Estimates</div>
+      ${paramsHtml}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Convergent Validity (AVE · CR · Cronbach α)</div>
+      ${validHtml}
+      ${flHtml}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Discriminant Validity — HTMT</div>
+      ${htmtHtml}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Effects (VIF · Cohen's f²)</div>
+      ${effHtml}
+    </div>
+
+    <div class="rpt-section">
+      <div class="rpt-section-title">Predictive Relevance (Q² Blindfolding)</div>
+      ${predHtml}
+    </div>
+
+    ${results.bootstrap?`<div class="rpt-section"><div class="rpt-section-title">Bootstrap Results</div>${bsHtml}</div>`:''}
+
+    <div id="rpt-note-section">${noteHtml}</div>
+
+    <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:12px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center">
+      <span style="font-family:var(--mono);font-size:9px;color:var(--txt3)">NAVAL-SEM · ${ts}</span>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--txt3)">— 1 —</span>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);text-align:right">Generated for reporting purposes only</span>
+    </div>
+  `;
+
+}
+
+// Cosmetic-only diagram update — re-snapshots the canvas (node colours, styles)
+// without touching any scientific fields in the snapshot.
+function updateReportDiagram(){
+  if(!_reportSnapshot) return;
+
+  // The draw functions use the global const `ctx` (the main canvas) and can't
+  // be redirected. Instead we briefly make the builder view visible but
+  // positioned off-screen (no layout shift, no flash), call draw() to paint
+  // the current node styles onto the real canvas, snapshot it, then restore.
+  const builderView = document.getElementById('builder-view');
+  const prevDisplay = builderView.style.display;
+
+  builderView.style.cssText += ';position:fixed;top:-9999px;left:-9999px;visibility:hidden;display:flex;';
+  resize(); // recalculate W/H so canvas has real dimensions
+  draw();   // paint nodes/edges with current styles
+
+  let diagramUrl = null;
+  try { diagramUrl = canvas.toDataURL('image/png'); } catch(e) {}
+
+  // Restore original display state
+  builderView.style.display = prevDisplay;
+  builderView.style.position = '';
+  builderView.style.top = '';
+  builderView.style.left = '';
+  builderView.style.visibility = '';
+  // Restore main canvas dimensions for when user returns to builder
+  setTimeout(resize, 0);
+
+  if(!diagramUrl) return;
+  _reportSnapshot.diagramDataUrl = diagramUrl;
+  _lastDiagramDataUrl = diagramUrl;
+  const img = document.getElementById('rpt-diagram-img');
+  if(img && img.tagName === 'IMG') img.src = diagramUrl;
+}
+
+// Only patch the note section — never rebuild the whole report (avoids diagram flicker)
+function updateReportNote(){
+  const noteSection = document.getElementById('rpt-note-section');
+  if(!noteSection) return; // report not built yet
+  const note = (document.getElementById('rpt-note')?.value||'').trim();
+  const noteHtml = note
+    ? `<div class="rpt-section"><div class="rpt-section-title">Analyst Notes</div><div class="rpt-user-note">${note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`
+    : '';
+  noteSection.innerHTML = noteHtml;
+}
+
+// Patch the analyst meta block in the header without rebuilding the report
+function updateReportMeta(){
+  const block = document.getElementById('rpt-meta-block');
+  if(!block) return;
+  const name  = (document.getElementById('rpt-name')?.value||'').trim();
+  const email = (document.getElementById('rpt-email')?.value||'').trim();
+  const org   = (document.getElementById('rpt-org')?.value||'').trim();
+  const lines = [name, email, org].filter(Boolean);
+  block.innerHTML = lines.map(l => `<div>${l.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`).join('');
+}
+
+async function downloadReport(fmt){
+  if(!results){ alert('Run an analysis first.'); return; }
+  // Flush any unsaved field values into the report WITHOUT rebuilding the whole card
+  updateReportNote();
+  updateReportMeta();
+
+  const spinner = document.getElementById('rpt-spinner');
+  const msg     = document.getElementById('rpt-spinner-msg');
+  if(spinner) spinner.classList.add('show');
+
+  const runId = _liveRunId || ('local-'+Date.now().toString(16));
+  const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+
+  try {
+    const card = document.getElementById('report-card');
+    if(!card){ alert('Report card not found.'); return; }
+
+    // Wait for the diagram image to finish loading (it's now a plain <img> tag)
+    if(msg) msg.textContent = 'Loading diagram…';
+    await new Promise(r => {
+      const rptImg = card.querySelector('.rpt-diagram-img');
+      if(!rptImg || rptImg.complete){ r(); return; }
+      rptImg.onload  = r;
+      rptImg.onerror = r;
+    });
+
+    // Two rAF ticks so the browser has composited everything
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    if(msg) msg.textContent = 'Capturing report…';
+    // For PDF: render at 794px (A4 @ 96dpi) so content maps cleanly to A4 points.
+    // For PNG: render at full card width for maximum resolution.
+    const renderWidth = fmt === 'pdf' ? 794 : card.scrollWidth;
+    const cvs = await html2canvas(card, {
+      backgroundColor: '#13151a',
+      scale: fmt === 'pdf' ? 4 : 2,  // ~300dpi for print, 96dpi for screen PNG
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      imageTimeout: 0,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth:  renderWidth,
+      windowHeight: card.scrollHeight,
+      width: renderWidth,
+    });
+
+    if(fmt==='png'){
+      if(msg) msg.textContent = 'Saving PNG…';
+      const a = document.createElement('a');
+      a.href = cvs.toDataURL('image/png');
+      a.download = `naval_sem_report_${runId.slice(0,8)}_${ts}.png`;
+      a.click();
+    } else {
+      if(msg) msg.textContent = 'Building PDF…';
+      const { jsPDF } = window.jspdf;
+
+      // A4 portrait in points: 595.28 × 841.89 pt
+      const A4_W = 595.28;
+      const A4_H = 841.89;
+      const margin = 28; // pt padding on each page
+
+      const contentW = A4_W - margin * 2;
+      // Scale factor: content width in points / canvas pixel width
+      const scale = contentW / cvs.width;
+      // Height of one A4 content area in canvas pixels
+      const pageHeightPx = (A4_H - margin * 2) / scale;
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const totalPages = Math.ceil(cvs.height / pageHeightPx);
+
+      for(let page = 0; page < totalPages; page++){
+        if(page > 0) pdf.addPage('a4', 'portrait');
+
+        // Slice this page's strip from the full canvas
+        const srcY      = Math.round(page * pageHeightPx);
+        const srcH      = Math.min(pageHeightPx, cvs.height - srcY);
+        const destH     = srcH * scale;
+
+        const slice = document.createElement('canvas');
+        slice.width  = cvs.width;
+        slice.height = Math.round(srcH);
+        slice.getContext('2d').drawImage(cvs, 0, srcY, cvs.width, srcH, 0, 0, cvs.width, srcH);
+
+        pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, contentW, destH, undefined, 'FAST');
+
+        // Page number footer
+        pdf.setFont('courier', 'normal');
+        pdf.setFontSize(7);
+        pdf.setTextColor(100);
+        pdf.text(`NAVAL-SEM  ·  Page ${page+1} of ${totalPages}`, A4_W / 2, A4_H - 10, { align: 'center' });
+      }
+
+      pdf.save(`naval_sem_report_${runId.slice(0,8)}_${ts}.pdf`);
+    }
+  } catch(err){
+    console.error(err);
+    alert('Export failed: ' + err.message);
+  } finally {
+    if(spinner) spinner.classList.remove('show');
+  }
+}
+
 </script>
 
 <div class="export-toast" id="export-toast">
