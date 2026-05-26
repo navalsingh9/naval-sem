@@ -409,6 +409,7 @@ class PLSEstimator:
                 for idx_r, rhs in enumerate(rhs_valid):
                     path_coefs[lhs][rhs] = round(float(beta[idx_r + 1]), 8)
             except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
         return path_coefs, r_squared

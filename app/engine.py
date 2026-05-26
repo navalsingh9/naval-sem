@@ -528,6 +528,7 @@ def _compute_cronbach_alpha(
             if val is not None:
                 alpha[lv] = val
         except Exception as _e:  # B112
+            logger.debug("Non-critical exception suppressed: %s", _e)
             continue
     return alpha
 
@@ -1246,6 +1247,7 @@ def run_bootstrap(
                 all_estimates.append(_pls_vector(pls_bs, param_order))
                 converged += 1
             except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
         labels = [{"lhs": lhs, "op": op, "rhs": rhs} for lhs, op, rhs in param_order]
@@ -1270,6 +1272,7 @@ def run_bootstrap(
                 all_estimates.append(row_vals)
                 converged += 1
             except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
         try:
@@ -1512,6 +1515,7 @@ def compute_outer_weight_significance(
                 if 0 <= k < len(lv_lams_bs):
                     bs_collections[idx].append(lv_lams_bs[k])
         except Exception as _e:  # B112
+            logger.debug("Non-critical exception suppressed: %s", _e)
             continue
 
     # ── Assemble results ──────────────────────────────────────────────────────
@@ -1687,6 +1691,7 @@ def compute_f2(
                 effect=effect,
             ))
         except Exception as _e:  # B112
+            logger.debug("Non-critical exception suppressed: %s", _e)
             continue
 
     return entries
@@ -1815,6 +1820,7 @@ def compute_indirect_effects(
                     if v is not None:
                         bs_samples[j].append(v)
             except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
     # Total effects: direct + indirect
@@ -2004,6 +2010,7 @@ def compute_q2(
                 sse   += float(np.sum((y_test - y_pred) ** 2))
                 sso   += float(np.sum((y_test - np.mean(y_full)) ** 2))
             except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
         if sso <= 0:
@@ -2113,6 +2120,7 @@ def compute_plspredict(
             try:
                 beta_model = np.linalg.lstsq(X_tr, y_tr, rcond=None)[0]
             except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
             # LM baseline: predict each indicator from exogenous composites directly
