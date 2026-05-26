@@ -6,7 +6,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [v0.5.0] — 2026-05-19 · Predictive Relevance + CMB
+## [v0.5.1] — 2026-05-26 · Security & Code Quality
+
+### Fixed
+- **Bandit B110 (try/except/pass)** — all bare `except Exception:` blocks that
+  silently swallowed errors with `pass` now capture the exception as `_e` and
+  emit `logger.debug(...)` before passing. Affects `app/engine.py` (5 locations).
+- **Bandit B112 (try/except/continue)** — all bare `except Exception:` blocks
+  followed by `continue` now capture the exception as `_e`. Affects
+  `app/engine.py` (11 locations) and `app/pls.py` (4 locations).
+- **`app/pls.py` missing logger** — added `import logging` and
+  `logger = logging.getLogger("naval_sem.pls")` to support the above fixes.
+- Resolves all 14 open Code Scanning alerts on GitHub (Bandit, severity: Note).
+
+---
+
+## [v0.5.0] — 2026-05-25 · Predictive Relevance + CMB
 
 ### Added
 
@@ -47,7 +62,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [v0.4.1] — 2026-05-15 · Effects, Significance & UI Polish
+## [v0.4.2] — 2026-05-22 · Distribution Pipeline Cleanup
+
+### Changed
+- **Removed SourceForge release pipeline** — `.github/workflows/release.yml`
+  no longer pushes builds to SourceForge automatically. Distribution is now
+  handled via the SourceForge portal's GitHub connector, keeping the workflow
+  file lean and removing the dependency on SF credentials in CI secrets.
+- Cleaned up `.gitignore` entries related to the removed pipeline artifacts.
+
+---
+
+## [v0.4.1] — 2026-05-22 · Effects, Significance & UI Polish
 
 ### Added
 - **VIF (Variance Inflation Factor)** per indicator per LV block —
@@ -92,7 +118,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [v0.4.0] — 2026-05-13 · Formative + Effect Sizes (initial release)
+## [v0.4.0] — 2026-05-18 · Formative + Effect Sizes (initial release)
 
 ### Added
 - Schema: `VIFEntry`, `F2Entry`, `IndirectEffect`, `IndirectResult`,
@@ -103,7 +129,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [v0.3.1] — 2026-05-12 · Bug fixes
+## [v0.3.1] — 2026-05-11 · Bug fixes
 
 ### Fixed
 - **SRMR always null** — semopy's `calc_stats` omits SRMR; added manual
@@ -144,7 +170,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [v0.2.1] — 2026-05-09 · Stability & Security
+## [v0.2.1] — 2026-05-07 · Stability & Security
 
 ### Changed
 - Hardened API exception handling for CodeQL security compliance.

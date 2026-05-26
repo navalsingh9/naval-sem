@@ -42,7 +42,7 @@ def _safe_float(val, default=None):
         v = float(val)
         # CHANGE: Return `default` instead of `None` when NaN/Inf is detected
         return default if (np.isnan(v) or np.isinf(v)) else round(v, 6)
-    except Exception:
+    except Exception as _e:
         return default
 
 
@@ -287,7 +287,8 @@ def _compute_srmr(
                 if arr.ndim == 2 and arr.shape[0] == arr.shape[1] == p:
                     Sigma = arr
                     break
-            except Exception:
+            except Exception as _e:  # B110
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 pass
 
     # ── Step 2: reconstruct from CFA parameters ───────────────────────────────
@@ -342,7 +343,8 @@ def _compute_srmr(
                     Theta[i, i] = max(S_diag[i] - implied_diag[i], 0.0)
 
             Sigma = Sigma_no_theta + Theta
-        except Exception:
+        except Exception as _e:  # B110
+            logger.debug("Non-critical exception suppressed: %s", _e)
             pass
 
     if Sigma is None:
@@ -364,7 +366,7 @@ def _compute_srmr(
         if count == 0:
             return None
         return _safe_float(np.sqrt(2.0 * total / (p * (p + 1))))
-    except Exception:
+    except Exception as _e:
         return None
 
 
@@ -525,7 +527,7 @@ def _compute_cronbach_alpha(
             val = _safe_float(min(max(raw, 0.0), 1.0))
             if val is not None:
                 alpha[lv] = val
-        except Exception:
+        except Exception as _e:  # B112
             continue
     return alpha
 
@@ -848,9 +850,11 @@ def fit_model(
                         ss_res = float(((y - y_hat) ** 2).sum())
                         ss_tot = float(((y - y.mean()) ** 2).sum())
                         r2[lhs] = round(1 - ss_res / ss_tot, 4) if ss_tot > 0 else None
-                    except Exception:
+                    except Exception as _e:  # B110
+                        logger.debug("Non-critical exception suppressed: %s", _e)
                         pass
-            except Exception:
+            except Exception as _e:  # B110
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 pass
             if r2:
                 fit.r_squared = r2
@@ -1241,7 +1245,7 @@ def run_bootstrap(
                 pls_bs = PLSEstimator().fit(sample, parsed)
                 all_estimates.append(_pls_vector(pls_bs, param_order))
                 converged += 1
-            except Exception:
+            except Exception as _e:  # B112
                 continue
 
         labels = [{"lhs": lhs, "op": op, "rhs": rhs} for lhs, op, rhs in param_order]
@@ -1265,7 +1269,7 @@ def run_bootstrap(
                 row_vals = p["Estimate"].values if "Estimate" in p.columns else p["estimate"].values
                 all_estimates.append(row_vals)
                 converged += 1
-            except Exception:
+            except Exception as _e:  # B112
                 continue
 
         try:
@@ -1280,7 +1284,7 @@ def run_bootstrap(
             ]
             est_col = "Estimate" if "Estimate" in orig_p.columns else "estimate"
             orig_vec = orig_p[est_col].values
-        except Exception:
+        except Exception as _e:
             labels   = [{"lhs": f"param_{i}", "op": "~", "rhs": ""} for i in range(len(all_estimates[0]) if all_estimates else 0)]
             orig_vec = np.zeros(len(labels))
 
@@ -1507,7 +1511,7 @@ def compute_outer_weight_significance(
                 k = inds_bs.index(ind) if ind in inds_bs else -1
                 if 0 <= k < len(lv_lams_bs):
                     bs_collections[idx].append(lv_lams_bs[k])
-        except Exception:
+        except Exception as _e:  # B112
             continue
 
     # ── Assemble results ──────────────────────────────────────────────────────
@@ -1569,7 +1573,7 @@ def compute_vif(df: pd.DataFrame, model_syntax: str) -> list[VIFEntry]:
                 ss_tot = float(np.sum((y - np.mean(y)) ** 2))
                 r2 = min(max(1.0 - ss_res / ss_tot, 0.0), 0.9999) if ss_tot > 0 else 0.0
                 vif = _safe_float(1.0 / (1.0 - r2))
-            except Exception:
+            except Exception as _e:
                 vif = None
             if vif is not None:
                 entries.append(VIFEntry(lv=lv, indicator=ind, vif=vif, acceptable=vif < 5.0))
@@ -1588,7 +1592,8 @@ def _r2_for_lv(sem_model, df: pd.DataFrame, lv: str) -> Optional[float]:
             ss_tot = float(((df[lv] - df[lv].mean()) ** 2).sum())
             if ss_tot > 0:
                 return 1.0 - ss_res / ss_tot
-    except Exception:
+    except Exception as _e:  # B110
+        logger.debug("Non-critical exception suppressed: %s", _e)
         pass
     return None
 
@@ -1644,7 +1649,7 @@ def compute_f2(
             ss_res = float(np.sum((y - y_pred) ** 2))
             ss_tot = float(np.sum((y - np.mean(y)) ** 2))
             return max(1.0 - ss_res / ss_tot, 0.0) if ss_tot > 0 else 0.0
-        except Exception:
+        except Exception as _e:
             return 0.0
 
     # Group predictors by lhs
@@ -1681,7 +1686,7 @@ def compute_f2(
                 f2=round(f2_val, 6),
                 effect=effect,
             ))
-        except Exception:
+        except Exception as _e:  # B112
             continue
 
     return entries
@@ -1809,7 +1814,7 @@ def compute_indirect_effects(
                     v = path_product(path, c_bs)
                     if v is not None:
                         bs_samples[j].append(v)
-            except Exception:
+            except Exception as _e:  # B112
                 continue
 
     # Total effects: direct + indirect
@@ -1998,7 +2003,7 @@ def compute_q2(
                 y_pred = X_test @ beta
                 sse   += float(np.sum((y_test - y_pred) ** 2))
                 sso   += float(np.sum((y_test - np.mean(y_full)) ** 2))
-            except Exception:
+            except Exception as _e:  # B112
                 continue
 
         if sso <= 0:
@@ -2107,7 +2112,7 @@ def compute_plspredict(
             X_te  = np.column_stack([np.ones(len(test_idx)),  X_preds[test_idx]])
             try:
                 beta_model = np.linalg.lstsq(X_tr, y_tr, rcond=None)[0]
-            except Exception:
+            except Exception as _e:  # B112
                 continue
 
             # LM baseline: predict each indicator from exogenous composites directly
@@ -2125,14 +2130,14 @@ def compute_plspredict(
                         y_ind_tr, rcond=None
                     )[0]
                     y_model_pred = sf[0] + sf[1] * y_comp_te
-                except Exception:
+                except Exception as _e:
                     y_model_pred = y_comp_te
 
                 # LM baseline: direct OLS from exogenous composites to indicator
                 try:
                     beta_lm = np.linalg.lstsq(X_tr, y_ind_tr, rcond=None)[0]
                     y_lm_pred = X_te @ beta_lm
-                except Exception:
+                except Exception as _e:
                     y_lm_pred = np.full(len(test_idx), np.mean(y_ind_tr))
 
                 model_sq = (y_ind_te - y_model_pred) ** 2
@@ -2170,7 +2175,7 @@ def compute_plspredict(
             try:
                 t_stat, p_val = scipy_stats.ttest_1samp(diffs, popmean=0)
                 p_val = _safe_float(float(p_val))
-            except Exception:
+            except Exception as _e:
                 p_val = None
             cvpat_entries.append(CVPATResult(
                 lv=lv,

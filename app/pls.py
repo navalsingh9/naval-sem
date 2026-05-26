@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import logging
+logger = logging.getLogger("naval_sem.pls")
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -284,7 +286,7 @@ class PLSEstimator:
                     beta = np.linalg.lstsq(X_in_c, scores[:, j], rcond=None)[0][1:]
                     for idx_k, k in enumerate(preds):
                         inner[:, j] += beta[idx_k] * scores[:, lv_idx[k]]
-                except Exception:
+                except Exception as _e:
                     # Fallback: use raw scores if OLS fails
                     for k in preds:
                         inner[:, j] += scores[:, lv_idx[k]]
@@ -406,7 +408,7 @@ class PLSEstimator:
                 path_coefs.setdefault(lhs, {})
                 for idx_r, rhs in enumerate(rhs_valid):
                     path_coefs[lhs][rhs] = round(float(beta[idx_r + 1]), 8)
-            except Exception:
+            except Exception as _e:  # B112
                 continue
 
         return path_coefs, r_squared
@@ -497,7 +499,7 @@ class PLSEstimator:
                 return None
             return round(float(np.sqrt(2.0 * total / (p * (p + 1)))), 6)
 
-        except Exception:
+        except Exception as _e:
             return None
 
 
@@ -510,7 +512,7 @@ def _safe_corr(a: np.ndarray, b: np.ndarray) -> float:
             return 0.0
         r = float(np.corrcoef(a, b)[0, 1])
         return r if not np.isnan(r) else 0.0
-    except Exception:
+    except Exception as _e:
         return 0.0
 
 
