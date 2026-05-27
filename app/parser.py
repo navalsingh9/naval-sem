@@ -241,3 +241,148 @@ def parse_csv_robust(content: bytes) -> pd.DataFrame:
         "Could not parse CSV/TSV file. "
         f"Tried multiple strategies. Errors: {attempts}"
     )
+
+# ─── Higher-Order Construct helpers ───────────────────────────────────────────
+
+def detect_hoc(parsed: dict) -> dict:
+    """
+    Detect Higher-Order Constructs (HOCs) in a parsed model.
+
+    A HOC is any latent variable whose measurement block contains the *name of
+    another latent variable* as one of its indicators.  The return value maps
+    each HOC to the list of First-Order Constructs (FOCs) that act as its
+    indicators:
+
+        { "HOC_LV": ["FOC1", "FOC2", ...], ... }
+
+    An empty dict means no HOCs were found.
+
+    Example lavaan syntax that triggers detection::
+
+        HOC  =~ FOC1 + FOC2
+        FOC1 =~ x1 + x2 + x3
+        FOC2 =~ x4 + x5 + x6
+    """
+    lv_set = set(parsed.get("latent_vars", []))
+    measurement = parsed.get("measurement", {})
+    hoc_map: dict[str, list[str]] = {}
+    for lv, indicators in measurement.items():
+        focs = [ind for ind in indicators if ind in lv_set]
+        if focs:
+            hoc_map[lv] = focs
+    return hoc_map
+
+
+def expand_hoc_repeated_indicator(parsed: dict) -> dict:
+    """
+    Transform a parsed model for the **repeated indicator** approach.
+
+    For every HOC whose measurement block contains FOC names, replace those
+    FOC names with the *union of all that FOC's own indicators*.  The FOC
+    measurement blocks are left intact so both levels are estimated jointly.
+
+    Example transformation::
+
+        Before:
+            HOC  =~ FOC1 + FOC2
+            FOC1 =~ x1 + x2
+            FOC2 =~ x3 + x4
+
+        After:
+            HOC  =~ x1 + x2 + x3 + x4   ← FOC indicators copied up
+            FOC1 =~ x1 + x2
+            FOC2 =~ x3 + x4
+
+    Returns a deep-copy of ``parsed`` with the HOC blocks expanded.
+    Raises ValueError if the expansion would produce an empty indicator list.
+    """
+    import copy
+    result = copy.deepcopy(parsed)
+    hoc_map = detect_hoc(parsed)
+    if not hoc_map:
+        return result
+
+    measurement = result["measurement"]
+    for hoc, focs in hoc_map.items():
+        expanded: list[str] = []
+        for ind in measurement[hoc]:
+            if ind in measurement:          # it's a FOC name — expand it
+                expanded.extend(measurement[ind])
+            else:
+                expanded.append(ind)        # it's already an observed indicator
+        if not expanded:
+            raise ValueError(
+                f"HOC repeated-indicator expansion produced no indicators for '{hoc}'."
+            )
+        measurement[hoc] = expanded
+
+    # Recompute observed_vars from the new measurement blocks
+    result["observed_vars"] = list({
+        v for inds in measurement.values() for v in inds
+    })
+    return result
+
+
+def build_hoc_stage2_parsed(parsed: dict, stage1_score_cols: dict[str, str]) -> dict:
+    """
+    Build a Stage-2 parsed dict for the **two-stage** HOC approach.
+
+    Parameters
+    ----------
+    parsed : dict
+        Original ``parse_lavaan()`` output containing HOC definitions.
+    stage1_score_cols : dict
+        Mapping ``{foc_name: score_column_name}`` for every FOC whose scores
+        were extracted in Stage 1 (e.g. ``{"FOC1": "__score_FOC1__", ...}``).
+
+    Returns a new ``parsed`` dict where:
+    - Each HOC's measurement block uses the score column names instead of
+      the FOC LV names.
+    - FOC measurement blocks are removed (they are now observed variables).
+    - Structural paths are updated so any reference to a FOC that now has a
+      score column is renamed to that score column name.
+    - ``latent_vars`` / ``observed_vars`` are recomputed consistently.
+
+    Raises ValueError if no HOCs are found.
+    """
+    import copy
+    hoc_map = detect_hoc(parsed)
+    if not hoc_map:
+        raise ValueError("build_hoc_stage2_parsed: no HOCs found in model.")
+
+    measurement_orig = parsed.get("measurement", {})
+    foc_set = {foc for focs in hoc_map.values() for foc in focs}
+
+    # Rename helper
+    def _rn(name: str) -> str:
+        return stage1_score_cols.get(name, name)
+
+    # Stage-2 measurement: keep non-FOC blocks; swap FOC names in HOC blocks
+    new_measurement: dict[str, list[str]] = {}
+    for lv, inds in measurement_orig.items():
+        if lv in foc_set:
+            continue                        # drop — their scores are observed vars now
+        new_indicators = [_rn(ind) for ind in inds]
+        new_measurement[lv] = new_indicators
+
+    # Stage-2 structural: rename FOC LV refs to score column names
+    new_structural: list[dict] = []
+    for rel in parsed.get("structural", []):
+        lhs = _rn(rel["lhs"])
+        rhs = _rn(rel["rhs"])
+        new_structural.append({"lhs": lhs, "rhs": rhs})
+
+    new_covariances: list[dict] = []
+    for cov in parsed.get("covariances", []):
+        new_covariances.append({"lhs": _rn(cov["lhs"]), "rhs": _rn(cov["rhs"])})
+
+    new_lv = list(new_measurement.keys())
+    new_obs = list({v for inds in new_measurement.values() for v in inds})
+
+    return {
+        "measurement": new_measurement,
+        "structural":  new_structural,
+        "covariances": new_covariances,
+        "latent_vars": new_lv,
+        "observed_vars": new_obs,
+    }
