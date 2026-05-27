@@ -124,8 +124,9 @@ from app.engine import (
 from app.parser import (parse_spss, parse_excel, parse_lavaan, parse_csv_robust,)
 from app.schemas import (
     ModelResult, BootstrapResult, HTMTResult, IndirectResult,
-    CMBMarkerResult, PredictResult,
+    CMBMarkerResult, PredictResult, MGAResult,
 )
+from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stage
 
 def auto_reverse_score(df: pd.DataFrame, model_syntax: str, log_fn=None) -> pd.DataFrame:
     """
@@ -162,7 +163,7 @@ _STATIC_DIR = os.environ.get(
     str(Path(__file__).parent.parent / "static"),
 )
 
-app = FastAPI(title="NAVAL-SEM API", version="0.5.0")
+app = FastAPI(title="NAVAL-SEM API", version="0.6.0")
 
 # --- ADDED: Catch Pydantic serialization errors (e.g., NaNs slipping through) ---
 from fastapi.exceptions import ResponseValidationError
@@ -242,7 +243,7 @@ async def get_fingerprint(run_id: str):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.5.0"}
+    return {"status": "ok", "version": "0.6.0"}
 
 
 @app.post("/predict", response_model=PredictResult)
@@ -558,3 +559,211 @@ async def export_code(payload: dict):
         media_type="text/plain",
         headers={"Content-Disposition": f'attachment; filename="naval_sem_model.{ext}"'},
     )
+
+
+# ── v0.6: Multi-Group Analysis ─────────────────────────────────────────────────
+
+def _parse_upload(content: bytes, filename: str) -> pd.DataFrame:
+    """Shared helper: parse uploaded file bytes to DataFrame."""
+    ext = filename.rsplit(".", 1)[-1].lower()
+    if ext == "csv":
+        return parse_csv_robust(content)
+    elif ext in ("xlsx", "xls"):
+        return parse_excel(content)
+    elif ext == "sav":
+        return parse_spss(content)
+    raise HTTPException(400, f"Unsupported file type: .{ext}")
+
+
+@app.post("/mga", response_model=MGAResult)
+async def multi_group_analysis(
+    file: UploadFile = File(...),
+    model: str = Form(...),
+    group_col: str = Form(...),
+    algorithm: str = Form("pls"),
+    bootstrap_n: int = Form(500),
+    n_permutations: int = Form(500),
+    run_micom: bool = Form(True),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
+):
+    """
+    Multi-Group Analysis (MGA) with optional MICOM measurement invariance test.
+
+    Form fields
+    -----------
+    file          : CSV, XLSX, or SAV dataset.
+    model         : lavaan-style model syntax (same model applied to all groups).
+    group_col     : Column used to split the dataset into groups.
+                    Values are stringified.  Max 10 distinct groups.
+    algorithm     : ``pls`` (default) | ``cb`` | ``wls``.
+    bootstrap_n   : Bootstrap resamples for per-pair path-difference CIs (default 500).
+    n_permutations: Permutation samples for MICOM steps 2 and 3 (default 500).
+    run_micom     : Whether to run MICOM before MGA (2-group PLS only, default True).
+    missing       : ``listwise`` (default) | ``mean``.
+    run_id        : Optional SSE tracking ID — logs available at /logs/{run_id}.
+
+    Returns
+    -------
+    MGAResult — per-group fit, pairwise path-difference CIs, optional MICOM.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+
+    raw = await file.read()
+    log("step", f"MGA: parsing uploaded file: {file.filename}")
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        _run_store[run_id]["done"] = True
+        raise
+    except Exception as exc:
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, f"File parse error: {exc}")
+
+    if group_col not in df.columns:
+        _run_store[run_id]["done"] = True
+        raise HTTPException(
+            422,
+            f"Group column '{group_col}' not found. "
+            f"Available columns: {df.columns.tolist()}",
+        )
+
+    if missing == "listwise":
+        df = df.dropna()
+        log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+        log("info", "Missing data: mean imputation applied")
+
+    df = auto_reverse_score(df, model, log_fn=log)
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: run_mga(
+                df, model,
+                group_col=group_col,
+                algorithm=algorithm,
+                bootstrap_n=bootstrap_n,
+                n_permutations=n_permutations,
+                run_micom_test=run_micom,
+                log_fn=log,
+            ),
+        )
+    except ValueError as exc:
+        log("error", f"MGA failed: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        log("error", f"MGA unexpected error: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(500, f"MGA error: {exc}")
+
+    _run_store[run_id]["done"] = True
+    return result
+
+
+# ── v0.6: Higher-Order Constructs ──────────────────────────────────────────────
+
+@app.post("/hoc", response_model=ModelResult)
+async def hoc_analysis(
+    file: UploadFile = File(...),
+    model: str = Form(...),
+    hoc_method: str = Form("repeated_indicator"),
+    algorithm: str = Form("pls"),
+    bootstrap_n: int = Form(0),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
+):
+    """
+    Higher-Order Construct (HOC) estimation.
+
+    Automatically detects HOCs from the lavaan syntax: any latent variable
+    whose measurement block contains the names of other latent variables is
+    treated as a HOC.
+
+    Form fields
+    -----------
+    file          : CSV, XLSX, or SAV dataset.
+    model         : lavaan-style model syntax including HOC definitions.
+                    Example::
+
+                        HOC  =~ FOC1 + FOC2
+                        FOC1 =~ x1 + x2 + x3
+                        FOC2 =~ x4 + x5 + x6
+                        Y    ~  HOC
+
+    hoc_method    : ``repeated_indicator`` (default) | ``two_stage``.
+    algorithm     : ``pls`` (default) | ``cb`` | ``wls``.
+                    Note: ``two_stage`` always uses PLS for Stage 1 regardless
+                    of this setting.
+    bootstrap_n   : Bootstrap resamples (default 0 = no bootstrap).
+    missing       : ``listwise`` (default) | ``mean``.
+    run_id        : Optional SSE tracking ID.
+
+    Returns
+    -------
+    ModelResult with ``hoc_type`` set to the method used.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+
+    raw = await file.read()
+    log("step", f"HOC: parsing uploaded file: {file.filename}")
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        _run_store[run_id]["done"] = True
+        raise
+    except Exception as exc:
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, f"File parse error: {exc}")
+
+    if missing == "listwise":
+        df = df.dropna()
+        log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+        log("info", "Missing data: mean imputation applied")
+
+    df = auto_reverse_score(df, model, log_fn=log)
+
+    if hoc_method not in ("repeated_indicator", "two_stage"):
+        _run_store[run_id]["done"] = True
+        raise HTTPException(
+            400,
+            f"Unknown hoc_method '{hoc_method}'. "
+            "Use 'repeated_indicator' or 'two_stage'.",
+        )
+
+    loop = asyncio.get_event_loop()
+    try:
+        fn = (
+            fit_hoc_repeated_indicator
+            if hoc_method == "repeated_indicator"
+            else fit_hoc_two_stage
+        )
+        result = await loop.run_in_executor(
+            None,
+            lambda: fn(
+                df, model,
+                algorithm=algorithm,
+                bootstrap_n=bootstrap_n,
+                log_fn=log,
+            ),
+        )
+    except ValueError as exc:
+        log("error", f"HOC failed: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        log("error", f"HOC unexpected error: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(500, f"HOC error: {exc}")
+
+    _run_store[run_id]["done"] = True
+    return result
