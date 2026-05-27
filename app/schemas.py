@@ -2,6 +2,7 @@
 Pydantic schemas for all API responses.
 """
 
+from enum import Enum
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
@@ -191,6 +192,8 @@ class ModelResult(BaseModel):
     fingerprint: Optional[str] = None
     # v0.7 — results summary
     summary: Optional[ModelSummary] = None
+    # v0.6 — higher-order constructs
+    hoc_type: Optional["HOCType"] = None
 # ── v0.5 schemas ──────────────────────────────────────────────────────────────
 
 class Q2Entry(BaseModel):
@@ -235,3 +238,113 @@ class PredictResult(BaseModel):
     plspredict: Optional[List[PLSPredictEntry]] = None
     cvpat: Optional[List[CVPATResult]] = None
 
+
+
+# ── v0.6 schemas ──────────────────────────────────────────────────────────────
+
+class HOCType(str, Enum):
+    """How a higher-order construct was estimated."""
+    none = "none"
+    repeated_indicator = "repeated_indicator"
+    two_stage = "two_stage"
+
+
+# ─── MICOM ────────────────────────────────────────────────────────────────────
+
+class MICOMStep2Entry(BaseModel):
+    """
+    Step 2 — Compositional invariance for one construct.
+
+    c = cor(X_g1 @ w_g1, X_g1 @ w_g2)  (cross-weighted, within group-1 data)
+    Invariant when c ≥ ci_lower_95  (one-sided; c should be near 1.0).
+    """
+    lv_name: str
+    correlation: float           # observed cross-weighted correlation
+    ci_lower_95: float           # 5th percentile of permuted distribution
+    invariant: bool              # correlation >= ci_lower_95
+
+
+class MICOMStep3MeanEntry(BaseModel):
+    """Step 3a — Composite mean equality for one construct."""
+    lv_name: str
+    mean_g1: float
+    mean_g2: float
+    mean_diff: float             # mean_g1 - mean_g2
+    ci_lower_95: float           # 2.5th percentile of permuted distribution
+    ci_upper_95: float           # 97.5th percentile
+    invariant: bool              # 0.0 falls within [ci_lower_95, ci_upper_95]
+
+
+class MICOMStep3VarEntry(BaseModel):
+    """Step 3b — Composite variance equality for one construct."""
+    lv_name: str
+    var_g1: float
+    var_g2: float
+    var_ratio: float             # var_g1 / var_g2  (1.0 = equal)
+    ci_lower_95: float
+    ci_upper_95: float
+    invariant: bool              # 1.0 falls within [ci_lower_95, ci_upper_95]
+
+
+class MICOMResult(BaseModel):
+    """
+    Full MICOM output (Henseler, Ringle & Sarstedt 2016).
+
+    partial_invariance (step 2 pass) is the minimum requirement for valid
+    PLS-MGA path-coefficient comparisons.
+    full_invariance requires step 2 + step 3a + step 3b.
+    """
+    n_permutations: int
+    groups: List[str]
+    step2: List[MICOMStep2Entry]
+    step3_mean: List[MICOMStep3MeanEntry]
+    step3_var: List[MICOMStep3VarEntry]
+    full_invariance: bool
+    partial_invariance: bool     # step 2 all-pass — sufficient for MGA path comparison
+
+
+# ─── MGA ──────────────────────────────────────────────────────────────────────
+
+class MGAGroupResult(BaseModel):
+    """Per-group model fit — lightweight (no bootstrap / VIF / indirect)."""
+    group_name: str              # stringified value of the grouping variable
+    n_obs: int
+    parameters: List[PathParameter]
+    fit: FitIndices
+    r_squared: Optional[Dict[str, float]] = None
+
+
+class MGAPathDiff(BaseModel):
+    """
+    Bootstrap path-coefficient difference for one structural path, one group pair.
+
+    Significant when the 95 % percentile CI excludes 0.
+    """
+    lhs: str
+    rhs: str
+    group_a: str
+    group_b: str
+    beta_a: float
+    beta_b: float
+    diff: float                  # beta_a − beta_b  (point estimate on full data)
+    ci_lower_95: float           # 2.5th percentile of bootstrap distribution
+    ci_upper_95: float           # 97.5th percentile
+    significant: bool            # CI excludes 0
+
+
+class MGAResult(BaseModel):
+    """
+    Multi-Group Analysis result.
+
+    Includes per-group fit, pairwise bootstrap path-difference CIs,
+    and (for 2-group analyses) MICOM measurement-invariance results.
+    """
+    grouping_variable: str
+    groups: List[str]
+    bootstrap_n: int
+    group_results: List[MGAGroupResult]
+    path_differences: List[MGAPathDiff]
+    micom: Optional[MICOMResult] = None
+    warnings: List[str] = []
+
+ModelResult.model_rebuild()
