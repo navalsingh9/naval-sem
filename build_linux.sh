@@ -3,10 +3,10 @@
 #  NAVAL-SEM — Linux Build Script
 #  Produces:
 #    dist/NAVAL-SEM           (portable ELF binary)
-#    dist/naval-sem_0.4.0_amd64.deb   (Debian/Ubuntu package)
+#    dist/naval-sem_0.6.0_amd64.deb   (Debian/Ubuntu package)
 #
 #  Prerequisites:
-#    pip install pyinstaller pywebview
+#    uv sync
 #    sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0
 #      (needed by pywebview on Linux/GTK)
 # ============================================================
@@ -14,7 +14,7 @@
 set -e
 cd "$(dirname "$0")"
 
-VERSION="0.4.0"
+VERSION="0.6.0"
 ARCH="amd64"
 PKG_NAME="naval-sem"
 DEB_DIR="dist/deb_pkg"
@@ -26,13 +26,25 @@ echo " ========================================="
 echo ""
 
 # ── 1. Dependencies ───────────────────────────────────────────────────────────
-echo " [1/4] Installing Python dependencies..."
-pip install -r requirements.txt --quiet
+if [ -f "requirements.txt" ]; then
+  echo " [1/4] Installing Python dependencies..."
+  pip install -r requirements.txt --quiet
+else
+  echo " [1/4] No requirements.txt found, skipping pip install (using active environment)..."
+fi
 
 # ── 2. PyInstaller binary ─────────────────────────────────────────────────────
-echo " [2/4] Building binary with PyInstaller..."
-pyinstaller naval_sem.spec --clean --noconfirm
-echo " Binary → dist/NAVAL-SEM"
+if [ -f "dist/NAVAL-SEM" ]; then
+  echo " [2/4] Found existing binary at dist/NAVAL-SEM, skipping PyInstaller build..."
+else
+  echo " [2/4] Building binary with PyInstaller..."
+  if command -v uv &>/dev/null; then
+    uv run pyinstaller naval_sem.spec --clean --noconfirm
+  else
+    pyinstaller naval_sem.spec --clean --noconfirm
+  fi
+  echo " Binary → dist/NAVAL-SEM"
+fi
 
 # ── 3. .deb package ──────────────────────────────────────────────────────────
 echo " [3/4] Assembling .deb package..."
@@ -78,7 +90,7 @@ Description: NAVAL-SEM — Structural Equation Modelling Desktop App
  support for CSV, Excel, and SPSS data files.
  All computation runs fully offline.
 Depends: libgtk-3-0, libwebkit2gtk-4.0-37
-Homepage: https://github.com/your-org/naval-sem
+Homepage: https://github.com/navalsingh9/naval-sem
 Section: science
 Priority: optional
 CTRL
