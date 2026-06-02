@@ -24,16 +24,17 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.11"
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked
 
       - name: Build EXE
-        run: pyinstaller naval_sem.spec --clean --noconfirm
+        run: uv run pyinstaller naval_sem.spec --clean --noconfirm
 
       - name: Add WiX 3 to PATH
         run: |
@@ -75,26 +76,27 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.11"
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked
 
       - name: Install create-dmg
         run: brew install create-dmg
 
       - name: Build .app
         run: |
-          pyinstaller naval_sem.spec --clean --noconfirm
+          uv run pyinstaller naval_sem.spec --clean --noconfirm
 
           # If spec produced a binary instead of .app bundle, rebuild as windowed
           if [ ! -d "dist/NAVAL-SEM.app" ]; then
             echo "No .app found, rebuilding with --windowed..."
 
-            pyinstaller launcher.py \
+            uv run pyinstaller launcher.py \
               --name "NAVAL-SEM" \
               --windowed \
               --clean --noconfirm \
@@ -131,15 +133,15 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.11"
+          enable-cache: true
 
       - name: Install system GTK/WebKit deps
         run: |
           sudo apt-get update -q
-
           sudo apt-get install -y \
             libgtk-3-0 \
             libwebkit2gtk-4.0-dev \
@@ -148,10 +150,10 @@ jobs:
             gir1.2-webkit2-4.0
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked
 
       - name: Build binary
-        run: pyinstaller naval_sem.spec --clean --noconfirm
+        run: uv run pyinstaller naval_sem.spec --clean --noconfirm
 
       - name: Build .deb
         run: |
@@ -199,20 +201,17 @@ jobs:
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
-
         with:
           name: "NAVAL-SEM ${{ github.ref_name }}"
           draft: false
           prerelease: false
           generate_release_notes: false
-
           files: |
             release-assets/NAVAL-SEM.exe
             release-assets/NAVAL-SEM-Setup.msi
             release-assets/NAVAL-SEM.dmg
             release-assets/NAVAL-SEM
             release-assets/naval-sem_*.deb
-
           body: |
             ## NAVAL-SEM ${{ github.ref_name }}
 
