@@ -25,12 +25,13 @@ echo "  NAVAL-SEM Linux Build"
 echo " ========================================="
 echo ""
 
-# ── 1. Dependencies ───────────────────────────────────────────────────────────
-if [ -f "requirements.txt" ]; then
-  echo " [1/4] Installing Python dependencies..."
-  pip install -r requirements.txt --quiet
+# ── 1. Dependencies (Scorecard Compliant) ────────────────────────────────────
+echo " [1/4] Verifying build environment..."
+if command -v uv &>/dev/null; then
+  echo " Found 'uv'. Synchronizing dependencies from secure lockfile..."
+  uv sync --locked
 else
-  echo " [1/4] No requirements.txt found, skipping pip install (using active environment)..."
+  echo " 'uv' not found. Proceeding with active environment packages..."
 fi
 
 # ── 2. PyInstaller binary ─────────────────────────────────────────────────────
