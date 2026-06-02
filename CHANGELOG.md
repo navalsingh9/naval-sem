@@ -6,6 +6,43 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.6.0] — 2026-06-02 · Higher-Order Constructs, MICOM & MGA
+
+### Added
+
+**Higher-Order Constructs (HOC)**
+- Added support for repeated-indicator and two-stage higher-order construct modeling.
+- Added automatic HOC detection and model expansion utilities.
+- Added HOC schema definitions and validation.
+
+**Measurement Invariance (MICOM)**
+- Added MICOM workflow for assessing measurement invariance across groups.
+- Added invariance assessment outputs and reporting structures.
+
+**Multi-Group Analysis (MGA)**
+- Added MGA engine for comparing structural paths across groups.
+- Added group comparison endpoints and result schemas.
+- Added support for significance testing of path differences.
+
+**Backend**
+- New `app/engine_mga.py`.
+- Added `/hoc` and `/mga` API endpoints.
+- Extended parser and schema support for HOC, MICOM and MGA workflows.
+
+**Frontend**
+- Major update to `static/index.html`.
+- Added user interface support for HOC and multi-group analysis workflows.
+- Improved results presentation and reporting experience.
+
+### Infrastructure
+- Added `.gitattributes` for consistent line-ending handling across platforms.
+
+### Changed
+- Version bumped to `0.6.0`.
+
+
+---
+
 ## [v0.5.1] — 2026-05-26 · Security & Code Quality
 
 ### Fixed
