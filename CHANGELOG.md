@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+
+---
+
+## [0.6.1] — 2026-06-03
+ 
+### Fixed
+ 
+- **Syntax → Builder tab now renders the diagram.** Typing lavaan syntax in the Syntax tab and clicking Builder produced a blank canvas. Root cause: `generateCanvasFromSyntax()` existed but was never called on tab switch. `showCanvasMode('builder')` now reads the syntax textarea and invokes it before triggering `resize()` → `draw()`.
+- **Structural paths (`~`) now draw regardless of line order.** `generateCanvasFromSyntax` used a single pass, so `~` edges were silently dropped when they appeared before the `=~` lines that create their nodes. Rewrote to two passes: Pass 1 creates all LV + indicator nodes from `=~` lines; Pass 2 processes `~` lines with all nodes guaranteed to exist. Any label referenced in `~` but absent from `=~` is auto-created as an LV node.
+### Improved
+ 
+- Inline comments (`# ...`) are now stripped from syntax before parsing, so annotated syntax files parse cleanly.
+- Free-parameter prefixes (e.g. `0.5*x1`, `1*x2`) are stripped from indicator and predictor labels during canvas generation.
+- Removed dead code from `showCanvasMode` syntax branch (`src` alias pointing to same element as `ta`, unused `canvasSrc` querySelector).
+
+
 ---
 
 ## [v0.6.0] — 2026-06-02 · Higher-Order Constructs, MICOM & MGA

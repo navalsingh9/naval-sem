@@ -278,7 +278,7 @@ button { cursor: pointer; }
 
 /* floating canvas toolbar */
 .canvas-bar {
-  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 1px;
   background: rgba(6,11,20,.75);
   backdrop-filter: var(--blur-sm);
@@ -976,6 +976,136 @@ button { cursor: pointer; }
 /* export section */
 .exp-title { font-size: 9px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--t3); margin-bottom: 10px; margin-top: 20px; }
 .exp-title:first-child { margin-top: 0; }
+
+/* ── Global live log overlay (accessible from every view) ── */
+#global-live-overlay {
+  position: fixed; z-index: 900;
+  top: 52px; right: 14px;
+  width: 480px; max-width: calc(100vw - 28px);
+  background: rgba(6,11,20,.95);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: .5px solid var(--line-strong);
+  border-radius: var(--r);
+  box-shadow: 0 12px 48px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+  display: none; flex-direction: column;
+  overflow: hidden;
+  max-height: calc(100vh - 80px);
+  animation: gloSlideIn .18s ease;
+}
+#global-live-overlay.open { display: flex; }
+@keyframes gloSlideIn {
+  from { opacity:0; transform: translateY(-8px) scale(.98); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+.glo-header {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border-bottom: .5px solid var(--line);
+  background: rgba(6,11,20,.7);
+}
+.glo-title {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--t3);
+  flex-shrink: 0;
+}
+#global-live-run-id {
+  font-family: var(--mono); font-size: 9px; color: var(--t3);
+  flex-shrink: 0;
+}
+#global-live-log {
+  flex: 1; overflow-y: auto; padding: 8px 12px;
+  font-family: var(--mono); font-size: 11px; line-height: 1.8;
+  max-height: 400px; min-height: 100px;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.glo-fp-bar {
+  display: none; border-top: .5px solid var(--line);
+  background: rgba(6,11,20,.6); padding: 9px 14px; flex-shrink: 0;
+}
+/* Global live log button in topbar */
+#global-live-btn {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 400; letter-spacing: .2px;
+  padding: 5px 12px; border-radius: var(--pill);
+  background: var(--glass); border: .5px solid var(--line);
+  color: var(--t2);
+  transition: all .16s ease; cursor: pointer;
+  font-family: var(--font); white-space: nowrap; flex-shrink: 0;
+}
+#global-live-btn:hover { background: var(--glass-hover); color: var(--t1); border-color: var(--line-strong); }
+#global-live-btn.glo-open { background: var(--glass-active); color: var(--t0); border-color: var(--line-strong); }
+#global-live-btn.glo-running {
+  border-color: rgba(52,211,153,.45);
+  background: var(--green-soft);
+  color: var(--green-text);
+  box-shadow: 0 0 10px rgba(52,211,153,.12);
+}
+.glo-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--t4); flex-shrink: 0;
+  transition: background .25s, box-shadow .25s;
+}
+.glo-dot.idle  { background: var(--t4); }
+.glo-dot.pulse {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green-glow);
+  animation: gloDotPulse 1.1s ease-in-out infinite;
+}
+.glo-dot.done  { background: var(--green); box-shadow: 0 0 5px var(--green-glow); }
+@keyframes gloDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .45; transform: scale(1.5); }
+}
+/* spinner CSS (ensures .show toggles display) */
+#spinner.show { display: flex !important; }
+
+/* ── Log level colours ── */
+.log-ts   { color: var(--t4); margin-right: 6px; font-size: 10px; }
+.log-icon { margin-right: 5px; }
+.log-step { color: var(--accent-text); }
+.log-ok   { color: var(--green-text); }
+.log-info { color: var(--t2); }
+.log-warn { color: var(--amber-text); }
+.log-error{ color: var(--red-text); }
+
+/* ── Per-run separator injected at the start of each experiment ── */
+.log-run-sep {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0 5px; margin: 6px 0 2px;
+  border-top: .5px solid var(--line-strong);
+}
+.log-run-sep:first-child { border-top: none; padding-top: 2px; margin-top: 0; }
+.log-run-num {
+  font-size: 9px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent-text); font-family: var(--mono); white-space: nowrap;
+  padding: 1px 7px; border-radius: var(--pill);
+  background: var(--accent-soft); border: .5px solid rgba(59,130,246,.28); flex-shrink: 0;
+}
+.log-run-label {
+  font-size: 10px; color: var(--t2); font-family: var(--mono);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.log-run-time {
+  font-size: 9px; color: var(--t4); font-family: var(--mono);
+  margin-left: auto; white-space: nowrap; flex-shrink: 0;
+}
+
+/* ── Session status indicator (formula bar, right side) ── */
+#session-status {
+  display: flex; align-items: center; gap: 5px;
+  flex-shrink: 0; font-family: var(--mono); font-size: 10px;
+  color: var(--t3); white-space: nowrap;
+  cursor: default; user-select: none;
+  border-left: .5px solid var(--line); padding-left: 10px; margin-left: 4px;
+}
+.ss-dot {
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+  background: var(--t4); transition: background .35s, box-shadow .35s;
+}
+.ss-dot.ss-active  { background: var(--green); box-shadow: 0 0 5px var(--green-glow); }
+.ss-dot.ss-partial { background: var(--amber); }
+#ss-label { transition: color .3s; letter-spacing: .2px; }
 </style>
 </head>
 <body>
@@ -995,6 +1125,9 @@ button { cursor: pointer; }
       <button class="mnav" onclick="showView('analyse')">Analyse</button>
       <button class="mnav" onclick="showView('report')">Report</button>
     </nav>
+    <button id="global-live-btn" onclick="toggleGlobalLiveLog()" title="Live engine log — click to monitor any run from any tab">
+      <span class="glo-dot idle" id="glo-dot"></span>Live log
+    </button>
     <div class="topbar-right">
       <span class="ver-badge">v0.6</span>
     </div>
@@ -1011,9 +1144,13 @@ button { cursor: pointer; }
     overflow: hidden; position: relative;
     transition: max-height .25s ease;
   ">
-    <span style="font-size:9px;letter-spacing:2px;color:var(--t3);text-transform:uppercase;font-family:var(--mono);white-space:nowrap;padding-top:2px;flex-shrink:0">Model</span>
+    <span id="fb-ctx-label" style="font-size:9px;letter-spacing:2px;color:var(--t3);text-transform:uppercase;font-family:var(--mono);white-space:nowrap;padding-top:2px;flex-shrink:0">Builder</span>
     <div id="model-syntax-pill" class="model-pill" style="white-space:normal;overflow:visible;-webkit-mask-image:none;mask-image:none;line-height:1.65;font-size:11px;padding:1px 0;background:transparent;border:none;box-shadow:none;flex:1;min-width:0">
       <span style="color:var(--t3)">draw a model to generate syntax</span>
+    </div>
+    <div id="session-status" title="Your data file and model syntax are held in the browser session — safe to navigate between tabs">
+      <span class="ss-dot" id="ss-dot"></span>
+      <span id="ss-label" style="color:var(--t4)"></span>
     </div>
     <button id="formula-expand-btn" onclick="toggleFormulaBar()" title="Expand/collapse formula"
       style="background:transparent;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;flex-shrink:0;opacity:.6;line-height:1">⤢</button>
@@ -1061,6 +1198,11 @@ button { cursor: pointer; }
           style="display:none" onchange="handleUpload(this)">
         <button class="up-btn" id="up-btn"
           onclick="document.getElementById('fileInput').click()">+ Upload CSV / Excel / SPSS</button>
+        <input type="file" id="json-results-input" accept=".json" style="display:none" onchange="handleJsonResultsFile(this)">
+        <button class="up-btn" id="load-json-btn"
+          onclick="document.getElementById('json-results-input').click()"
+          title="Load an exported results JSON to review offline — no server needed"
+          style="border-style:dotted;color:var(--purple-text);border-color:rgba(167,139,250,.35)">📂 Load results.json</button>
         <div id="col-pills-wrap" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;scrollbar-width:none;-webkit-overflow-scrolling:touch">
           <div class="col-pills" id="col-pills" style="display:flex;flex-wrap:nowrap;gap:4px"></div>
         </div>
@@ -1133,7 +1275,6 @@ button { cursor: pointer; }
         <div class="canvas-bar">
           <button class="ctool on" id="ctool-builder" onclick="showCanvasMode('builder')">Builder</button>
           <button class="ctool" id="ctool-syntax" onclick="showCanvasMode('syntax')">Syntax</button>
-          <button class="ctool" id="ctool-live" onclick="showCanvasMode('live')">Live log</button>
           <div style="flex:1"></div>
           <button class="ctool" id="tool-hand" onclick="setTool('hand')" title="Hand (H)">✥</button>
           <button class="ctool" onclick="zoomIn()" title="Zoom in">＋</button>
@@ -1163,15 +1304,15 @@ button { cursor: pointer; }
         </div>
 
         <!-- Syntax panel -->
-        <div id="canvas-mode-syntax" style="display:none;flex:1;flex-direction:column;padding:80px 20px 20px;overflow:hidden">
+        <div id="canvas-mode-syntax" style="display:none;flex:1;flex-direction:column;padding:68px 20px 20px;overflow:hidden">
           <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:8px">
             LAVAAN SYNTAX &nbsp;·&nbsp;
             <span style="color:var(--accent-text)">=~</span> measurement &nbsp;
             <span style="color:var(--accent-text)">~</span> structural &nbsp;
             <span style="color:var(--accent-text)">~~</span> covariance
           </div>
-          <textarea id="syntax-area" style="flex:1;font-family:var(--mono);font-size:12px;padding:12px;border:.5px solid var(--line);border-radius:var(--r);background:var(--glass);color:var(--t0);resize:none;outline:none;line-height:1.9;min-height:200px" placeholder="Draw a model on canvas or type lavaan syntax here…"></textarea>
-          <textarea id="syntax-area-tab" style="display:none"></textarea>
+          <textarea id="syntax-area" oninput="if(typeof _mgaUpdateSyntaxPreview==='function')_mgaUpdateSyntaxPreview();if(typeof _mgaCheckRunnable==='function')_mgaCheckRunnable();if(typeof _hocCheckRunnable==='function')_hocCheckRunnable();" style="flex:1;font-family:var(--mono);font-size:12px;padding:12px;border:.5px solid var(--line);border-radius:var(--r);background:var(--glass);color:var(--t0);resize:none;outline:none;line-height:1.9;min-height:200px" placeholder="Draw a model on canvas or type lavaan syntax here…"></textarea>
+          <textarea id="syntax-area-tab" style="display:none" oninput="if(typeof _refreshPillFromSyntax==='function')_refreshPillFromSyntax();if(typeof _mgaCheckRunnable==='function')_mgaCheckRunnable();if(typeof _hocCheckRunnable==='function')_hocCheckRunnable();"></textarea>
           <div id="syntax-tab-error" style="font-size:11px;color:var(--red);font-family:var(--mono);min-height:16px;margin-top:6px"></div>
           <div style="display:flex;justify-content:flex-end;margin-top:10px">
             <button onclick="runFromSyntax()" style="padding:7px 20px;border-radius:var(--pill);background:var(--accent-soft);border:.5px solid var(--accent-text);color:var(--accent-text);font-size:12px;cursor:pointer">▶ Run from syntax</button>
@@ -1179,7 +1320,7 @@ button { cursor: pointer; }
         </div>
 
         <!-- Live log panel -->
-        <div id="canvas-mode-live" style="display:none;flex:1;flex-direction:column;overflow:hidden;padding-top:76px">
+        <div id="canvas-mode-live" style="display:none;flex:1;flex-direction:column;overflow:hidden;padding-top:62px">
           <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:.5px solid var(--line);background:rgba(6,11,20,.6);flex-shrink:0">
             <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--t3);text-transform:uppercase">Live Engine Log</span>
             <span id="live-run-id" style="font-family:var(--mono);font-size:9px;color:var(--t3)"></span>
@@ -1195,6 +1336,25 @@ button { cursor: pointer; }
               <button onclick="downloadAuditJSON()" style="font-size:9px;padding:4px 12px;background:var(--accent-soft);border:.5px solid var(--accent-text);border-radius:var(--pill);color:var(--accent-text);cursor:pointer">⬇ Audit JSON</button>
             </div>
             <div style="margin-top:6px;font-size:9px;color:var(--t3);font-family:var(--mono)">Fingerprint covers: syntax · data hash · environment · results.</div>
+          </div>
+          <!-- ── Saved Log Panel ── -->
+          <div id="saved-log-panel" style="flex-shrink:0;border-top:.5px solid var(--line);background:rgba(6,11,20,.72);display:flex;flex-direction:column;max-height:38vh;min-height:0">
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;flex-shrink:0;cursor:pointer;user-select:none" onclick="
+              const b=document.getElementById('saved-log-entries');
+              const arr=document.getElementById('saved-log-arrow');
+              const open=b.style.display!=='none';
+              b.style.display=open?'none':'';
+              if(arr)arr.textContent=open?'▸':'▾';
+              if(!open)_lsRenderPanel();
+            ">
+              <span id="saved-log-arrow" style="font-size:9px;color:var(--t3)">▸</span>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--t3);text-transform:uppercase">Saved logs</span>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--t4)" id="saved-log-count"></span>
+              <div style="flex:1"></div>
+              <button onclick="event.stopPropagation();_lsDownload()" style="font-family:var(--mono);font-size:9px;padding:3px 10px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer">⬇ Download .txt</button>
+              <button onclick="event.stopPropagation();if(confirm('Clear all saved logs?')){_lsClear();_lsRenderPanel();_lsUpdateCount()}" style="font-family:var(--mono);font-size:9px;padding:3px 10px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer">Clear saved</button>
+            </div>
+            <div id="saved-log-entries" style="display:none;overflow-y:auto;padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.8;flex:1"></div>
           </div>
         </div>
 
@@ -1224,6 +1384,8 @@ button { cursor: pointer; }
           <button class="rtab"     data-tab="effects"    onclick="showRes('effects')">Effects</button>
           <button class="rtab"     data-tab="predictive" onclick="showRes('predictive')">Predict</button>
           <button class="rtab"     data-tab="params"     onclick="showRes('params')">Params</button>
+          <button class="rtab"     data-tab="mga"        onclick="showRes('mga')" id="drawer-mga-tab" style="display:none">MGA ✦</button>
+          <button class="rtab"     data-tab="hoc"        onclick="showRes('hoc')" id="drawer-hoc-tab" style="display:none">HOC ✦</button>
           <button class="rtab"     data-tab="downloads"  onclick="showRes('downloads')">⬇</button>
         </div>
       </div>
@@ -1277,7 +1439,7 @@ button { cursor: pointer; }
         <select class="csel" id="mga-algo"><option value="pls">PLS-SEM</option><option value="cb">CB-SEM</option><option value="wls">WLS</option></select>
         <div class="cfg-sep"></div>
         <span class="cfg-lbl">Group column</span>
-        <input class="cinp" id="mga-group-col" type="text" value="" placeholder="column name">
+        <input class="cinp" id="mga-group-col" type="text" value="" placeholder="column name" oninput="_mgaCheckRunnable()">
         <div class="cfg-sep"></div>
         <select class="csel" id="mga-bootstrap"><option value="200">200 BS samples</option><option value="500" selected>500 BS samples</option><option value="1000">1 000 BS samples</option><option value="5000">5 000 BS samples</option><option value="10000">10 000 BS samples</option><option value="20000">20 000 BS samples</option></select>
         <select class="csel" id="mga-perms"><option value="200">200 MICOM perms</option><option value="500" selected>500 MICOM perms</option><option value="1000">1 000 MICOM perms</option></select>
@@ -1285,14 +1447,20 @@ button { cursor: pointer; }
         <select class="csel" id="mga-missing"><option value="listwise">Listwise</option><option value="mean">Mean impute</option></select>
         <button class="run-sm" id="mga-run-btn" onclick="runMGA()" disabled style="opacity:.4;cursor:not-allowed">▶&nbsp; Run MGA</button>
       </div>
+      <!-- column pills — file auto-populated from Model tab -->
       <div class="upbar">
-        <input type="file" id="mga-file-input" accept=".csv,.xlsx,.xls,.sav" style="display:none" onchange="handleMGAUpload(this)">
-        <button class="up-btn" id="mga-up-btn" onclick="document.getElementById('mga-file-input').click()">+ Upload CSV / Excel / SPSS</button>
-        <div class="col-pills" id="mga-col-pills" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1"></div>
-        <span id="mga-file-status" style="font-size:10px;color:var(--t2);font-family:var(--mono);white-space:nowrap;margin-left:auto"></span>
+        <div class="col-pills" id="mga-col-pills" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;scrollbar-width:none"></div>
       </div>
-      <div class="infonote">
-        Same lavaan model as the builder &nbsp;·&nbsp; MICOM requires PLS-SEM &nbsp;·&nbsp; Max 10 groups &nbsp;·&nbsp; Significant = 95% bootstrap CI excludes 0
+
+      <!-- ② workflow step guide (no duplicate model display — global formula bar above shows live model) -->
+      <div style="flex-shrink:0;padding:7px 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:.5px solid var(--line);background:rgba(255,255,255,.015)">
+        <span style="font-size:10px;color:var(--t3);font-family:var(--mono)">
+          <span style="color:var(--accent);font-weight:600">①</span> Build your model in
+          <span style="color:var(--t2);cursor:pointer;text-decoration:underline" onclick="showView('model')">← Model tab</span>
+          &nbsp;&nbsp;<span style="color:var(--accent);font-weight:600">②</span> Click a column pill to set the group
+          &nbsp;&nbsp;<span style="color:var(--accent);font-weight:600">③</span> <b style="color:var(--t2)">Run MGA</b>
+          &nbsp;&nbsp;<span style="opacity:.5">· MICOM requires PLS-SEM · Max 10 groups</span>
+        </span>
       </div>
       <div id="mga-spinner" style="display:none;padding:16px;font-family:var(--mono);font-size:11px;color:var(--t2)"><div style="display:flex;align-items:center;gap:10px"><div style="width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite"></div><span id="mga-spinner-msg">Running MGA…</span></div></div>
       <div id="mga-results" style="display:none;flex:1;flex-direction:column;overflow:hidden">
@@ -1448,14 +1616,10 @@ button { cursor: pointer; }
         <button class="run-sm" id="hoc-run-btn" onclick="runHOC()"
           disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run HOC</button>
       </div>
+      <!-- column pills — file auto-populated from Model tab -->
       <div class="upbar">
-        <input type="file" id="hoc-file-input" accept=".csv,.xlsx,.xls,.sav"
-          style="display:none" onchange="handleHOCUpload(this)">
-        <button class="up-btn" id="hoc-up-btn"
-          onclick="document.getElementById('hoc-file-input').click()">+ Upload CSV / Excel / SPSS</button>
         <div class="col-pills" id="hoc-col-pills"
           style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1"></div>
-        <span id="hoc-file-status" style="font-size:10px;color:var(--t2);font-family:var(--mono);white-space:nowrap;margin-left:auto">No file loaded</span>
       </div>
       <div class="infonote">
         HOC is detected automatically — define any latent variable whose indicators include other LV names.&nbsp;·&nbsp;
@@ -1500,6 +1664,8 @@ button { cursor: pointer; }
       <div class="rns">Export</div>
       <div class="rni"     data-rni="apa"         onclick="repNavClick(this,'apa')">APA tables</div>
       <div class="rni rni-locked" data-rni="docx"        onclick="repNavClick(this,'docx')">Full .docx</div>
+      <div class="rns" style="margin-top:6px">Session</div>
+      <div class="rni" data-rni="history" onclick="repNavClick(this,'history')">Run history &nbsp;<span id="rh-badge" class="nbadge nb-v" style="display:none">0</span></div>
       <div style="flex:1"></div>
       <div class="rns" style="margin-top:12px">Download</div>
       <button class="rni" style="text-align:left;background:transparent;border:.5px solid transparent;color:var(--t2);width:100%;cursor:pointer;font-family:var(--font);font-size:12px" onclick="downloadReport('png')">⬇ &nbsp;PNG image</button>
@@ -1575,9 +1741,9 @@ function showView(v) {
   const btns = document.querySelectorAll('.mnav');
   const map = { model: 0, analyse: 1, report: 2 };
   if (btns[map[v]]) btns[map[v]].classList.add('on');
-  // Show model pill only on analyse / report
+  // Show model pill only on model tab
   const pill = document.querySelector('.model-pill');
-  if (pill) pill.style.display = '';  // always visible
+  if (pill) pill.style.display = v === 'model' ? '' : 'none';
 }
 
 /* ── Formula bar expand/collapse ── */
@@ -1616,11 +1782,6 @@ function showMGATab(tab) {
   renderMGATab(tab);
 }
 
-// Init: pill always visible
-document.addEventListener('DOMContentLoaded', () => {
-  const pill = document.querySelector('.model-pill');
-  if (pill) pill.style.display = '';
-});
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -1687,67 +1848,192 @@ document.addEventListener('keydown', function(event) {
 
 // PNG Download function
 function downloadCanvasAsPNG() {
-    // The background is already rendered by your draw() function loop
-    const imageURL = canvas.toDataURL("image/png");
-    const link = document.createElement('a');
-    link.href = imageURL;
-    link.download = 'naval_sem_model.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Export scale: 2× for crisp output regardless of display DPR
+  const EXPORT_SCALE = 2;
+
+  // Off-screen canvas at export resolution
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = W * EXPORT_SCALE;
+  offscreen.height = H * EXPORT_SCALE;
+  const octx = offscreen.getContext('2d');
+
+  // ── Background + grid (mirroring draw()) ──────────────────────────────────
+  octx.fillStyle = '#0e0f11';
+  octx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+  octx.strokeStyle = 'rgba(46,51,64,0.4)';
+  octx.lineWidth   = 0.5 * EXPORT_SCALE;
+  const gStep = 40 * zoom * EXPORT_SCALE;
+  const gOx   = ((panX * EXPORT_SCALE % gStep) + gStep) % gStep;
+  const gOy   = ((panY * EXPORT_SCALE % gStep) + gStep) % gStep;
+  for (let x = gOx; x < offscreen.width;  x += gStep) {
+    octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, offscreen.height); octx.stroke();
+  }
+  for (let y = gOy; y < offscreen.height; y += gStep) {
+    octx.beginPath(); octx.moveTo(0, y); octx.lineTo(offscreen.width, y); octx.stroke();
+  }
+
+  // ── Nodes + edges at export transform ─────────────────────────────────────
+  octx.save();
+  octx.translate(panX * EXPORT_SCALE, panY * EXPORT_SCALE);
+  octx.scale(zoom * EXPORT_SCALE, zoom * EXPORT_SCALE);
+
+  // Temporarily swap the live context so drawEdge / drawNode use octx
+  const _liveCtx = ctx;
+  // eslint-disable-next-line no-global-assign
+  Object.defineProperty(window, '_exportCtx', { value: octx, configurable: true });
+
+  function _drawNodeExport(n) {
+    const sel = false; // no selection highlight in export
+    const isLV = n.type === 'lv';
+    const defFill   = isLV ? '#1a1d24' : '#13151a';
+    const defBorder = isLV ? '#3a4052' : '#2e3340';
+    const fillColor   = n.fillColor   || defFill;
+    const borderColor = n.borderColor || defBorder;
+    const textColor   = n.textColor   || '#e8eaf0';
+    octx.save();
+    if (isLV) {
+      const rx = Math.max(46, octx.measureText(n.label).width / 2 + 10);
+      octx.beginPath(); octx.ellipse(n.x, n.y, rx, 29, 0, 0, Math.PI * 2);
+      octx.fillStyle = fillColor; octx.fill();
+      octx.strokeStyle = borderColor; octx.lineWidth = 1; octx.stroke();
+    } else {
+      const bw = Math.max(68, octx.measureText(n.label).width + 20);
+      octx.beginPath(); octx.roundRect(n.x - bw / 2, n.y - 15.5, bw, 31, 4);
+      octx.fillStyle = fillColor; octx.fill();
+      octx.strokeStyle = borderColor; octx.lineWidth = 1; octx.stroke();
+    }
+    octx.fillStyle = textColor;
+    octx.font = '400 11px "DM Mono",monospace';
+    octx.textAlign = 'center'; octx.textBaseline = 'middle';
+    octx.fillText(n.label, n.x, n.y);
+    if (isLV) {
+      octx.font = '9px "DM Mono",monospace';
+      octx.fillStyle = '#6e7a94';
+      octx.fillText('LV', n.x, n.y + 15);
+    }
+    octx.restore();
+  }
+
+  function _drawEdgeExport(e) {
+    const s = nodes.find(n => n.id === e.from), t = nodes.find(n => n.id === e.to);
+    if (!s || !t) return;
+    const dx = t.x - s.x, dy = t.y - s.y, dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const ux = dx / dist, uy = dy / dist;
+    octx.font = '11px "DM Mono",monospace';
+    const sr = s.type === 'lv' ? Math.max(46, octx.measureText(s.label).width / 2 + 10) : 34;
+    const tr = t.type === 'lv' ? Math.max(46, octx.measureText(t.label).width / 2 + 10) : 34;
+    const x1 = s.x + ux * sr, y1 = s.y + uy * sr;
+    const x2 = t.x - ux * tr, y2 = t.y - uy * tr;
+    const defColor = e.type === 'measurement' ? '#4d9cf8' : '#b0b8cc';
+    const edgeColor = e.color || defColor;
+    const edgeThick = e.thickness || 1;
+    octx.save();
+    octx.beginPath(); octx.moveTo(x1, y1); octx.lineTo(x2, y2);
+    octx.strokeStyle = edgeColor; octx.lineWidth = edgeThick; octx.stroke();
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    octx.translate(x2, y2); octx.rotate(ang);
+    octx.beginPath(); octx.moveTo(0, 0); octx.lineTo(-9, -4); octx.lineTo(-9, 4); octx.closePath();
+    octx.fillStyle = edgeColor; octx.fill();
+    octx.restore();
+    if (e.label) {
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      octx.font = '10px "DM Mono",monospace'; octx.fillStyle = '#f0a840';
+      octx.textAlign = 'center'; octx.textBaseline = 'middle';
+      octx.fillText(e.label, mx, my - 9);
+    }
+  }
+
+  octx.font = '11px "DM Mono",monospace'; // prime font metrics
+  edges.forEach(_drawEdgeExport);
+  nodes.forEach(_drawNodeExport);
+  octx.restore();
+
+  // ── Download ───────────────────────────────────────────────────────────────
+  const link = document.createElement('a');
+  link.href = offscreen.toDataURL('image/png');
+  link.download = 'naval_sem_model.png';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function generateCanvasFromSyntax(syntax) {
   nodes = [];
   edges = [];
-  
-  const lines = syntax.split('\n');
-  let currentLvX = 150; 
-  const lvY = 150;      
 
+  // Strip inline comments and blank lines up front
+  const lines = syntax.split('\n')
+    .map(l => l.replace(/#.*$/, '').trim())
+    .filter(l => l);
+
+  let currentLvX = 150;
+  const lvY = 150;
+
+  // ── Pass 1: create all nodes from =~ (measurement) lines ──────────────────
   lines.forEach(line => {
-    line = line.trim();
-    if (!line || line.startsWith('#')) return; 
+    if (!line.includes('=~')) return;
+    const [lvRaw, rhsRaw] = line.split('=~');
+    const lvLabel = lvRaw.trim();
+    if (!lvLabel) return;
+    const inds = rhsRaw.split('+')
+      .map(i => i.replace(/^\s*[\d.]+\s*\*\s*/, '').trim())  // strip free-param prefix e.g. 0.5*
+      .filter(Boolean);
 
-    if (line.includes('=~')) {
-      const parts = line.split('=~');
-      const lvLabel = parts[0].trim();
-      const inds = parts[1].split('+').map(i => i.trim());
-
-      let lvNode = nodes.find(n => n.label === lvLabel);
-      if (!lvNode) {
-        lvNode = { id: uid(), type: 'lv', x: currentLvX, y: lvY, label: lvLabel };
-        nodes.push(lvNode);
-        currentLvX += 300; 
-      }
-
-      let indY = lvNode.y + 120; 
-      let indX = lvNode.x - ((inds.length - 1) * 45); 
-
-      inds.forEach(indLabel => {
-        let indNode = nodes.find(n => n.label === indLabel);
-        if (!indNode) {
-          indNode = { id: uid(), type: 'obs', x: indX, y: indY, label: indLabel };
-          nodes.push(indNode);
-        }
-        edges.push({ from: lvNode.id, to: indNode.id, type: 'measurement' });
-        indX += 90; 
-      });
-    } 
-    else if (line.includes('~') && !line.includes('~~')) {
-      const parts = line.split('~');
-      const targetLabel = parts[0].trim();
-      const predictors = parts[1].split('+').map(i => i.trim());
-
-      predictors.forEach(predLabel => {
-        let sNode = nodes.find(n => n.label === predLabel);
-        let tNode = nodes.find(n => n.label === targetLabel);
-        
-        if (sNode && tNode) {
-          edges.push({ from: sNode.id, to: tNode.id, type: 'structural' });
-        }
-      });
+    let lvNode = nodes.find(n => n.label === lvLabel);
+    if (!lvNode) {
+      lvNode = { id: uid(), type: 'lv', x: currentLvX, y: lvY, label: lvLabel };
+      nodes.push(lvNode);
+      currentLvX += 300;
     }
+
+    const indY = lvNode.y + 150;
+    let indX = lvNode.x - ((inds.length - 1) * 45);
+    inds.forEach(indLabel => {
+      let indNode = nodes.find(n => n.label === indLabel);
+      if (!indNode) {
+        indNode = { id: uid(), type: 'obs', x: indX, y: indY, label: indLabel };
+        nodes.push(indNode);
+      }
+      edges.push({ from: lvNode.id, to: indNode.id, type: 'measurement' });
+      indX += 90;
+    });
+  });
+
+  // ── Pass 2: process ~ (structural) lines ──────────────────────────────────
+  // All LV nodes from =~ are already created; any remaining labels get auto-created.
+  let structX = 150;
+  const structY = lvY + 380;
+  lines.forEach(line => {
+    if (!line.includes('~') || line.includes('~~') || line.includes('=~')) return;
+    const [targetRaw, rhsRaw] = line.split('~');
+    const targetLabel = targetRaw.trim();
+    if (!targetLabel || !rhsRaw) return;
+    const predictors = rhsRaw.split('+')
+      .map(i => i.replace(/^\s*[\d.]+\s*\*\s*/, '').trim())
+      .filter(Boolean);
+
+    // Ensure target node exists (create as lv if missing)
+    if (!nodes.find(n => n.label === targetLabel)) {
+      nodes.push({ id: uid(), type: 'lv', x: structX, y: structY, label: targetLabel });
+      structX += 220;
+    }
+    // Ensure each predictor node exists
+    predictors.forEach(predLabel => {
+      if (!nodes.find(n => n.label === predLabel)) {
+        nodes.push({ id: uid(), type: 'lv', x: structX, y: structY, label: predLabel });
+        structX += 220;
+      }
+    });
+
+    // Add structural edges (nodes guaranteed to exist now)
+    predictors.forEach(predLabel => {
+      const sNode = nodes.find(n => n.label === predLabel);
+      const tNode = nodes.find(n => n.label === targetLabel);
+      if (sNode && tNode) {
+        edges.push({ from: sNode.id, to: tNode.id, type: 'structural' });
+      }
+    });
   });
 }
 
@@ -2250,6 +2536,7 @@ function updateSyntax(){
       disp.innerHTML='<span style="color:var(--t3)">draw a model to generate syntax</span>';
     }
   }
+  if(typeof _updateSessionStatus === 'function') _updateSessionStatus();
 }
 
 async function runFromSyntaxTab(){
@@ -2260,6 +2547,7 @@ async function runFromSyntaxTab(){
   if(errEl)errEl.textContent='';
   const mainArea=document.getElementById('syntax-area');
   if(mainArea) mainArea.value=syntax;
+  if(typeof _refreshPillFromSyntax === 'function') _refreshPillFromSyntax();
   await runFromSyntax();
 }
 
@@ -2267,6 +2555,13 @@ async function runFromSyntaxTab(){
 async function handleUpload(input){
   const file=input.files[0];if(!file)return;
   uploadedFile=file;
+  // Reset sub-tab file refs so the Analyse tab re-syncs them to the new dataset
+  if(typeof _hocFile !== 'undefined') _hocFile = null;
+  if(typeof _mgaFile !== 'undefined') _mgaFile = null;
+  // Immediately disable sub-tab run buttons so they don't stay enabled on new upload
+  if(typeof _hocSetRunnable === 'function') _hocSetRunnable(false);
+  if(typeof _mgaCheckRunnable === 'function') _mgaCheckRunnable();
+  if(typeof _updateSessionStatus === 'function') _updateSessionStatus();
   // Trigger a server ping so run-btn gets enabled immediately if server is already online
   pingServer();
   const btn=document.getElementById('up-btn');
@@ -2297,6 +2592,44 @@ async function handleUpload(input){
   }
 }
 function usePill(l){document.getElementById('node-label').value=l;validateNodeLabel();}
+
+// ── Load results JSON (offline review / UI testing) ──────────────────────
+async function handleJsonResultsFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    results = normalizeResults(data);
+    // Fix: freeze snapshot so Report tab is usable after loading a results JSON
+    _freezeReportSnapshot();
+    // Open the results drawer
+    const drawer = document.getElementById('results-drawer');
+    if (drawer && !drawer.classList.contains('open')) {
+      drawer.classList.add('open');
+      const btn = document.getElementById('toggle-results-btn');
+      if (btn) btn.innerHTML = '▼&nbsp;Close';
+    }
+    renderResults('fit');
+    // Update load-json-btn to confirm
+    const btn2 = document.getElementById('load-json-btn');
+    if (btn2) {
+      const nm = file.name.length > 22 ? file.name.slice(0,22)+'…' : file.name;
+      btn2.textContent = '✓ ' + nm;
+      btn2.style.borderStyle = 'solid';
+      btn2.style.borderColor = 'rgba(167,139,250,.5)';
+      btn2.style.color = 'var(--purple-text)';
+    }
+    // Trigger HTMT if data includes htmt results
+    if (data.htmt) {
+      htmtData = data.htmt;
+    }
+    setTimeout(resize, 360);
+  } catch(e) {
+    alert('Could not load results JSON: ' + e.message);
+  }
+  input.value = '';
+}
 
 // ── label validation ────────────────────────────────────────────────────────
 function validateNodeLabel(){
@@ -2334,6 +2667,17 @@ function _freezeReportSnapshot(){
   try{ diagramUrl = canvas.toDataURL('image/png'); }catch(e){}
   _lastDiagramDataUrl = diagramUrl;
 
+  // Detect analysis type from which result object is populated.
+  // NOTE: results is always null (never undefined) at module scope, so we test
+  // for a real SEM run by checking !results || !(results.parameters?.length).
+  const _noSEM = !results || !(results.parameters?.length);
+  let analysisType = 'SEM';
+  if (typeof _mgaResult !== 'undefined' && _mgaResult && _noSEM && !(typeof _hocResult !== 'undefined' && _hocResult)) analysisType = 'MGA';
+  else if (typeof _hocResult !== 'undefined' && _hocResult && _noSEM && !(typeof _mgaResult !== 'undefined' && _mgaResult)) analysisType = 'HOC';
+  else if (typeof _mgaResult !== 'undefined' && _mgaResult && typeof _hocResult !== 'undefined' && _hocResult) analysisType = 'SEM + MGA + HOC';
+  else if (typeof _mgaResult !== 'undefined' && _mgaResult) analysisType = 'SEM + MGA';
+  else if (typeof _hocResult !== 'undefined' && _hocResult) analysisType = 'SEM + HOC';
+
   _reportSnapshot = {
     diagramDataUrl : diagramUrl,
     algo           : document.getElementById('algo-sel')?.value   || '—',
@@ -2344,7 +2688,29 @@ function _freezeReportSnapshot(){
     syntax         : document.getElementById('syntax-area')?.value?.trim() || '',
     runId          : _liveRunId || ('local-' + Date.now().toString(16)),
     ts             : new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC',
+    analysisType   : analysisType,
+    n_obs          : results?.n_obs ?? null,
+    n_params       : results?.n_params ?? null,
   };
+}
+
+// ── normalizeResults ───────────────────────────────────────────────────────
+// Backend may return AVE / CR / alpha / Fornell-Larcker at the top level of
+// the response object rather than nested under .fit.  This helper hoists them
+// into .fit so that every downstream renderer (validity tab, report, CSV export)
+// can read from a single canonical location — results.fit.* — without changes.
+function normalizeResults(data) {
+  if (!data) return data;
+  const fit = data.fit || {};
+  const topLevelKeys = [
+    'ave', 'composite_reliability', 'cronbach_alpha',
+    'fornell_larcker', 'fornell_larcker_pass'
+  ];
+  topLevelKeys.forEach(k => {
+    if (data[k] != null && fit[k] == null) fit[k] = data[k];
+  });
+  data.fit = fit;
+  return data;
 }
 
 // ── run ────────────────────────────────────────────────────────────────────
@@ -2355,7 +2721,6 @@ async function runAnalysis(){
   clrStatus();showSpinner('FITTING MODEL…');
   _runT0 = performance.now();
   const _rid = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(16));
-  clearLiveLog();
   _startLiveStream(_rid);
   const fd=new FormData();
   fd.append('file',uploadedFile);fd.append('model',syntax);
@@ -2367,9 +2732,8 @@ async function runAnalysis(){
     const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();
     if(!r.ok){document.getElementById('canvas-error').textContent='✗ '+(data.detail||'Server error');return;}
-    results=data;
-    
-    edges.forEach(e => e.label = null);
+    results=normalizeResults(data);
+    _okRunRecord(data);   // record success — elapsed captured, result stored
     const labeledEdgeIds = new Set();
 
     if (data.outer_weights && data.outer_weights.length) {
@@ -2450,7 +2814,7 @@ async function runAnalysis(){
     document.getElementById('bs-tab') && (document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none');
     triggerHtmt();
     triggerPredict();
-  } catch(err){hideSpinner();if(err.name!=='AbortError')document.getElementById('canvas-error').textContent='✗ '+err.message;}
+  } catch(err){hideSpinner();if(err.name!=='AbortError'){_errRunRecord(err.message);document.getElementById('canvas-error').textContent='✗ '+err.message;}}
 }
 
 async function runFromSyntax(){
@@ -2464,7 +2828,6 @@ async function runFromSyntax(){
 
   showSpinner('FITTING MODEL…');
   const _rid2 = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(16));
-  clearLiveLog();
   _startLiveStream(_rid2);
   const fd=new FormData();fd.append('file',uploadedFile);fd.append('model',syntax);
   fd.append('algorithm',document.getElementById('algo-sel').value);
@@ -2474,8 +2837,9 @@ async function runFromSyntax(){
   try{
     const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();
-    if(!r.ok){alert(data.detail||'Error');return;}
-    results = data;
+    if(!r.ok){_errRunRecord(data.detail||'Server error');alert(data.detail||'Error');return;}
+    results = normalizeResults(data);
+    _okRunRecord(data);
 
     edges.forEach(e => e.label = null);
 
@@ -2559,7 +2923,7 @@ async function runFromSyntax(){
     document.getElementById('bs-tab') && (document.getElementById('bs-tab').style.display=data.bootstrap?'block':'none');
     triggerHtmt();
     triggerPredict();
-  } catch(err){hideSpinner();if(err.name!=='AbortError')alert(err.message);}
+  } catch(err){hideSpinner();if(err.name!=='AbortError'){_errRunRecord(err.message);alert(err.message);}}
 }
 
 // ── Predictive Relevance + CMB (v0.5) ──────────────────────────────────────
@@ -2635,7 +2999,114 @@ function renderResults(tab){
   resTab=tab;
   document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
   const body=document.getElementById('res-body');
-  if(!results){body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';return;}
+  if(!results && tab !== 'mga' && tab !== 'hoc'){body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';return;}
+
+  if(tab==='hoc'){
+    const res = typeof _hocResult !== 'undefined' ? _hocResult : null;
+    if(!res){
+      body.innerHTML=`<div class="no-data">No HOC results yet.<em>Run an HOC analysis from the Analyse tab to see results here.</em></div>`;
+      return;
+    }
+    const _f = res.fit || {};
+    const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+    const chipCls = v => v == null ? 'fc-neu' : v >= 0.95 ? 'fc-good' : v >= 0.90 ? 'fc-ok' : 'fc-bad';
+    const rmCls   = v => v == null ? 'fc-neu' : v <= 0.06 ? 'fc-good' : v <= 0.08 ? 'fc-ok' : 'fc-bad';
+    let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono)">HOC Results</span>
+      <span class="fit-chip fc-neu">${res.hoc_type || '—'}</span>
+      <span class="fit-chip fc-neu">${res.algorithm || '—'}</span>
+      <button onclick="showView('analyse')" style="margin-left:auto;font-size:10px;padding:4px 12px;border-radius:var(--pill);background:var(--accent-soft);border:.5px solid rgba(59,130,246,.3);color:var(--accent-text);cursor:pointer">Open in Analyse ↗</button>
+    </div>
+    <div class="fit-row" style="margin-bottom:10px">
+      ${_f.cfi   != null ? `<span class="fit-chip ${chipCls(_f.cfi)}">CFI ${_fmt(_f.cfi)}</span>`   : ''}
+      ${_f.tli   != null ? `<span class="fit-chip ${chipCls(_f.tli)}">TLI ${_fmt(_f.tli)}</span>`   : ''}
+      ${_f.rmsea != null ? `<span class="fit-chip ${rmCls(_f.rmsea)}">RMSEA ${_fmt(_f.rmsea)}</span>` : ''}
+      ${_f.srmr  != null ? `<span class="fit-chip ${_f.srmr<=0.08?'fc-good':'fc-bad'}">SRMR ${_fmt(_f.srmr)}</span>` : ''}
+      ${_f.aic   != null ? `<span class="fit-chip fc-neu">AIC ${Number(_f.aic).toFixed(1)}</span>` : ''}
+    </div>
+    <div style="font-size:10px;color:var(--t2);font-family:var(--mono);margin-bottom:10px">N = ${res.n_obs ?? '—'}</div>`;
+    if(res.parameters && res.parameters.length){
+      const rows = res.parameters.slice(0,50).map(p=>`<tr>
+        <td style="color:var(--accent-text)">${p.lhs}</td>
+        <td style="color:var(--purple-text);text-align:center">${p.op}</td>
+        <td style="color:var(--t1)">${p.rhs}</td>
+        <td style="text-align:right;font-weight:500">${_fmt(p.estimate)}</td>
+        <td style="color:var(--t2);text-align:right">${p.std_error != null ? _fmt(p.std_error) : '—'}</td>
+        <td class="${p.significant?'sig':'nsig'}">${p.significant?'✓':'—'}</td>
+      </tr>`).join('');
+      html += `<div style="overflow-x:auto"><table class="gtable">
+        <thead><tr><th>LHS</th><th>Op</th><th>RHS</th><th>Est.</th><th>SE</th><th>Sig</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+    if(_f.r_squared && Object.keys(_f.r_squared).length){
+      html += `<div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-top:8px">` +
+        Object.entries(_f.r_squared).map(([k,v])=>`R²(${k}) = <span style="color:var(--t1)">${_fmt(v)}</span>`).join(' &nbsp;·&nbsp; ') + `</div>`;
+    }
+    if(res.warnings?.length){
+      html += `<div class="warn-box" style="margin-top:8px">${res.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+    }
+    body.innerHTML = html;
+    return;
+  }
+
+  if(tab==='mga'){
+    const res = typeof _mgaResult !== 'undefined' ? _mgaResult : null;
+    if(!res){
+      body.innerHTML=`<div class="no-data">No MGA results yet.<em>Run an MGA analysis from the Analyse tab to see results here.</em></div>`;
+      return;
+    }
+    // ── MGA summary card in results drawer ─────────────────────────────
+    const m   = res.micom;
+    const inv = m ? (m.full_invariance?'Full':'Partial') : null;
+    const invCls = m ? (m.full_invariance?'fc-good':'fc-ok') : '';
+    let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono)">MGA Results</span>
+      ${inv ? `<span class="fit-chip ${invCls}">${inv} invariance</span>` : ''}
+      <button onclick="showView('analyse')" style="margin-left:auto;font-size:10px;padding:4px 12px;border-radius:var(--pill);background:var(--accent-soft);border:.5px solid rgba(59,130,246,.3);color:var(--accent-text);cursor:pointer">Open in Analyse ↗</button>
+    </div>`;
+    // MICOM summary
+    if(m){
+      const s2ok=m.step2.every(e=>e.invariant), s3mok=m.step3_mean.every(e=>e.invariant), s3vok=m.step3_var.every(e=>e.invariant);
+      html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <span class="fit-chip ${s2ok?'fc-good':'fc-bad'}">Step 2 Comp ${s2ok?'✓':'✗'}</span>
+        <span class="fit-chip ${s3mok?'fc-good':'fc-bad'}">Step 3a Means ${s3mok?'✓':'✗'}</span>
+        <span class="fit-chip ${s3vok?'fc-good':'fc-bad'}">Step 3b Variance ${s3vok?'✓':'✗'}</span>
+      </div>`;
+      const rows=m.step2.map(e=>`<tr>
+        <td style="color:var(--accent-text)">${e.construct}</td>
+        <td style="color:var(--t0);font-weight:500">${Number(e.correlation||e.c||0).toFixed(4)}</td>
+        <td style="color:var(--t2)">${Number(e.ci_lower||0).toFixed(4)}</td>
+        <td class="${e.invariant?'sig':'nsig'}">${e.invariant?'✓':'✗'}</td>
+      </tr>`).join('');
+      html+=`<div style="overflow-x:auto;margin-bottom:10px"><table class="gtable">
+        <thead><tr><th>Construct</th><th>c</th><th>CI lower</th><th>Inv</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+    // Path diffs summary
+    if(res.path_differences && res.path_differences.length){
+      const rows=res.path_differences.map(p=>{
+        const sig=p.significant||p.sig;
+        return `<tr>
+          <td style="color:var(--t1)">${p.path||`${p.lhs} ~ ${p.rhs}`}</td>
+          <td style="color:var(--t2)">${p.beta_g1!=null?Number(p.beta_g1).toFixed(3):'—'}</td>
+          <td style="color:var(--t2)">${p.beta_g2!=null?Number(p.beta_g2).toFixed(3):'—'}</td>
+          <td style="color:${sig?'var(--green-text)':'var(--t2)'};font-weight:${sig?'500':'400'}">${p.diff!=null?Number(p.diff).toFixed(3):'—'}</td>
+          <td class="${sig?'spill':'npill'}" style="font-size:9px;padding:2px 7px;border-radius:99px">${sig?'sig':'n.s.'}</td>
+        </tr>`;
+      }).join('');
+      const groups = res.groups || ['G1','G2'];
+      html+=`<div style="font-size:10px;color:var(--t2);margin-bottom:6px;font-family:var(--mono)">${groups.join(' vs ')} · Path differences</div>
+      <div style="overflow-x:auto"><table class="gtable">
+        <thead><tr><th>Path</th><th>β ${groups[0]||'G1'}</th><th>β ${groups[1]||'G2'}</th><th>Diff</th><th>Sig</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+    if(!html.includes('table')) html += `<div style="font-size:11px;color:var(--t2);font-family:var(--mono)">MGA run completed. Full results available in the Analyse tab.</div>`;
+    body.innerHTML = html;
+    return;
+  }
 
   if(tab==='fit'){
     const f=results.fit;
@@ -2645,7 +3116,7 @@ function renderResults(tab){
     html+=chip('CFI',cfi,cfi!=null?(cfi>=0.95?'fc-good':cfi>=0.90?'fc-ok':'fc-bad'):'fc-neu');
     html+=chip('TLI',tli,tli!=null?(tli>=0.95?'fc-good':tli>=0.90?'fc-ok':'fc-bad'):'fc-neu');
     html+=chip('RMSEA',rmsea,rmsea!=null?(rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'):'fc-neu');
-    html+=chip('SRMR',srmr,srmr!=null?(srmr<=0.08?'fc-good':'fc-ok'):'fc-neu');
+    html+=chip('SRMR',srmr,srmr!=null?(srmr<=0.05?'fc-good':srmr<=0.08?'fc-ok':'fc-bad'):'fc-neu');
     if(f.chi_square!=null)html+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
     if(f.df!=null)html+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
     if(f.p_value!=null){
@@ -2656,7 +3127,7 @@ function renderResults(tab){
     if(f.aic!=null)html+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
     if(f.bic!=null)html+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
     if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
-    html+=`</div><div style="font-size:10px;color:var(--t3);font-family:var(--mono)">Algorithm: ${results.algorithm} · N = ${results.n_obs} · k = ${results.n_params}</div>`;
+    html+=`</div><div style="font-size:10px;color:var(--t3);font-family:var(--mono)">Algorithm: ${results.algorithm||'—'} · N = ${results.n_obs??'—'}${results.n_params!=null?' · k = '+results.n_params:''}</div>`;
     if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
     body.innerHTML=html;
   }
@@ -3020,7 +3491,7 @@ function renderResults(tab){
   if(tab==='downloads'){
     if(!results){body.innerHTML='<div class="no-data">Run a model first.</div>';return;}
     const f=results.fit;
-    const hasValidity  = f&&(f.ave||f.composite_reliability);
+    const hasValidity  = f&&(f.ave||f.composite_reliability||results.ave||results.composite_reliability);
     const hasEffects   = results.vif||results.f2||results.outer_weights||results.indirect;
     const hasBootstrap = results.bootstrap;
 
@@ -3107,8 +3578,8 @@ function downloadResults(kind){
   }
 
   if(kind==='validity-csv'){
-    const ave=f.ave||{}, cr=f.composite_reliability||{}, alpha=f.cronbach_alpha||{};
-    const fl=f.fornell_larcker||{};
+    const ave=f.ave||results.ave||{}, cr=f.composite_reliability||results.composite_reliability||{}, alpha=f.cronbach_alpha||results.cronbach_alpha||{};
+    const fl=f.fornell_larcker||results.fornell_larcker||{};
     const lvs=[...new Set([...Object.keys(ave),...Object.keys(cr),...Object.keys(alpha)])];
     const lines=['"Section","Construct / Row","Metric","Value","Threshold","Pass"'];
     lvs.forEach(lv=>{
@@ -3125,7 +3596,7 @@ function downloadResults(kind){
         const vals=flLvs.map(lv2=>fl[lv][lv2]!=null?fl[lv][lv2].toFixed(6):'').map(v=>`"${v}"`).join(',');
         lines.push(`"Fornell-Larcker","${lv}",${vals}`);
       });
-      const fp=f.fornell_larcker_pass;
+      const fp=f.fornell_larcker_pass!=null?f.fornell_larcker_pass:results.fornell_larcker_pass;
       if(fp!=null)lines.push(`"","Verdict","${fp?'PASS — discriminant validity confirmed':'FAIL — discriminant validity not confirmed'}","","",""`);
     }
     content=lines.join('\n');
@@ -3135,10 +3606,10 @@ function downloadResults(kind){
   if(kind==='validity-json'){
     const payload={
       algorithm:results.algorithm, n_obs:results.n_obs,
-      ave:f.ave, composite_reliability:f.composite_reliability,
-      cronbach_alpha:f.cronbach_alpha,
-      fornell_larcker:f.fornell_larcker,
-      fornell_larcker_pass:f.fornell_larcker_pass,
+      ave:f.ave||results.ave, composite_reliability:f.composite_reliability||results.composite_reliability,
+      cronbach_alpha:f.cronbach_alpha||results.cronbach_alpha,
+      fornell_larcker:f.fornell_larcker||results.fornell_larcker,
+      fornell_larcker_pass:f.fornell_larcker_pass!=null?f.fornell_larcker_pass:results.fornell_larcker_pass,
       fit:{cfi:f.cfi,tli:f.tli,rmsea:f.rmsea,srmr:f.srmr,chi_square:f.chi_square,df:f.df,p_value:f.p_value,aic:f.aic,bic:f.bic,r_squared:f.r_squared},
     };
     content=JSON.stringify(payload,null,2);
@@ -3410,33 +3881,228 @@ let _liveEs = null;          // EventSource
 let _liveAutoScroll = true;
 let _liveAuditData = null;
 let _runT0 = 0;              // performance.now() at run start — for elapsed + FLOP estimate
+let _liveRunCount = 0;       // increments each run; drives the "Run N" separator header
+let _runHistory  = [];       // every attempt (success + failure) — never cleared
+let _currentRec  = null;     // pointer to the in-flight record while a run is active
 const _levelIcon = {step:'▶',ok:'✓',info:'·',warn:'⚠',error:'✗'};
 
-function _liveAppend(level, msg, ts){
-  const log = document.getElementById('live-log');
-  if(!log) return;
-  const d = document.createElement('div');
+// ── Session status indicator ──────────────────────────────────────────────────
+function _updateSessionStatus(){
+  const dot   = document.getElementById('ss-dot');
+  const label = document.getElementById('ss-label');
+  if(!dot || !label) return;
+
+  const hasFile   = typeof uploadedFile !== 'undefined' && !!uploadedFile;
+  const syntax    = (document.getElementById('syntax-area')?.value || '').trim();
+  const hasModel  = syntax.length > 0;
+  const lineCount = hasModel ? syntax.split('\n').filter(l => l.trim()).length : 0;
+  const fname     = hasFile ? uploadedFile.name : '';
+  const shortName = fname.length > 24 ? fname.slice(0, 24) + '…' : fname;
+
+  if(hasFile && hasModel){
+    dot.className     = 'ss-dot ss-active';
+    label.style.color = 'var(--green-text)';
+    label.textContent = `session active · ${shortName} · ${lineCount} line${lineCount !== 1 ? 's' : ''}`;
+  } else if(hasFile){
+    dot.className     = 'ss-dot ss-partial';
+    label.style.color = 'var(--amber-text)';
+    label.textContent = `${shortName} · draw or paste a model to continue`;
+  } else if(hasModel){
+    dot.className     = 'ss-dot ss-partial';
+    label.style.color = 'var(--amber-text)';
+    label.textContent = `${lineCount} line${lineCount !== 1 ? 's' : ''} · upload a data file to run`;
+  } else {
+    dot.className     = 'ss-dot';
+    label.style.color = 'var(--t4)';
+    label.textContent = '';   // silent when empty — no alarming "no session" text
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOCAL LOG PERSISTENCE
+// Survives page refresh. Stored in localStorage under 'naval_sem_log'.
+// Schema: { entries: [ {ts, runId, runN, level, msg}, … ] }
+// Cap: 2000 entries (oldest dropped). Each session's separator is stored too.
+// ═══════════════════════════════════════════════════════════════════════════
+const _LS_KEY = 'naval_sem_log';
+const _LS_CAP = 2000;
+
+function _lsPersist(entry) {
+  try {
+    const raw  = localStorage.getItem(_LS_KEY);
+    const store = raw ? JSON.parse(raw) : { entries: [] };
+    store.entries.push(entry);
+    if (store.entries.length > _LS_CAP)
+      store.entries = store.entries.slice(store.entries.length - _LS_CAP);
+    localStorage.setItem(_LS_KEY, JSON.stringify(store));
+  } catch(e) {}
+}
+
+function _lsLoad() {
+  try {
+    const raw = localStorage.getItem(_LS_KEY);
+    return raw ? JSON.parse(raw).entries || [] : [];
+  } catch(e) { return []; }
+}
+
+function _lsClear() {
+  try { localStorage.removeItem(_LS_KEY); } catch(e) {}
+}
+
+function _lsDownload() {
+  const entries = _lsLoad();
+  if (!entries.length) { alert('No saved logs.'); return; }
+  const lines = entries.map(e => {
+    const prefix = e.sep
+      ? `\n──── Run ${e.runN} · ${e.label} · id:${e.runId} · ${e.ts} ────`
+      : `[${e.ts}] [${(e.level||'').toUpperCase().padEnd(4)}] ${e.msg}`;
+    return prefix;
+  });
+  const ts = new Date().toISOString().slice(0,19).replace(/[:.]/g,'-');
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `naval_sem_log_${ts}.txt`; a.click();
+}
+
+// Render the saved-log panel from localStorage
+function _lsRenderPanel() {
+  const panel = document.getElementById('saved-log-entries');
+  if (!panel) return;
+  const entries = _lsLoad();
+  if (!entries.length) {
+    panel.innerHTML = '<div style="color:var(--t3);font-size:10px;padding:8px 0">No saved log entries yet.</div>';
+    return;
+  }
+  panel.innerHTML = entries.map(e => {
+    if (e.sep) {
+      return `<div class="log-run-sep">
+        <span class="log-run-num">Run ${e.runN}</span>
+        <span class="log-run-label">${e.label} &nbsp;·&nbsp; id: ${(e.runId||'').slice(0,8)}…</span>
+        <span class="log-run-time">${e.ts}</span>
+      </div>`;
+    }
+    const icon = _levelIcon[e.level] || '·';
+    return `<div><span class="log-ts">${e.ts}</span><span class="log-icon log-${e.level}">${icon}</span><span class="log-${e.level}">${e.msg}</span></div>`;
+  }).join('');
+  panel.scrollTop = panel.scrollHeight;
+}
+function _lsUpdateCount() {
+  const el = document.getElementById('saved-log-count');
+  if (!el) return;
+  const n = _lsLoad().filter(e => !e.sep).length;
+  el.textContent = n ? `· ${n} entries` : '';
+}
+// ── end local log persistence ──────────────────────────────────────────────
+
+function _liveAppend(level, msg, ts) {
   const timeStr = ts ? new Date(ts).toISOString().slice(11,23) : new Date().toISOString().slice(11,23);
   const icon = _levelIcon[level] || '·';
-  d.innerHTML = `<span class="log-ts">${timeStr}</span><span class="log-icon log-${level}">${icon}</span><span class="log-${level}">${msg}</span>`;
-  log.appendChild(d);
-  if(_liveAutoScroll) log.scrollTop = log.scrollHeight;
+  const html = `<span class="log-ts">${timeStr}</span><span class="log-icon log-${level}">${icon}</span><span class="log-${level}">${msg}</span>`;
+  // Write to both the canvas-mode panel and the global overlay
+  ['live-log', 'global-live-log'].forEach(id => {
+    const log = document.getElementById(id);
+    if(!log) return;
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    log.appendChild(d);
+    if(_liveAutoScroll) log.scrollTop = log.scrollHeight;
+  });
+  // Capture into the active run record so it survives in Report → Run History
+  if (_currentRec) _currentRec.logs.push({ ts: timeStr, level, msg });
+  // Persist to localStorage so logs survive page refresh
+  _lsPersist({ ts: timeStr, level, msg, runId: _liveRunId, runN: _liveRunCount });
+  _lsUpdateCount();
 }
 
 function clearLiveLog(){
-  const log = document.getElementById('live-log');
-  if(log) log.innerHTML = '';
-  const fp = document.getElementById('live-fp-bar');
+  ['live-log', 'global-live-log'].forEach(id => {
+    const log = document.getElementById(id);
+    if(log) log.innerHTML = '';
+  });
+  const fp  = document.getElementById('live-fp-bar');
   if(fp) fp.style.display = 'none';
+  const gfp = document.getElementById('glo-fp-bar');
+  if(gfp) gfp.style.display = 'none';
 }
+
+// ── Run-history helpers ────────────────────────────────────────────────────
+// Every analysis attempt is recorded here regardless of outcome.
+// _openRunRecord is called by _startLiveStream so every run type is covered
+// automatically without modifying each run function's start path.
+
+function _openRunRecord(n, id, label) {
+  const type = /\bMGA\b/i.test(label) ? 'MGA'
+             : /\bHOC\b/i.test(label) ? 'HOC'
+             : 'SEM';
+  const rec = { n, id, label, type,
+    ts: new Date().toISOString(), t0: performance.now(),
+    status: 'running', elapsed: null, error: null, result: null, logs: [] };
+  _runHistory.push(rec);
+  _currentRec = rec;
+  return rec;
+}
+
+function _okRunRecord(data) {
+  // May be called before _currentRec is nulled (normal), or after SSE triggers it.
+  const rec = _currentRec || _runHistory.filter(r => r.status === 'running').pop();
+  if (!rec) return;
+  rec.status  = 'ok';
+  rec.elapsed = ((performance.now() - rec.t0) / 1000).toFixed(2);
+  rec.result  = data || null;
+  _currentRec = null;
+  _updateHistoryBadge();
+}
+
+function _errRunRecord(msg) {
+  const rec = _currentRec || _runHistory.filter(r => r.status === 'running').pop();
+  if (!rec) return;
+  rec.status  = 'error';
+  rec.elapsed = rec.elapsed || ((performance.now() - rec.t0) / 1000).toFixed(2);
+  rec.error   = msg || 'Unknown error';
+  _currentRec = null;
+  _updateHistoryBadge();
+}
+
+function _updateHistoryBadge() {
+  const badge = document.getElementById('rh-badge');
+  if (!badge) return;
+  badge.textContent = _runHistory.length;
+  badge.style.display = '';
+  // colour: any error → amber, else green
+  const hasErr = _runHistory.some(r => r.status === 'error');
+  badge.className = 'nbadge ' + (hasErr ? 'nb-07' : 'nb-v');
+}
+// ── end run-history helpers ────────────────────────────────────────────────
 
 function toggleLiveScroll(){
   _liveAutoScroll = !_liveAutoScroll;
-  const btn = document.getElementById('live-scroll-btn');
+  const label = 'Auto-scroll ' + (_liveAutoScroll ? 'ON' : 'OFF');
+  const activeStyle  = 'var(--accent-soft)';
+  const inactiveStyle= 'var(--glass)';
+  const activeColor  = 'var(--accent-text)';
+  const inactiveColor= 'var(--t2)';
+  ['live-scroll-btn','global-live-scroll-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    btn.textContent = label;
+    btn.style.background = _liveAutoScroll ? activeStyle  : inactiveStyle;
+    btn.style.color      = _liveAutoScroll ? activeColor  : inactiveColor;
+  });
+}
+
+function toggleGlobalLiveLog(){
+  const overlay = document.getElementById('global-live-overlay');
+  const btn     = document.getElementById('global-live-btn');
+  if(!overlay) return;
+  const willOpen = !overlay.classList.contains('open');
+  overlay.classList.toggle('open', willOpen);
   if(btn){
-    btn.textContent = 'Auto-scroll ' + (_liveAutoScroll ? 'ON' : 'OFF');
-    btn.style.background = _liveAutoScroll ? 'var(--accent-soft)' : 'var(--glass)';
-    btn.style.color = _liveAutoScroll ? 'var(--accent)' : 'var(--t2)';
+    btn.classList.toggle('glo-open', willOpen);
+    // Keep running style dominant if a run is active
+    if(!btn.classList.contains('glo-running')){
+      btn.classList.toggle('glo-open', willOpen);
+    }
   }
 }
 
@@ -3449,15 +4115,44 @@ function downloadAuditJSON(){
   a.click();
 }
 
-function _startLiveStream(runId){
+function _startLiveStream(runId, opts = {}){
   _liveRunId = runId;
   if(_liveEs){ _liveEs.close(); _liveEs = null; }
+
+  // ── Activate global live-log button + pulsing dot ──────────────────────
+  const _gBtn = document.getElementById('global-live-btn');
+  const _gDot = document.getElementById('glo-dot');
+  const _gRunId = document.getElementById('global-live-run-id');
+  if(_gBtn){ _gBtn.classList.add('glo-running'); _gBtn.classList.remove('glo-open'); }
+  if(_gDot){ _gDot.className = 'glo-dot pulse'; }
+  if(_gRunId) _gRunId.textContent = 'run: ' + runId.slice(0,8) + '…';
 
   // Show pulsing dot on Live tab
   const dot = document.getElementById('live-dot');
   if(dot) dot.style.display = 'inline-block';
   document.getElementById('live-run-id').textContent = 'run: ' + runId.slice(0,8) + '…';
-  _liveAppend('info', `New run started · id: ${runId.slice(0,8)}…`);
+  // ── Inject a scrollable run-separator so previous experiment logs stay visible ──
+  _liveRunCount++;
+  const _sepTime  = new Date().toISOString().slice(11, 23);
+  const _sepLabel = opts.label ? opts.label : 'Model run';
+  // Open a run record — this fires for SEM, MGA, HOC, and any future type
+  _openRunRecord(_liveRunCount, runId, _sepLabel);
+  // Persist separator so the saved log shows run boundaries across refreshes
+  _lsPersist({ sep: true, runN: _liveRunCount, runId, label: _sepLabel, ts: _sepTime });
+  _lsUpdateCount();
+  const _sepHtml  = `<div class="log-run-sep">` +
+    `<span class="log-run-num">Run ${_liveRunCount}</span>` +
+    `<span class="log-run-label">${_sepLabel} &nbsp;·&nbsp; id: ${runId.slice(0,8)}…</span>` +
+    `<span class="log-run-time">${_sepTime}</span>` +
+    `</div>`;
+  ['live-log', 'global-live-log'].forEach(id => {
+    const log = document.getElementById(id);
+    if (!log) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = _sepHtml;
+    log.appendChild(wrapper);
+    if (_liveAutoScroll) log.scrollTop = log.scrollHeight;
+  });
 
   _liveEs = new EventSource(`${API}/logs/${runId}`);
   _liveEs.onmessage = ev => {
@@ -3465,15 +4160,19 @@ function _startLiveStream(runId){
       const d = JSON.parse(ev.data);
       if(d.done){
         _liveEs.close(); _liveEs = null;
+        // Stop pulsing — show done state
+        if(_gBtn){ _gBtn.classList.remove('glo-running'); }
+        if(_gDot){ _gDot.className = 'glo-dot done'; }
         const dot = document.getElementById('live-dot');
         if(dot) dot.style.animation = 'none'; dot && (dot.style.background = 'var(--green)');
 
         // ── Theatrical compute stats ──────────────────────────────────────
         const elapsedMs  = performance.now() - _runT0;
         const elapsedS   = (elapsedMs / 1000).toFixed(2);
-        const nObs       = results?.n_obs    || 300;
-        const nParams    = results?.n_params || 7;
-        const bsN        = parseInt(document.getElementById('bs-sel')?.value || '0') || 0;
+        const nObs       = opts.nObs   ?? results?.n_obs    ?? 300;
+        const nParams    = opts.nParams ?? results?.n_params ?? 7;
+        const bsSel      = opts.bsSel  || 'bs-sel';
+        const bsN        = opts.bsN    ?? (parseInt(document.getElementById(bsSel)?.value || '0') || 0);
 
         // Estimate FLOPs: PLS weight iterations (≈12 cycles) × covariance ops × bootstrap overhead
         const coreOps  = nObs * nParams * nParams * 12;
@@ -3503,6 +4202,13 @@ function _startLiveStream(runId){
             fpCode.textContent = d.fingerprint;
             fpBar.style.display = 'block';
           }
+          // Mirror fingerprint to global overlay
+          const gFpBar  = document.getElementById('glo-fp-bar');
+          const gFpCode = document.getElementById('glo-fp-code');
+          if(gFpBar && gFpCode){
+            gFpCode.textContent = d.fingerprint;
+            gFpBar.style.display = 'block';
+          }
           _liveAuditData = d.audit;
           _liveAppend('ok', 'Fingerprint anchored — download Audit JSON to verify');
         }
@@ -3514,23 +4220,294 @@ function _startLiveStream(runId){
   _liveEs.onerror = () => {
     _liveAppend('warn', 'SSE connection lost — results still loading');
     _liveEs && _liveEs.close(); _liveEs = null;
+    if(_gBtn) _gBtn.classList.remove('glo-running');
+    if(_gDot) _gDot.className = 'glo-dot idle';
   };
 }
 
 // ── Report Builder ─────────────────────────────────────────────────────────────
+// ── SVG path diagram renderer ──────────────────────────────────────────────
+// Generates a clean SVG diagram from lavaan-style syntax + optional parameter
+// estimates.  Used as the report path diagram when no canvas snapshot exists.
+function _buildSVGDiagram(syntax, parameters) {
+  if (!syntax) return null;
+
+  // ── Parse syntax ───────────────────────────────────────────────────────────
+  const lvDefs = [], obsMap = {}, edges = [], covEdges = [];
+  const lines = syntax.split('\n').map(l => l.replace(/#.*/,'').trim()).filter(Boolean);
+
+  lines.forEach(line => {
+    const mLV  = line.match(/^(\w+)\s*=~\s*(.+)/);
+    const mStr = line.match(/^(\w+)\s*~\s*(.+)/);
+    const mCov = line.match(/^(\w+)\s*~~\s*(.+)/);
+    if (mLV) {
+      const lv = mLV[1];
+      if (!lvDefs.find(l => l === lv)) lvDefs.push(lv);
+      mLV[2].split('+').map(s => s.trim()).filter(Boolean).forEach(ind => {
+        if (!obsMap[lv]) obsMap[lv] = [];
+        obsMap[lv].push(ind);
+      });
+    } else if (mStr) {
+      const lhs = mStr[1];
+      mStr[2].split('+').map(s => s.trim()).filter(Boolean).forEach(rhs => {
+        edges.push({ from: rhs, to: lhs });
+      });
+    } else if (mCov) {
+      const a = mCov[1], b = mCov[2].trim().split('+')[0].trim();
+      if (a !== b) covEdges.push({ a, b });
+    }
+  });
+
+  if (!lvDefs.length && !edges.length) return null;
+
+  // ── Parameter lookup ───────────────────────────────────────────────────────
+  const pMap = {};
+  if (parameters) {
+    parameters.forEach(p => {
+      pMap[`${p.lhs}~${p.rhs}`] = { est: p.std_estimate ?? p.estimate, sig: p.significant };
+    });
+  }
+
+  // ── Layout constants ───────────────────────────────────────────────────────
+  const PAD = 36, LV_RX = 58, LV_RY = 26, OBS_W = 84, OBS_H = 30, OBS_R = 8;
+  const COL_GAP = 200; // horizontal gap between exo and endo columns
+
+  const endoSet  = new Set(edges.map(e => e.to));
+  const exoLVs   = lvDefs.filter(lv => !endoSet.has(lv));
+  const endoLVs  = lvDefs.filter(lv =>  endoSet.has(lv));
+  const allLVs   = [...exoLVs, ...endoLVs];
+  const hasTwoCols = exoLVs.length > 0 && endoLVs.length > 0;
+
+  // Decide indicator side: exo→left, endo→right; single-col → alternate
+  const indSide = {}; // lv → 'left' | 'right'
+  allLVs.forEach(lv => { indSide[lv] = endoSet.has(lv) ? 'right' : 'left'; });
+
+  // Vertical spacing helpers
+  function colHeight(lvList) {
+    let h = 0;
+    lvList.forEach(lv => {
+      const inds = obsMap[lv]?.length || 0;
+      h += Math.max(LV_RY * 2 + 20, inds * 44);
+    });
+    return h + PAD * (lvList.length + 1);
+  }
+
+  const leftH  = colHeight(hasTwoCols ? exoLVs  : allLVs);
+  const rightH = colHeight(hasTwoCols ? endoLVs : []);
+  const H = Math.max(leftH, rightH, 260);
+
+  // Max indicator count for horizontal width
+  const maxIndsLeft  = Math.max(0, ...Object.entries(obsMap).filter(([lv]) => indSide[lv]==='left').map(([,v])=>v.length));
+  const maxIndsRight = Math.max(0, ...Object.entries(obsMap).filter(([lv]) => indSide[lv]==='right').map(([,v])=>v.length));
+  const indZoneW = OBS_W + 24;
+
+  // Column x-centres
+  let exoX, endoX;
+  if (hasTwoCols) {
+    exoX  = PAD + (maxIndsLeft  > 0 ? indZoneW : 0) + LV_RX;
+    endoX = exoX + COL_GAP + LV_RX * 2 + (maxIndsLeft > 0 ? 0 : 0);
+  } else {
+    exoX = endoX = PAD + (maxIndsLeft > 0 ? indZoneW : 0) + LV_RX;
+  }
+  const W = endoX + LV_RX + (maxIndsRight > 0 ? indZoneW : 0) + PAD;
+
+  // Assign y-positions for LVs
+  function assignY(lvList, totalH) {
+    const spacing = totalH / Math.max(lvList.length, 1);
+    lvList.forEach((lv, i) => { nodePos[lv] = { x: hasTwoCols ? (endoSet.has(lv) ? endoX : exoX) : exoX, y: spacing / 2 + i * spacing }; });
+  }
+  const nodePos = {};
+  if (hasTwoCols) {
+    assignY(exoLVs,  H);
+    assignY(endoLVs, H);
+  } else {
+    assignY(allLVs, H);
+  }
+
+  // Place indicators
+  const obsPos = {};
+  Object.entries(obsMap).forEach(([lv, inds]) => {
+    const lp = nodePos[lv]; if (!lp) return;
+    const side = indSide[lv];
+    const spread = Math.min(44, (H - PAD * 2) / Math.max(inds.length, 1));
+    const startY = lp.y - (inds.length - 1) * spread / 2;
+    inds.forEach((ind, i) => {
+      const ix = side === 'left' ? lp.x - LV_RX - 24 - OBS_W / 2 : lp.x + LV_RX + 24 + OBS_W / 2;
+      obsPos[ind] = { x: ix, y: startY + i * spread };
+    });
+  });
+
+  // ── SVG output ─────────────────────────────────────────────────────────────
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.09);background:#0b0f1a;display:block">`;
+
+  // Defs: gradients + filters
+  svg += `<defs>
+  <filter id="glow-b" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="6" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glow-g" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.6)"/>
+  </filter>
+  <linearGradient id="grad-lv" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="rgba(59,130,246,0.28)"/>
+    <stop offset="100%" stop-color="rgba(59,130,246,0.10)"/>
+  </linearGradient>
+  <linearGradient id="grad-lv-endo" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="rgba(167,139,250,0.28)"/>
+    <stop offset="100%" stop-color="rgba(167,139,250,0.10)"/>
+  </linearGradient>
+  <linearGradient id="grad-obs" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="rgba(52,211,153,0.20)"/>
+    <stop offset="100%" stop-color="rgba(52,211,153,0.07)"/>
+  </linearGradient>
+  <marker id="arr" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0.5 L0,6.5 L8.5,3.5 z" fill="rgba(255,255,255,0.35)"/>
+  </marker>
+  <marker id="arrS" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0.5 L0,6.5 L8.5,3.5 z" fill="#34d399"/>
+  </marker>
+  <marker id="arrNS" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0.5 L0,6.5 L8.5,3.5 z" fill="rgba(255,255,255,0.22)"/>
+  </marker>
+  <marker id="arrM" markerWidth="9" markerHeight="9" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0.5 L0,6.5 L8.5,3.5 z" fill="rgba(59,130,246,0.8)"/>
+  </marker>
+  </defs>`;
+
+  // ── subtle grid background ─────────────────────────────────────────────────
+  svg += `<rect width="${W}" height="${H}" fill="url(#bggrad)" rx="12"/>`;
+
+  // ── Measurement edges (LV ↔ indicators) ───────────────────────────────────
+  Object.entries(obsMap).forEach(([lv, inds]) => {
+    const lp = nodePos[lv]; if (!lp) return;
+    inds.forEach(ind => {
+      const op = obsPos[ind]; if (!op) return;
+      // Determine edge direction: LV → indicator (reflective assumption)
+      const side = indSide[lv];
+      const lEdgeX = side === 'left' ? lp.x - LV_RX : lp.x + LV_RX;
+      const oEdgeX = side === 'left' ? op.x + OBS_W / 2 : op.x - OBS_W / 2;
+      const cx1 = lEdgeX + (oEdgeX - lEdgeX) * 0.38;
+      const cx2 = lEdgeX + (oEdgeX - lEdgeX) * 0.62;
+      // Find loading value
+      const k = `${ind}=~${lv}` in pMap ? `${ind}=~${lv}` : `${lv}=~${ind}`;
+      const pLoad = pMap[`${lv}~~${ind}`] || pMap[`${ind}~~${lv}`] || null;
+      svg += `<path d="M${lEdgeX},${lp.y} C${cx1},${lp.y} ${cx2},${op.y} ${oEdgeX},${op.y}"
+        fill="none" stroke="rgba(59,130,246,0.45)" stroke-width="1.5" marker-end="url(#arrM)" opacity="0.85"/>`;
+    });
+  });
+
+  // ── Structural edges ───────────────────────────────────────────────────────
+  edges.forEach(e => {
+    const fp = nodePos[e.from] || obsPos[e.from];
+    const tp = nodePos[e.to]   || obsPos[e.to];
+    if (!fp || !tp) return;
+
+    const k = `${e.to}~${e.from}`;
+    const p = pMap[k];
+    const isSig  = p?.sig;
+    const hasEst = p?.est != null;
+    const stroke  = isSig ? '#34d399' : (hasEst ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.40)');
+    const mkr     = isSig ? 'url(#arrS)' : 'url(#arrNS)';
+    const sw      = isSig ? '2.2' : '1.5';
+
+    // Bezier control: bow upward for same-column edges, straight-ish for cross-column
+    const dx = tp.x - fp.x, dy = tp.y - fp.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const bow  = dist < 80 ? 40 : 20;
+    const mx = (fp.x + tp.x) / 2, my = (fp.y + tp.y) / 2 - bow;
+
+    svg += `<path d="M${fp.x},${fp.y} Q${mx},${my} ${tp.x},${tp.y}"
+      fill="none" stroke="${stroke}" stroke-width="${sw}" marker-end="${mkr}"/>`;
+
+    if (hasEst) {
+      const label = Number(p.est).toFixed(3) + (isSig ? '' : ' ns');
+      const lx = mx, ly = my - 8;
+      svg += `<rect x="${lx - 22}" y="${ly - 11}" width="44" height="16" rx="4"
+        fill="rgba(11,15,26,0.82)" stroke="${isSig ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.12)'}" stroke-width=".5"/>`;
+      svg += `<text x="${lx}" y="${ly + 1}" fill="${isSig ? '#6ee7b7' : 'rgba(255,255,255,0.52)'}"
+        font-size="9.5" font-family="'DM Mono',monospace" text-anchor="middle" letter-spacing=".3">${label}</text>`;
+    }
+  });
+
+  // ── Covariance arcs ────────────────────────────────────────────────────────
+  covEdges.forEach(({ a, b }) => {
+    const ap = nodePos[a] || obsPos[a], bp = nodePos[b] || obsPos[b];
+    if (!ap || !bp) return;
+    const cx = Math.min(ap.x, bp.x) - 55;
+    const cy = (ap.y + bp.y) / 2;
+    svg += `<path d="M${ap.x},${ap.y} Q${cx},${cy} ${bp.x},${bp.y}"
+      fill="none" stroke="rgba(251,191,36,0.45)" stroke-width="1.2" stroke-dasharray="5 3.5"
+      marker-end="url(#arr)"/>`;
+  });
+
+  // ── Indicator nodes ────────────────────────────────────────────────────────
+  Object.entries(obsPos).forEach(([name, p]) => {
+    svg += `<rect x="${p.x - OBS_W/2}" y="${p.y - OBS_H/2}" width="${OBS_W}" height="${OBS_H}" rx="${OBS_R}"
+      fill="url(#grad-obs)" stroke="rgba(52,211,153,0.55)" stroke-width="1" filter="url(#drop)"/>`;
+    // Tiny square badge (SEM convention for observed vars)
+    svg += `<text x="${p.x}" y="${p.y + 4.5}" fill="rgba(255,255,255,0.90)"
+      font-size="11" font-family="'DM Mono',monospace" text-anchor="middle" letter-spacing=".2">${name.slice(0,11)}</text>`;
+  });
+
+  // ── LV nodes (ellipses) ────────────────────────────────────────────────────
+  allLVs.forEach(lv => {
+    const p = nodePos[lv]; if (!p) return;
+    const isEndo = endoSet.has(lv);
+    const gradId = isEndo ? 'grad-lv-endo' : 'grad-lv';
+    const strokeClr = isEndo ? 'rgba(167,139,250,0.80)' : 'rgba(59,130,246,0.80)';
+    const filterId  = isEndo ? 'glow-g' : 'glow-b';
+    const textClr   = isEndo ? '#c4b5fd' : '#93c5fd';
+
+    // Outer glow ring
+    svg += `<ellipse cx="${p.x}" cy="${p.y}" rx="${LV_RX + 6}" ry="${LV_RY + 5}"
+      fill="none" stroke="${isEndo ? 'rgba(167,139,250,0.18)' : 'rgba(59,130,246,0.18)'}" stroke-width="6"/>`;
+    // Main ellipse
+    svg += `<ellipse cx="${p.x}" cy="${p.y}" rx="${LV_RX}" ry="${LV_RY}"
+      fill="url(#${gradId})" stroke="${strokeClr}" stroke-width="1.5" filter="url(#drop)"/>`;
+    // Inner highlight line
+    svg += `<ellipse cx="${p.x}" cy="${p.y - LV_RY * 0.35}" rx="${LV_RX * 0.62}" ry="${LV_RY * 0.28}"
+      fill="rgba(255,255,255,0.06)" stroke="none"/>`;
+    // Label
+    svg += `<text x="${p.x}" y="${p.y + 5}" fill="${textClr}"
+      font-size="12.5" font-family="'DM Sans',sans-serif" font-weight="500" text-anchor="middle" letter-spacing=".3">${lv.slice(0,13)}</text>`;
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
 function buildReport(){
   const card = document.getElementById('report-card');
-  if(!results || !_reportSnapshot){
+
+  // Universal gate: _liveRunCount increments in _startLiveStream() for EVERY
+  // analysis type (SEM, MGA, HOC, and any future type).  Individual result
+  // variables are checked as fallbacks for edge cases (e.g. JSON load).
+  const _anyRan = _liveRunCount > 0
+    || !!results
+    || (typeof _mgaResult !== 'undefined' && !!_mgaResult)
+    || (typeof _hocResult !== 'undefined' && !!_hocResult);
+
+  if (!_anyRan) {
     card.innerHTML='<div class="rpt-no-data" style="padding:40px 0;text-align:center;font-size:12px">Run an analysis first, then open this tab to generate the consolidated report.</div>';
     return;
   }
+
+  // Self-heal: if a sub-analysis ran without seeding the base report vars
+  // (MGA-only, HOC-only, etc.) create them now so every section renders.
+  if (!_reportSnapshot) _freezeReportSnapshot();
+  if (!results) results = normalizeResults({ fit: {}, parameters: [] });
 
   // Unlock report nav items that have data
   // APA + structural paths always available when results exist
   document.querySelectorAll('#rep-nav .rni[data-rni="apa"]').forEach(el => el.classList.remove('rni-locked'));
   document.querySelectorAll('#rep-nav .rni[data-rni="docx"]').forEach(el => el.classList.remove('rni-locked'));
   // MGA: unlock if MGA results exist
-  if(typeof _mgaResults !== 'undefined' && _mgaResults) {
+  if(typeof _mgaResult !== 'undefined' && _mgaResult) {
     document.querySelectorAll('#rep-nav .rni[data-rni="mga"]').forEach(el => el.classList.remove('rni-locked'));
   }
   // Moderation: unlock if moderation results exist
@@ -3546,8 +4523,54 @@ function buildReport(){
   const snap = _reportSnapshot;
   const runId = snap.runId;
   const ts    = snap.ts;
-  const f     = results.fit || {};
   const syntax = snap.syntax;
+
+  // ── MGA fallback: when SEM was run as part of MGA, the base `results` object
+  // may have empty fit / parameters.  Pull from _mgaResult where possible so
+  // the three "empty" report sections (Fit, Structural Paths, Parameters) render.
+  const _mga = (typeof _mgaResult !== 'undefined') ? _mgaResult : null;
+  const _mgaOverallFit = _mga?.overall_fit || _mga?.fit || null;
+
+  // Merge overall-model fit: prefer results.fit fields, fall back to MGA overall fit
+  const _baseFit = results.fit || {};
+  const _hasFit  = Object.values(_baseFit).some(v => v != null);
+  const f = (_hasFit || !_mgaOverallFit) ? _baseFit : Object.assign({}, _mgaOverallFit, _baseFit);
+
+  // Merge parameters: if results.parameters is empty try _mgaResult.overall_parameters
+  // or flatten all group_results parameters (deduplicated by lhs+op+rhs)
+  if ((!results.parameters || !results.parameters.length) && _mga) {
+    const overallP = _mga.overall_parameters || _mga.parameters;
+    if (overallP && overallP.length) {
+      results.parameters = overallP;
+    } else if (_mga.group_results && _mga.group_results.length) {
+      // Use first group's parameters as a representative set for the path chart
+      const firstGroupP = _mga.group_results[0]?.parameters;
+      if (firstGroupP && firstGroupP.length) results.parameters = firstGroupP;
+    }
+  }
+
+  // Merge latent_variables list if missing
+  if ((!results.latent_variables || !results.latent_variables.length)) {
+    const lvs = (_mga && (_mga.latent_variables || _mga.constructs || _mga.group_results?.[0]?.latent_variables)) || [];
+    if (lvs.length) {
+      results.latent_variables = lvs;
+    } else if (syntax) {
+      // Parse lavaan syntax: lines with =~ define latent variables (LHS before =~)
+      const parsed = syntax.split('\n')
+        .filter(l => /^\s*\w+\s*=~/.test(l))
+        .map(l => l.match(/^\s*(\w+)\s*=~/)[1]);
+      if (parsed.length) results.latent_variables = parsed;
+    }
+  }
+
+  // Also propagate r_squared into fit for display in the fit chips row
+  if (!f.r_squared) {
+    // try overall, then first group
+    const r2src = _mgaOverallFit?.r_squared
+      || _mga?.r_squared
+      || _mga?.group_results?.[0]?.r_squared;
+    if (r2src) f.r_squared = r2src;
+  }
 
   // ── diagram capture ──────────────────────────────────────────────────────
   const diagramDataUrl = snap.diagramDataUrl || null;
@@ -3558,8 +4581,9 @@ function buildReport(){
   const miss  = snap.miss;
   const fname = snap.fname;
   const cmb   = snap.cmb;
-  const nObs  = results.n_obs  != null ? results.n_obs  : '—';
-  const nPar  = results.n_params != null ? results.n_params : '—';
+  const nObs  = results.n_obs   != null ? results.n_obs   : (snap.n_obs   ?? '—');
+  const nPar  = results.n_params != null ? results.n_params : (snap.n_params ?? '—');
+  const analysisType = snap.analysisType || 'SEM';
 
   function envKV(k,v){ return `<div class="rpt-env-kv"><div class="rpt-env-k">${k}</div><div class="rpt-env-v">${v}</div></div>`; }
 
@@ -3568,7 +4592,7 @@ function buildReport(){
     if(val==null)return'fc-neu';
     if(metric==='cfi'||metric==='tli')return val>=0.95?'fc-good':val>=0.90?'fc-ok':'fc-bad';
     if(metric==='rmsea')return val<=0.06?'fc-good':val<=0.08?'fc-ok':'fc-bad';
-    if(metric==='srmr')return val<=0.08?'fc-good':'fc-ok';
+    if(metric==='srmr')return val<=0.05?'fc-good':val<=0.08?'fc-ok':'fc-bad';
     return 'fc-neu';
   }
   function chip(label,val,metric){
@@ -3585,7 +4609,7 @@ function buildReport(){
   fitHtml += '</div>';
 
   // ── validity ─────────────────────────────────────────────────────────────
-  const ave=f.ave||{}, cr=f.composite_reliability||{}, alpha=f.cronbach_alpha||{};
+  const ave=f.ave||results.ave||{}, cr=f.composite_reliability||results.composite_reliability||{}, alpha=f.cronbach_alpha||results.cronbach_alpha||{};
   const lvs=Object.keys(ave).length?Object.keys(ave):Object.keys(cr).length?Object.keys(cr):Object.keys(alpha);
   let validHtml='';
   if(lvs.length){
@@ -3596,13 +4620,13 @@ function buildReport(){
   } else { validHtml='<div class="rpt-no-data">No convergent validity data.</div>'; }
 
   // Fornell-Larcker
-  const fl=f.fornell_larcker||{};
+  const fl=f.fornell_larcker||results.fornell_larcker||{};
   const flLvs=Object.keys(fl);
   let flHtml='';
   if(flLvs.length){
     const hdr=flLvs.map(lv=>`<th>${lv}</th>`).join('');
     const dr=flLvs.map(lv=>`<tr><td style="color:var(--accent)">${lv}</td>${flLvs.map(lv2=>{const v=fl[lv][lv2];const d=(lv===lv2);return d?`<td class="fl-diag">${v!=null?Number(v).toFixed(3):'—'}</td>`:`<td>${v!=null?Number(v).toFixed(3):'—'}</td>`;}).join('')}</tr>`).join('');
-    const fp=f.fornell_larcker_pass;
+    const fp=f.fornell_larcker_pass!=null?f.fornell_larcker_pass:results.fornell_larcker_pass;
     flHtml=`<div style="margin-top:12px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:6px">Fornell-Larcker</div><div style="overflow-x:auto"><table class="fl-matrix"><thead><tr><th></th>${hdr}</tr></thead><tbody>${dr}</tbody></table></div>${fp!=null?`<div class="fl-verdict ${fp?'fl-pass':'fl-fail'}" style="margin-top:8px">${fp?'✓ Discriminant validity confirmed':'✗ Discriminant validity not confirmed'}</div>`:''}`;
   }
 
@@ -3634,8 +4658,20 @@ function buildReport(){
   // ── Structural path chart ─────────────────────────────────────────────────
   let pathChartHtml='<div class="rpt-no-data">No structural paths.</div>';
   if(results.parameters){
-    const lvSet=new Set(results.latent_variables||[]);
-    const str=results.parameters.filter(p=>p.op==='~'&&lvSet.has(p.lhs)&&lvSet.has(p.rhs));
+    // Build LV set: prefer results.latent_variables, fall back to syntax parsing
+    let _lvArr = results.latent_variables || [];
+    if (!_lvArr.length && syntax) {
+      // Parse lavaan syntax: lines with =~ define latent variables (LHS)
+      _lvArr = syntax.split('\n')
+        .map(l => l.match(/^\s*(\w+)\s*=~/))?.[0] ? // guard
+        syntax.split('\n').filter(l => /^\s*\w+\s*=~/.test(l)).map(l => l.match(/^\s*(\w+)\s*=~/)[1])
+        : [];
+    }
+    const lvSet = new Set(_lvArr);
+    // If still empty, treat all LHS of ~ relations as latent (best-effort)
+    const str = lvSet.size > 0
+      ? results.parameters.filter(p => p.op === '~' && lvSet.has(p.lhs) && lvSet.has(p.rhs))
+      : results.parameters.filter(p => p.op === '~');
     if(str.length){
       const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
       const bars=str.map(p=>{
@@ -3676,7 +4712,130 @@ function buildReport(){
     predHtml=`<div style="overflow-x:auto"><table class="pred-table"><thead><tr><th>LV</th><th>Q²</th><th>SSE</th><th>SSO</th><th>D</th><th>Relevance</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
-  // ── User note ────────────────────────────────────────────────────────────
+  // ── MGA section ──────────────────────────────────────────────────────────
+  let mgaReportHtml = '';
+  const mga = (typeof _mgaResult !== 'undefined') ? _mgaResult : null;
+  if(mga) {
+    const _fmtN = v => v != null ? Number(v).toFixed(4) : '—';
+    const _fmtS = v => v != null ? Number(v).toFixed(3) : '—';
+    const _inv  = ok => ok ? '<span style="color:var(--green-text)">✓</span>' : '<span style="color:var(--red-text)">✗</span>';
+    const groups = mga.groups || ['G1','G2'];
+
+    // MICOM
+    let micomHtml = '<div class="rpt-no-data">MICOM not run.</div>';
+    if(mga.micom){
+      const m = mga.micom;
+      const s2ok = m.step2.every(e=>e.invariant), s3mok = m.step3_mean.every(e=>e.invariant), s3vok = m.step3_var.every(e=>e.invariant);
+      const invLabel = m.full_invariance ? 'Full invariance' : 'Partial invariance';
+      const invCls   = m.full_invariance ? 'var(--green-text)' : 'var(--amber-text)';
+      micomHtml = `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <span class="fit-chip ${s2ok?'fc-good':'fc-bad'}">Step 2 Comp ${s2ok?'✓':'✗'}</span>
+          <span class="fit-chip ${s3mok?'fc-good':'fc-bad'}">Step 3a Means ${s3mok?'✓':'✗'}</span>
+          <span class="fit-chip ${s3vok?'fc-good':'fc-bad'}">Step 3b Variance ${s3vok?'✓':'✗'}</span>
+          <span style="font-size:10px;font-family:var(--mono);color:${invCls};padding:4px 10px;border-radius:var(--pill);background:var(--glass)">${invLabel}</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table class="param-table">
+          <thead><tr><th>Construct</th><th>c (Step 2)</th><th>CI lo</th><th>Inv</th><th>Mean diff</th><th>Mean inv</th><th>Var ratio</th><th>Var inv</th></tr></thead>
+          <tbody>${m.step2.map((e,i)=>{
+            const sm = m.step3_mean[i]||{};
+            const sv = m.step3_var[i]||{};
+            return `<tr>
+              <td style="color:var(--accent-text)">${e.lv_name||e.construct||'—'}</td>
+              <td style="color:var(--t0);font-weight:500">${_fmtN(e.correlation??e.c)}</td>
+              <td style="color:var(--t2)">${_fmtN(e.ci_lower_95??e.ci_lower)}</td>
+              <td>${_inv(e.invariant)}</td>
+              <td style="color:var(--t1)">${_fmtS(sm.mean_diff??sm.diff)}</td>
+              <td>${_inv(sm.invariant)}</td>
+              <td style="color:var(--t1)">${_fmtS(sv.var_ratio??sv.ratio)}</td>
+              <td>${_inv(sv.invariant)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+        </div>`;
+    }
+
+    // Group fits
+    let groupFitHtml = '<div class="rpt-no-data">No group fit data.</div>';
+    if(mga.group_results && mga.group_results.length){
+      const rows = mga.group_results.map(g=>{
+        const gf = g.fit||{};
+        const r2vals = g.r_squared ? Object.entries(g.r_squared).map(([k,v])=>`R²(${k})=${Number(v).toFixed(3)}`).join(' ') : '—';
+        return `<tr>
+          <td style="color:var(--accent-text);font-weight:500">${g.group_name}</td>
+          <td>${g.n_obs??'—'}</td>
+          <td>${_fmtS(gf.srmr)}</td>
+          <td>${_fmtS(gf.cfi)}</td>
+          <td>${_fmtS(gf.rmsea)}</td>
+          <td style="font-family:var(--mono);font-size:10px;color:var(--t2)">${r2vals}</td>
+        </tr>`;
+      }).join('');
+      groupFitHtml = `<div style="overflow-x:auto"><table class="param-table">
+        <thead><tr><th>Group</th><th>n</th><th>SRMR</th><th>CFI</th><th>RMSEA</th><th>R²</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+
+    // Path differences
+    let pathDiffHtml = '<div class="rpt-no-data">No path difference data.</div>';
+    if(mga.path_differences && mga.path_differences.length){
+      const rows = mga.path_differences.map(p=>{
+        const sig = p.significant||p.sig;
+        return `<tr>
+          <td style="color:var(--t1)">${p.lhs} ~ ${p.rhs}</td>
+          <td>${_fmtS(p.beta_a??p.beta_g1)}</td>
+          <td>${_fmtS(p.beta_b??p.beta_g2)}</td>
+          <td style="color:${sig?'var(--green-text)':'var(--t2)'};font-weight:${sig?'500':'400'}">${_fmtS(p.diff)}</td>
+          <td style="color:var(--t2);font-size:10px">[${_fmtS(p.ci_lower_95)}, ${_fmtS(p.ci_upper_95)}]</td>
+          <td><span class="${sig?'spill':'npill'}" style="font-size:9px;padding:2px 8px;border-radius:99px">${sig?'sig':'n.s.'}</span></td>
+        </tr>`;
+      }).join('');
+      pathDiffHtml = `<div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:6px">${groups.join(' vs ')} · Diff = β${groups[0]||'G1'} − β${groups[1]||'G2'} · significant = 95% CI excludes 0</div>
+      <div style="overflow-x:auto"><table class="param-table">
+        <thead><tr><th>Path</th><th>β ${groups[0]||'G1'}</th><th>β ${groups[1]||'G2'}</th><th>Diff</th><th>95% CI</th><th>Sig</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+
+    // Per-group path diagrams
+    let groupDiagramsHtml = '';
+    if (mga.group_results && mga.group_results.length) {
+      const groupDiagParts = mga.group_results.map(g => {
+        const gParams = g.parameters || [];
+        const gSvg = _buildSVGDiagram(snap.syntax || syntax, gParams);
+        const r2Line = g.r_squared
+          ? Object.entries(g.r_squared).map(([k,v]) => `R²(${k}) = ${Number(v).toFixed(3)}`).join(' · ')
+          : '';
+        return `<div style="flex:1;min-width:260px">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--accent-text);margin-bottom:6px">
+            Group: <strong>${g.group_name}</strong> &nbsp;·&nbsp; n = ${g.n_obs ?? '—'}
+            ${r2Line ? `&nbsp;·&nbsp; <span style="color:var(--t2)">${r2Line}</span>` : ''}
+          </div>
+          ${gSvg
+            ? `<div style="width:100%">${gSvg}</div>`
+            : `<div style="padding:18px;text-align:center;font-size:11px;color:var(--t3);border:.5px dashed var(--line);border-radius:var(--r)">No parameter estimates for this group</div>`}
+        </div>`;
+      });
+      groupDiagramsHtml = `
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin:14px 0 8px">Group Path Diagrams</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px">${groupDiagParts.join('')}</div>`;
+    }
+
+    mgaReportHtml = `
+      <div class="rpt-section" id="rpt-mga-section">
+        <div class="rpt-section-title">Multi-Group Analysis (MGA)</div>
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:10px">MICOM — Measurement Invariance</div>
+        ${micomHtml}
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin:14px 0 8px">Group Fit Indices</div>
+        ${groupFitHtml}
+        ${groupDiagramsHtml}
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin:14px 0 8px">Path Differences</div>
+        ${pathDiffHtml}
+      </div>`;
+  }
+
+
   const note = (document.getElementById('rpt-note')?.value||'').trim();
   const noteHtml = note ? `<div class="rpt-section"><div class="rpt-section-title">Analyst Notes</div><div class="rpt-user-note">${note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>` : '';
 
@@ -3703,12 +4862,13 @@ function buildReport(){
     <div class="rpt-section">
       <div class="rpt-section-title">Environment</div>
       <div class="rpt-env-grid">
+        ${envKV('Analysis Type',analysisType)}
         ${envKV('Algorithm',results.algorithm||algo)}
         ${envKV('Bootstrap N',bsN==='0'?'None':bsN)}
         ${envKV('Missing Data',miss)}
         ${envKV('Data File',fname)}
-        ${envKV('N Observations',nObs)}
-        ${envKV('N Parameters',nPar)}
+        ${nObs!=='—'?envKV('N Observations',nObs):''}
+        ${nPar!=='—'?envKV('N Parameters',nPar):''}
         ${cmb!=='—'?envKV('CMB Marker',cmb):''}
       </div>
     </div>
@@ -3720,9 +4880,16 @@ function buildReport(){
 
     <div class="rpt-section">
       <div class="rpt-section-title">Path Diagram</div>
-      ${diagramDataUrl
-        ? `<img id="rpt-diagram-img" src="${diagramDataUrl}" class="rpt-diagram-img" style="width:100%;border-radius:var(--r);border:1px solid var(--line);display:block;background:#0e0f11">`
-        : `<div id="rpt-diagram-img" class="rpt-diagram-placeholder">Diagram not available — build a model on the canvas first.</div>`}
+      ${(()=>{
+          // Prefer the SVG diagram built from syntax + parameter estimates —
+          // it always reflects the actual model and never shows a blank black square.
+          // Fall back to the canvas snapshot only when SVG can't be generated
+          // (e.g. no syntax), and to a placeholder as a last resort.
+          const svgDiag = _buildSVGDiagram(syntax, results.parameters);
+          if (svgDiag) return `<div id="rpt-diagram-img" style="width:100%">${svgDiag}</div>`;
+          if (diagramDataUrl) return `<img id="rpt-diagram-img" src="${diagramDataUrl}" class="rpt-diagram-img" style="width:100%;border-radius:var(--r);border:1px solid var(--line);display:block;background:#0e0f11">`;
+          return `<div id="rpt-diagram-img" class="rpt-diagram-placeholder">Diagram not available — build a model on the canvas first.</div>`;
+        })()}
     </div>
 
     <div class="rpt-section">
@@ -3741,30 +4908,97 @@ function buildReport(){
       ${paramsHtml}
     </div>
 
-    <div class="rpt-section">
+    ${lvs.length ? `<div class="rpt-section">
       <div class="rpt-section-title">Convergent Validity (AVE · CR · Cronbach α)</div>
       ${validHtml}
       ${flHtml}
-    </div>
+    </div>` : ''}
 
-    <div class="rpt-section">
+    ${(htmtData&&htmtData.matrix&&htmtData.matrix.length) ? `<div class="rpt-section">
       <div class="rpt-section-title">Discriminant Validity — HTMT</div>
       ${htmtHtml}
-    </div>
+    </div>` : ''}
 
-    <div class="rpt-section">
+    ${(vif.length||f2.length) ? `<div class="rpt-section">
       <div class="rpt-section-title">Effects (VIF · Cohen's f²)</div>
       ${effHtml}
-    </div>
+    </div>` : ''}
 
-    <div class="rpt-section">
+    ${(predictiveData&&predictiveData.q2&&predictiveData.q2.length) ? `<div class="rpt-section">
       <div class="rpt-section-title">Predictive Relevance (Q² Blindfolding)</div>
       ${predHtml}
-    </div>
+    </div>` : ''}
 
     ${results.bootstrap?`<div class="rpt-section"><div class="rpt-section-title">Bootstrap Results</div>${bsHtml}</div>`:''}
 
+    ${mgaReportHtml}
+
     <div id="rpt-note-section">${noteHtml}</div>
+
+    <!-- ── Run History ─────────────────────────────────────────────────── -->
+    <div class="rpt-section" id="rpt-history-section">
+      <div class="rpt-section-title">Run History</div>
+      ${(()=>{
+        if(!_runHistory.length) return '<div class="rpt-no-data">No runs recorded yet.</div>';
+        const rows = _runHistory.map(r => {
+          const statusDot = r.status==='ok'    ? `<span style="color:var(--green);font-size:11px">✓</span>`
+                          : r.status==='error' ? `<span style="color:var(--red);font-size:11px">✗</span>`
+                          :                      `<span style="color:var(--amber);font-size:11px">…</span>`;
+          const typeBadge = `<span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:var(--pill);background:var(--glass);border:.5px solid var(--line);color:var(--accent-text)">${r.type}</span>`;
+          // Key metrics summary
+          let summary = '';
+          if(r.status==='ok' && r.result){
+            const d=r.result, f=d.fit||{};
+            if(r.type==='MGA'){
+              const m=d.micom; const inv=m?m.full_invariance:null;
+              summary = m ? `MICOM: <span style="color:${inv?'var(--green)':'var(--amber)'}">${inv?'full inv.':'partial inv.'}</span>`
+                          : `${(d.groups||[]).length} groups`;
+            } else if(r.type==='HOC'){
+              summary = d.n_obs ? `N=${d.n_obs} · ${(d.parameters||[]).length} params` : `${(d.parameters||[]).length} params`;
+            } else {
+              const cfi=f.cfi, rmsea=f.rmsea;
+              if(cfi!=null) summary += `CFI=<span style="color:${cfi>=0.95?'var(--green)':cfi>=0.90?'var(--amber)':'var(--red)'}">${Number(cfi).toFixed(3)}</span> `;
+              if(rmsea!=null) summary += `RMSEA=<span style="color:${rmsea<=0.06?'var(--green)':rmsea<=0.08?'var(--amber)':'var(--red)'}">${Number(rmsea).toFixed(3)}</span>`;
+            }
+          } else if(r.status==='error'){
+            summary = `<span style="color:var(--red-text);font-family:var(--mono);font-size:10px">${(r.error||'').slice(0,80)}</span>`;
+          } else { summary = '<span style="color:var(--t3)">in progress</span>'; }
+          // Log accordion (collapsed by default)
+          const logId = `rh-log-${r.n}`;
+          const logLines = r.logs.length
+            ? r.logs.map(l=>`<div><span style="color:var(--t3);font-family:var(--mono);font-size:9px">${l.ts}</span> <span class="log-${l.level}" style="font-size:10px">${l.msg}</span></div>`).join('')
+            : '<span style="color:var(--t3);font-size:10px">No log lines captured.</span>';
+          return `<tr class="rh-row">
+            <td style="text-align:center;width:32px">${statusDot}</td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--t3);white-space:nowrap">${r.n}</td>
+            <td>${typeBadge}</td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--t2);white-space:nowrap">${r.ts.slice(0,19).replace('T',' ')}</td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--t2)">${r.elapsed!=null?r.elapsed+'s':'—'}</td>
+            <td style="font-size:11px">${summary}</td>
+            <td style="text-align:right">
+              <button onclick="document.getElementById('${logId}').style.display=document.getElementById('${logId}').style.display==='none'?'block':'none'"
+                style="font-family:var(--mono);font-size:9px;padding:2px 8px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer">
+                ${r.logs.length} lines
+              </button>
+            </td>
+          </tr>
+          <tr><td colspan="7" style="padding:0">
+            <div id="${logId}" style="display:none;padding:8px 14px;background:var(--glass);border-radius:var(--r-sm);margin:2px 0 6px;font-family:var(--mono);line-height:1.8;max-height:220px;overflow-y:auto;scrollbar-width:thin">${logLines}</div>
+          </td></tr>`;
+        }).join('');
+        const errCount = _runHistory.filter(r=>r.status==='error').length;
+        const okCount  = _runHistory.filter(r=>r.status==='ok').length;
+        return `<div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:10px">
+          ${_runHistory.length} run${_runHistory.length!==1?'s':''} this session &nbsp;·&nbsp;
+          <span style="color:var(--green-text)">${okCount} succeeded</span> &nbsp;·&nbsp;
+          <span style="color:${errCount?'var(--red-text)':'var(--t3)'}">${errCount} failed</span>
+        </div>
+        <div style="overflow-x:auto"><table class="gtable" style="table-layout:auto">
+          <thead><tr><th></th><th>#</th><th>Type</th><th>Timestamp</th><th>Elapsed</th><th>Key metrics / Error</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+      })()}
+    </div>
 
     <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:12px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center">
       <span style="font-family:var(--mono);font-size:9px;color:var(--t3)">NAVAL-SEM · ${ts}</span>
@@ -3778,14 +5012,15 @@ function buildReport(){
 // ── Report nav scroll helper ───────────────────────────────────────────────
 // Maps nav keys to rpt-section-title text prefixes (case-insensitive match)
 const _repNavMap = {
-  overview:    null,               // scrolls to top of report-card
-  measurement: 'convergent',       // "Convergent Validity (AVE · CR · Cronbach α)"
-  structural:  'structural paths', // "Structural Paths — Relative Magnitude"
-  mga:         null,
+  overview:    null,
+  measurement: 'convergent',
+  structural:  'structural paths',
+  mga:         'multi-group analysis',
   moderation:  null,
   ipma:        null,
-  apa:         'parameter',        // "Parameter Estimates"
+  apa:         'parameter',
   docx:        null,
+  history:     'run history',
 };
 
 function repNavClick(el, key) {
@@ -3915,20 +5150,27 @@ async function downloadReport(fmt){
 
     if(msg) msg.textContent = 'Capturing report…';
     // For PDF: render at 794px (A4 @ 96dpi) so content maps cleanly to A4 points.
-    // For PNG: render at full card width for maximum resolution.
+    // For PNG: render at the card's natural scroll width for maximum resolution.
     const renderWidth = fmt === 'pdf' ? 794 : card.scrollWidth;
+    const renderHeight = card.scrollHeight;
+    const cardRect = card.getBoundingClientRect();
     const cvs = await html2canvas(card, {
       backgroundColor: '#13151a',
-      scale: fmt === 'pdf' ? 4 : 2,  // ~300dpi for print, 96dpi for screen PNG
+      scale: fmt === 'pdf' ? 4 : 2,  // ~300dpi for print, 2× for screen PNG
       useCORS: true,
       allowTaint: true,
       logging: false,
       imageTimeout: 0,
-      scrollX: 0,
+      scrollX: -window.scrollX,
       scrollY: -window.scrollY,
+      // windowWidth/Height must match the element's own dimensions so
+      // percentage-based CSS resolves correctly without leaking viewport layout
       windowWidth:  renderWidth,
-      windowHeight: card.scrollHeight,
-      width: renderWidth,
+      windowHeight: renderHeight,
+      width:  renderWidth,
+      height: renderHeight,
+      x: 0,
+      y: 0,
     });
 
     if(fmt==='png'){
@@ -4004,44 +5246,80 @@ function _mgaSyncSyntax(){
   }
 }
 
-async function handleMGAUpload(input){
-  const file = input.files[0];
-  if(!file) return;
-  _mgaFile = file;
-
-  // show file name
-  const statusEl = document.getElementById('mga-file-status');
-  if(statusEl) statusEl.textContent = file.name;
-
-  // upload-bar pill preview
-  const pillsEl = document.getElementById('mga-col-pills');
-  if(pillsEl) pillsEl.innerHTML = '<span style="font-size:10px;color:var(--t2);font-family:var(--mono)">Previewing…</span>';
-
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const r = await fetch('/upload/preview', {method:'POST', body:fd});
-    if(r.ok){
-      const data = await r.json();
-      const upBtn = document.getElementById('mga-up-btn');
-      if(upBtn) upBtn.classList.add('loaded');
-      if(pillsEl){
-        pillsEl.innerHTML = data.columns.map(c =>
-          `<span class="col-pill" onclick="document.getElementById('mga-group-col').value='${c}'">${c}</span>`
-        ).join('');
-      }
-      document.getElementById('mga-run-btn').disabled = false;
-    }
-  } catch(e){
-    if(pillsEl) pillsEl.innerHTML = '<span style="color:var(--red);font-size:10px;font-family:var(--mono)">Preview failed</span>';
+// Enable/disable Run MGA button based on whether syntax + file + group col are all present
+function _mgaCheckRunnable(){
+  const syntax   = (document.getElementById('syntax-area')?.value || '').trim();
+  const groupCol = (document.getElementById('mga-group-col')?.value || '').trim();
+  const hasFile  = !!_mgaFile || (typeof uploadedFile !== 'undefined' && !!uploadedFile);
+  const ok       = !!(syntax && groupCol && hasFile);
+  const btn      = document.getElementById('mga-run-btn');
+  if(btn){
+    btn.disabled        = !ok;
+    btn.style.opacity   = ok ? '' : '.4';
+    btn.style.cursor    = ok ? '' : 'not-allowed';
+  }
+  // Highlight group-col input: green border if matches a known column, amber if typed but no match
+  const gcEl = document.getElementById('mga-group-col');
+  if(gcEl && groupCol){
+    const knownCols = Array.from(document.querySelectorAll('#mga-col-pills .col-pill'))
+                          .map(p => p.textContent.trim());
+    const matched = knownCols.length === 0 || knownCols.includes(groupCol);
+    gcEl.style.borderColor = matched ? 'var(--accent)' : 'var(--amber, #f59e0b)';
+    gcEl.style.outline     = matched ? '' : 'none';
+  } else if(gcEl){
+    gcEl.style.borderColor = '';
+    gcEl.style.outline     = '';
   }
 }
+
+// Show live model syntax in the MGA tab syntax-preview strip
+function _mgaUpdateSyntaxPreview(){
+  // The global pill (formula bar) already shows the model — refresh that instead
+  _refreshPillFromSyntax();
+}
+
+// Refresh the global formula-bar pill from the syntax-area textarea content
+// Called when the user types directly in the Syntax tab (bypassing canvas)
+function _refreshPillFromSyntax(){
+  const ta = document.getElementById('syntax-area');
+  if(!ta) return;
+  const syntax = ta.value.trim();
+  const pill   = document.getElementById('model-syntax-pill');
+  if(!pill) return;
+  if(!syntax){
+    pill.innerHTML = '<span style="color:var(--t3)">draw a model to generate syntax</span>';
+    return;
+  }
+  const lines = syntax.split('\n').map(l => l.trim()).filter(Boolean);
+  const colorized = lines.map(line => {
+    if(line.includes('=~')){
+      const [lv,rhs] = line.split('=~');
+      const inds = rhs.trim().split('+')
+        .map(i=>`<span style="color:var(--t1)">${i.trim()}</span>`)
+        .join(`<span style="color:var(--purple-text);margin:0 3px">+</span>`);
+      return `<span style="color:var(--accent-text);font-weight:500">${lv.trim()}</span><span style="color:var(--purple-text);margin:0 4px">=~</span>${inds}`;
+    } else if(line.includes('~~')){
+      const [lv,rhs] = line.split('~~');
+      return `<span style="color:var(--accent-text)">${lv.trim()}</span><span style="color:var(--t3);margin:0 4px">~~</span><span style="color:var(--t1)">${rhs.trim()}</span>`;
+    } else if(line.includes('~')){
+      const [lv,rhs] = line.split('~');
+      const preds = rhs.trim().split('+')
+        .map(p=>`<span style="color:var(--t1)">${p.trim()}</span>`)
+        .join(`<span style="color:var(--purple-text);margin:0 3px">+</span>`);
+      return `<span style="color:var(--accent-text);font-weight:500">${lv.trim()}</span><span style="color:var(--purple-text);margin:0 4px">~</span>${preds}`;
+    }
+    return `<span style="color:var(--t2)">${line}</span>`;
+  });
+  pill.innerHTML = colorized.join(`<span style="color:var(--t4);margin:0 6px">·</span>`);
+  if(typeof _updateSessionStatus === 'function') _updateSessionStatus();
+}
+
 
 async function runMGA(){
   const syntax = (document.getElementById('syntax-area')?.value || '').trim();
   if(!syntax){ alert('No model syntax — draw or type a model in the Model builder first.'); return; }
   const _mgaFileToUse = _mgaFile || (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
-  if(!_mgaFileToUse){ alert('Upload a dataset first (in the Model view or here).'); return; }
+  if(!_mgaFileToUse){ alert('Upload a dataset in the Model tab first.'); return; }
   const groupCol = (document.getElementById('mga-group-col')?.value || '').trim();
   if(!groupCol){ alert('Enter the group column name.'); return; }
 
@@ -4051,11 +5329,16 @@ async function runMGA(){
   const runMicom  = document.getElementById('mga-run-micom')?.checked ? 'true' : 'false';
   const missing   = document.getElementById('mga-missing')?.value || 'listwise';
 
+  // ── Live log setup ────────────────────────────────────────────────────────
+  const _mgaRunId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+
   // show spinner, hide results/error
   document.getElementById('mga-spinner').style.display = 'block';
   document.getElementById('mga-results').style.display = 'none';
   document.getElementById('mga-error').style.display   = 'none';
-  document.getElementById('mga-run-btn').disabled = true;
+  const _runBtn2 = document.getElementById('mga-run-btn');
+  if(_runBtn2){ _runBtn2.disabled = true; _runBtn2.style.opacity = '.4'; _runBtn2.style.cursor = 'not-allowed'; }
 
   const fd = new FormData();
   fd.append('file',           _mgaFileToUse);
@@ -4066,6 +5349,14 @@ async function runMGA(){
   fd.append('n_permutations', permsN);
   fd.append('run_micom',      runMicom);
   fd.append('missing',        missing);
+  fd.append('run_id',         _mgaRunId);
+
+  // Start SSE stream before POST so no events are missed
+  _startLiveStream(_mgaRunId, {
+    label : `MGA run · group: ${groupCol} · ${bsN} bootstrap`,
+    bsSel : 'mga-bootstrap',
+    bsN   : parseInt(bsN) || 0
+  });
 
   try {
     const r = await fetch('/mga', {method:'POST', body:fd});
@@ -4074,16 +5365,47 @@ async function runMGA(){
       throw new Error(data.detail || `HTTP ${r.status}`);
     }
     _mgaResult = data;
+    _okRunRecord(data);   // preserve in run history
+
+    // ── Fix: seed report state so Report tab works after an MGA-only run ──
+    // _reportSnapshot captures algo/file/syntax settings; must exist before
+    // buildReport() is called.  If the user never ran the main Model-tab
+    // analysis, results is also null — seed it with a minimal stub so every
+    // null-safe accessor inside buildReport() works; the main-model sections
+    // will gracefully show "no data" while the MGA section is fully populated.
+    _freezeReportSnapshot();
+    if (!results) {
+      results = normalizeResults({ fit: {}, parameters: [] });
+    }
+    // ── end fix ────────────────────────────────────────────────────────────
+
     document.getElementById('mga-spinner').style.display = 'none';
     document.getElementById('mga-results').style.display = 'flex';
     showMGATab('micom');
+
+    // ── Surface MGA results in the bottom drawer (Model view) ────────────
+    const _mgaDrawerTab = document.getElementById('drawer-mga-tab');
+    if(_mgaDrawerTab) _mgaDrawerTab.style.display = '';   // unhide the tab
+    // Auto-open the drawer if user is in Model view
+    if(document.getElementById('v-model')?.classList.contains('on')){
+      const drawer = document.getElementById('results-drawer');
+      if(drawer && !drawer.classList.contains('open')){
+        drawer.classList.add('open');
+        const btn = document.getElementById('toggle-results-btn');
+        if(btn) btn.innerHTML = '▼&nbsp;Close';
+        setTimeout(resize, 360);
+      }
+      renderResults('mga');
+    }
   } catch(err){
+    _errRunRecord(err.message);
     document.getElementById('mga-spinner').style.display = 'none';
     const errEl = document.getElementById('mga-error');
     errEl.textContent = '✗ MGA error: ' + err.message;
     errEl.style.display = 'block';
   } finally {
-    document.getElementById('mga-run-btn').disabled = false;
+    // re-evaluate runnable state (respects group-col + syntax checks)
+    if (typeof _mgaCheckRunnable === 'function') _mgaCheckRunnable();
   }
 }
 
@@ -4289,7 +5611,8 @@ function _dlText(content, filename, mime){
 // ── end MGA tab ────────────────────────────────────────────────────────────
 
 // ── HOC tab ────────────────────────────────────────────────────────────────
-let _hocFile = null;
+let _hocFile   = null;
+let _hocResult = null;   // stored so Report tab can detect a completed HOC run
 
 function _hocSetRunnable(ok) {
   const btn = document.getElementById('hoc-run-btn');
@@ -4299,34 +5622,14 @@ function _hocSetRunnable(ok) {
   btn.style.cursor   = ok ? '' : 'not-allowed';
 }
 
-async function handleHOCUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  _hocFile = file;
-
-  const upBtn    = document.getElementById('hoc-up-btn');
-  const statusEl = document.getElementById('hoc-file-status');
-  const pillsEl  = document.getElementById('hoc-col-pills');
-
-  if (upBtn)    { upBtn.textContent = (file.name.length > 22 ? file.name.slice(0,22)+'…' : file.name); upBtn.classList.add('loaded'); }
-  if (statusEl) statusEl.textContent = file.name;
-  if (pillsEl)  pillsEl.innerHTML = '<span style="font-size:10px;color:var(--t2);font-family:var(--mono)">Previewing…</span>';
-
-  const fd = new FormData();
-  fd.append('file', file);
-  try {
-    const r = await fetch('/upload/preview', { method:'POST', body:fd });
-    if (r.ok) {
-      const data = await r.json();
-      if (pillsEl) pillsEl.innerHTML = data.columns.map(c =>
-        `<span class="col-pill">${c}</span>`
-      ).join('');
-    }
-  } catch(e) {
-    if (pillsEl) pillsEl.innerHTML = '';
-  }
-  _hocSetRunnable(true);
+// Enable/disable Run HOC button based on whether syntax + file are both present
+function _hocCheckRunnable() {
+  const syntax  = (document.getElementById('syntax-area')?.value || '').trim();
+  const hasFile = !!_hocFile;
+  const ok      = !!(syntax && hasFile);
+  _hocSetRunnable(ok);
 }
+
 
 async function runHOC() {
   const syntax = (document.getElementById('syntax-area')?.value || '').trim();
@@ -4335,7 +5638,7 @@ async function runHOC() {
     return;
   }
   if (!_hocFile) {
-    _hocShowError('Upload a dataset first.');
+    _hocShowError('Upload a dataset in the Model tab first.');
     return;
   }
 
@@ -4344,6 +5647,9 @@ async function runHOC() {
   const bsN     = document.getElementById('hoc-bootstrap')?.value  || '0';
   const missing = document.getElementById('hoc-missing')?.value    || 'listwise';
   const runId   = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+
+  // ── Live log setup ──────────────────────────────────────────────────────
+  _runT0 = performance.now();
 
   _hocSetRunnable(false);
   document.getElementById('hoc-spinner').style.display = 'block';
@@ -4360,16 +5666,41 @@ async function runHOC() {
   fd.append('missing',     missing);
   fd.append('run_id',      runId);
 
+  _startLiveStream(runId, {
+    label : `HOC run · method: ${method} · algo: ${algo}`,
+    bsSel : 'hoc-bootstrap',
+    bsN   : parseInt(bsN) || 0
+  });
+
   try {
     const r    = await fetch('/hoc', { method:'POST', body:fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _hocResult = data;
+    _okRunRecord(data);                                           // preserve in run history
+    _freezeReportSnapshot();
+    if (!results) results = normalizeResults({ fit: data.fit || {}, parameters: data.parameters || [] });
     _hocRenderResults(data);
+
+    // ── Surface HOC results in the bottom drawer (Model view) ──────────────
+    const _hocDrawerTab = document.getElementById('drawer-hoc-tab');
+    if(_hocDrawerTab) _hocDrawerTab.style.display = '';   // unhide the tab
+    // Auto-open the drawer if user is in Model view
+    if(document.getElementById('v-model')?.classList.contains('on')){
+      const drawer = document.getElementById('results-drawer');
+      if(drawer && !drawer.classList.contains('open')){
+        drawer.classList.add('open');
+        const btn = document.getElementById('toggle-results-btn');
+        if(btn) btn.innerHTML = '▼&nbsp;Close';
+        setTimeout(resize, 360);
+      }
+      renderResults('hoc');
+    }
   } catch(err) {
+    _errRunRecord(err.message);
     _hocShowError('HOC error: ' + err.message);
   } finally {
-    document.getElementById('hoc-spinner').style.display = 'none';
-    _hocSetRunnable(true);
+    if (typeof _hocCheckRunnable === 'function') _hocCheckRunnable();
   }
 }
 
@@ -4383,6 +5714,7 @@ function _hocShowError(msg) {
 }
 
 function _hocRenderResults(data) {
+  document.getElementById('hoc-spinner').style.display = 'none'; // hide spinner before showing results (avoids flash)
   const el = document.getElementById('hoc-results');
   el.style.display = 'flex';
   const f = data.fit || {};
@@ -4459,43 +5791,41 @@ function showView(v) {
   const btns = document.querySelectorAll('.mnav');
   if (btns[map[v]]) btns[map[v]].classList.add('on');
   const pill = document.getElementById('model-syntax-pill');
-  if (pill) pill.style.display = '';  // always visible
+  if (pill) pill.style.display = v === 'model' ? '' : 'none';
+
+  // Update formula bar context label
+  const fbLabel = document.getElementById('fb-ctx-label');
+  if (fbLabel) {
+    const _fbViewMap = { model: 'Builder', analyse: 'Analyse', report: 'Report' };
+    fbLabel.textContent = _fbViewMap[v] || v;
+  }
   if (v === 'model') setTimeout(resize, 10);
   if (v === 'report') buildReport();
 
   // Fix 3: auto-populate MGA with model dataset so user doesn't upload twice
   if (v === 'analyse' && typeof uploadedFile !== 'undefined' && uploadedFile && !_mgaFile) {
     _mgaFile = uploadedFile;
-    const upBtn = document.getElementById('mga-up-btn');
-    if (upBtn) {
-      const nm = uploadedFile.name;
-      upBtn.textContent = (nm.length > 22 ? nm.slice(0,22)+'…' : nm) + ' (model data)';
-      upBtn.classList.add('loaded');
-    }
-    const statusEl = document.getElementById('mga-file-status');
-    if (statusEl) statusEl.textContent = uploadedFile.name;
     if (typeof csvColumns !== 'undefined' && csvColumns.length) {
       const pillsEl = document.getElementById('mga-col-pills');
       if (pillsEl) pillsEl.innerHTML = csvColumns.map(c =>
-        `<span class="col-pill" onclick="document.getElementById('mga-group-col').value='${c}'">${c}</span>`
+        `<span class="col-pill" onclick="document.getElementById('mga-group-col').value='${c}';_mgaCheckRunnable()">${c}</span>`
       ).join('');
-      // Enable run-btn if a group column is already filled in
-      const mgaRunBtn = document.getElementById('mga-run-btn');
-      if (mgaRunBtn) { mgaRunBtn.disabled = false; mgaRunBtn.style.opacity = ''; mgaRunBtn.style.cursor = ''; }
     }
     if (typeof _mgaSyncSyntax === 'function') _mgaSyncSyntax();
+  }
+  // Always refresh syntax preview and runnable-state when entering Analyse tab
+  if (v === 'analyse') {
+    if (typeof _mgaUpdateSyntaxPreview === 'function') _mgaUpdateSyntaxPreview();
+    if (typeof _mgaCheckRunnable       === 'function') _mgaCheckRunnable();
+    if (typeof _hocCheckRunnable       === 'function') _hocCheckRunnable();
   }
 
   // Auto-populate HOC with model dataset so user doesn't upload twice
   if (v === 'analyse' && typeof uploadedFile !== 'undefined' && uploadedFile && !_hocFile) {
     _hocFile = uploadedFile;
-    const hocUpBtn = document.getElementById('hoc-up-btn');
-    const hocStatus = document.getElementById('hoc-file-status');
-    if (hocUpBtn)  { hocUpBtn.textContent = (uploadedFile.name.length > 22 ? uploadedFile.name.slice(0,22)+'…' : uploadedFile.name) + ' (model data)'; hocUpBtn.classList.add('loaded'); }
-    if (hocStatus) hocStatus.textContent = uploadedFile.name;
     if (typeof csvColumns !== 'undefined' && csvColumns.length) {
       const hocPills = document.getElementById('hoc-col-pills');
-      if (hocPills) hocPills.innerHTML = csvColumns.map(c=>`<span class="col-pill">${c}</span>`).join('');
+      if (hocPills) hocPills.innerHTML = csvColumns.map(c=>`<span class="col-pill" title="Dataset column (read-only)" style="cursor:default;pointer-events:none;opacity:.75">${c}</span>`).join('');
     }
     _hocSetRunnable(true);
   }
@@ -4507,6 +5837,13 @@ function showAna(el, id) {
   document.querySelectorAll('[id^="ana-"]').forEach(p => p.style.display = 'none');
   const target = document.getElementById('ana-' + id);
   if (target) target.style.display = 'flex';
+
+  // Update formula bar label to reflect active analysis panel
+  const fbLabel = document.getElementById('fb-ctx-label');
+  if (fbLabel) {
+    const _fbAnaMap = { mga: 'MGA', hoc: 'HOC' };
+    fbLabel.textContent = _fbAnaMap[id] || 'Analyse';
+  }
 }
 
 function showCanvasMode(mode) {
@@ -4522,14 +5859,26 @@ function showCanvasMode(mode) {
   });
   const strip = document.getElementById('syntax-strip');
   if (strip) strip.style.display = mode === 'builder' ? '' : 'none';
-  if (mode === 'builder') setTimeout(resize, 10);
-  if (mode === 'syntax') {
-    // Sync the syntax textarea from canvas state
+
+  // Update formula bar context label to match canvas mode
+  const fbLabel = document.getElementById('fb-ctx-label');
+  if (fbLabel) {
+    const _fbModeMap = { builder: 'Builder', syntax: 'Syntax' };
+    fbLabel.textContent = _fbModeMap[mode] || mode;
+  }
+  if (mode === 'builder') {
+    // If the syntax textarea has content, parse it into canvas nodes/edges
     const ta = document.getElementById('syntax-area');
-    const src = document.getElementById('syntax-area');
-    // Also copy from the canvas-derived source textarea if it has content
-    const canvasSrc = document.querySelector('#canvas-mode-builder~#canvas-mode-syntax textarea');
-    if(ta) ta.focus();
+    const syntax = ta ? ta.value.trim() : '';
+    if (syntax) {
+      generateCanvasFromSyntax(syntax);
+      updateSyntax(); // keep formula-bar pill in sync
+    }
+    setTimeout(resize, 10); // resize → draw()
+  }
+  if (mode === 'syntax') {
+    const ta = document.getElementById('syntax-area');
+    if (ta) ta.focus();
   }
 }
 
@@ -4540,11 +5889,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // Init views
   showView('model');
   showCanvasMode('builder');
-  // srv-dot / srv-label mapped to new IDs
+  // Restore saved-log entry count badge on load
+  _lsUpdateCount();
+  // srv-dot / srv-label — live server health check
   const dot   = document.getElementById('srv-dot');
   const label = document.getElementById('srv-label');
-  if (dot)   dot.style.background = 'var(--red)';
-  if (label) label.textContent = 'offline';
+
+  async function checkHealth() {
+    try {
+      const res = await fetch('/health', { cache: 'no-store' });
+      const ok  = res.ok;
+      if (dot)   dot.style.background = ok ? 'var(--green)' : 'var(--red)';
+      if (label) label.textContent    = ok ? 'online'       : 'offline';
+    } catch {
+      if (dot)   dot.style.background = 'var(--red)';
+      if (label) label.textContent    = 'offline';
+    }
+  }
+
+  checkHealth();                       // check immediately on load
+  setInterval(checkHealth, 15_000);    // re-check every 15 s
   // Sidebar toggle: wire toggle-sidebar-btn to model-sidebar
   const _tsbtn2 = document.getElementById('toggle-sidebar-btn');
   if (_tsbtn2) _tsbtn2.addEventListener('click', () => {
@@ -4566,5 +5930,25 @@ function toggleResultsPanel() {
 
 </script>
 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+<!-- ── Global live log overlay — accessible from any tab ── -->
+<div id="global-live-overlay">
+  <div class="glo-header">
+    <span class="glo-title">Live Engine Log</span>
+    <span id="global-live-run-id"></span>
+    <div style="flex:1"></div>
+    <button onclick="clearLiveLog()"
+      style="font-family:var(--mono);font-size:9px;padding:3px 9px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer">Clear</button>
+    <button onclick="toggleLiveScroll()" id="global-live-scroll-btn"
+      style="font-family:var(--mono);font-size:9px;padding:3px 9px;background:var(--accent-soft);border:.5px solid rgba(59,130,246,.35);border-radius:var(--pill);color:var(--accent-text);cursor:pointer">Auto-scroll ON</button>
+    <button onclick="toggleGlobalLiveLog()"
+      style="font-family:var(--mono);font-size:9px;padding:3px 9px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer;margin-left:2px">✕</button>
+  </div>
+  <div id="global-live-log"></div>
+  <div class="glo-fp-bar" id="glo-fp-bar">
+    <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:5px">Run Fingerprint (SHA-256)</div>
+    <code id="glo-fp-code" style="font-family:var(--mono);font-size:11px;color:var(--green-text);background:var(--green-soft);padding:4px 10px;border-radius:6px;word-break:break-all;display:block"></code>
+  </div>
+</div>
+
 </body>
 </html>
