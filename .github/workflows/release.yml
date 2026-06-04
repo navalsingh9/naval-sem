@@ -33,6 +33,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
+      - name: Inject version from tag
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          if (-not ($version -match '^\d')) { $version = "dev" }
+          (Get-Content app/main.py) -replace 'APP_VERSION = ".*"', "APP_VERSION = `"$version`"" | Set-Content app/main.py
+          Write-Host "Injected APP_VERSION=$version"
+
       - name: Build EXE
         run: uv run pyinstaller naval_sem.spec --clean --noconfirm
 
@@ -87,6 +94,13 @@ jobs:
 
       - name: Install create-dmg
         run: brew install create-dmg
+
+      - name: Inject version from tag
+        run: |
+          VERSION="${{ github.ref_name }}"
+          if [[ "$VERSION" == v* ]]; then VERSION="${VERSION#v}"; else VERSION="dev"; fi
+          sed -i "" "s/APP_VERSION = \".*\"/APP_VERSION = \"${VERSION}\"/" app/main.py
+          echo "Injected APP_VERSION=${VERSION}"
 
       - name: Build .app
         run: |
@@ -151,6 +165,13 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --locked
+
+      - name: Inject version from tag
+        run: |
+          VERSION="${{ github.ref_name }}"
+          if [[ "$VERSION" == v* ]]; then VERSION="${VERSION#v}"; else VERSION="dev"; fi
+          sed -i "s/APP_VERSION = \".*\"/APP_VERSION = \"${VERSION}\"/" app/main.py
+          echo "Injected APP_VERSION=${VERSION}"
 
       - name: Build binary
         run: uv run pyinstaller naval_sem.spec --clean --noconfirm
