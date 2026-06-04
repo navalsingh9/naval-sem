@@ -1176,7 +1176,7 @@ button { cursor: pointer; }
       <span class="glo-dot idle" id="glo-dot"></span>Live log
     </button>
     <div class="topbar-right">
-      <span class="ver-badge" id="ver-badge">v0.6.1</span>
+      <span class="ver-badge" id="ver-badge">v…</span>
       <button id="upd-btn" class="upd-btn" onclick="checkForUpdates(true)" title="Check for updates">
         <span id="upd-dot" class="upd-dot upd-idle"></span>
         <span id="upd-label">Updates</span>
@@ -6073,6 +6073,15 @@ function toggleResultsPanel() {
       if (manual) _showToast('var(--t3)', 'Could not reach update server.', 4000);
     }
   };
+
+  // Set version badge from API
+  fetch('/health')
+    .then(r => r.json())
+    .then(d => {
+      const badge = document.getElementById('ver-badge');
+      if (badge && d.version) badge.textContent = 'v' + d.version;
+    })
+    .catch(() => {});
 
   // Auto-check 4s after load so it doesn't block startup
   setTimeout(() => checkForUpdates(false), 4000);
