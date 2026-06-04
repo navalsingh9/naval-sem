@@ -25,6 +25,10 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Str
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
 
+# ── Single source of truth for the app version ───────────────────────────────
+APP_VERSION = "0.6.1"
+_GITHUB_REPO  = "navalsingh9/naval-sem"
+
 
 # ── Per-run log store ─────────────────────────────────────────────────────────
 # Keyed by run_id; entries are {"t": ms_epoch, "level": str, "msg": str}
@@ -75,7 +79,7 @@ def _compute_fingerprint(
         data_hash = hashlib.sha256(str(df.shape).encode()).hexdigest()
 
     env = {
-        "naval_sem_version": "0.6.0",
+        "naval_sem_version": APP_VERSION,
         "python": sys.version.split()[0],
         "platform": platform.system(),
         "numpy": getattr(__import__("numpy"), "__version__", "?"),
@@ -163,7 +167,7 @@ _STATIC_DIR = os.environ.get(
     str(Path(__file__).parent.parent / "static"),
 )
 
-app = FastAPI(title="NAVAL-SEM API", version="0.6.0")
+app = FastAPI(title="NAVAL-SEM API", version=APP_VERSION)
 
 # --- ADDED: Catch Pydantic serialization errors (e.g., NaNs slipping through) ---
 from fastapi.exceptions import ResponseValidationError
@@ -243,7 +247,57 @@ async def get_fingerprint(run_id: str):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.6.0"}
+    return {"status": "ok", "version": APP_VERSION}
+
+
+@app.get("/check-updates")
+async def check_updates():
+    """
+    Checks GitHub Releases for a version newer than APP_VERSION.
+    Returns update_available=True/False (or status='offline' on network error).
+    Uses only stdlib — no extra deps, no API key required.
+    """
+    import json as _json
+    from urllib.request import urlopen, Request
+    from urllib.error import URLError
+
+    api_url = f"https://api.github.com/repos/{_GITHUB_REPO}/releases/latest"
+
+    def _ver_tuple(v: str):
+        try:
+            return tuple(int(x) for x in v.lstrip("v").split("."))
+        except ValueError:
+            return (0,)
+
+    try:
+        req = Request(
+            api_url,
+            headers={
+                "User-Agent": f"NAVAL-SEM/{APP_VERSION}",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        with urlopen(req, timeout=8) as resp:
+            data = _json.loads(resp.read())
+
+        latest_tag  = data.get("tag_name", "").lstrip("v")
+        release_url = data.get("html_url", f"https://github.com/{_GITHUB_REPO}/releases")
+        release_name = data.get("name") or f"v{latest_tag}"
+
+        update_available = _ver_tuple(latest_tag) > _ver_tuple(APP_VERSION)
+        return {
+            "current_version": APP_VERSION,
+            "latest_version":  latest_tag,
+            "release_name":    release_name,
+            "release_url":     release_url,
+            "update_available": update_available,
+        }
+
+    except URLError:
+        return {"current_version": APP_VERSION, "status": "offline"}
+    except Exception as exc:
+        logger.warning(f"check-updates failed: {exc}")
+        return {"current_version": APP_VERSION, "status": "error", "detail": str(exc)}
 
 
 @app.post("/predict", response_model=PredictResult)

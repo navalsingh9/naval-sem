@@ -128,6 +128,53 @@ button { cursor: pointer; }
   border: .5px solid rgba(59,130,246,.28);
   color: var(--accent-text); flex-shrink: 0;
 }
+
+/* ── Update-check button ── */
+.upd-btn {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 400; color: var(--t2);
+  padding: 4px 10px; border-radius: var(--pill);
+  background: transparent;
+  border: .5px solid transparent;
+  transition: all .18s ease; white-space: nowrap;
+}
+.upd-btn:hover { color: var(--t1); background: var(--glass-hover); border-color: var(--line); }
+.upd-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  transition: background .3s ease;
+}
+.upd-idle    { background: var(--t3); }
+.upd-spin    { background: var(--accent); animation: updPulse .8s ease-in-out infinite alternate; }
+.upd-ok      { background: var(--green); }
+.upd-avail   { background: var(--amber); }
+.upd-offline { background: var(--t3); }
+@keyframes updPulse { from { opacity: .3; } to { opacity: 1; } }
+
+/* ── Update toast ── */
+#upd-toast {
+  position: fixed; bottom: 18px; right: 20px; z-index: 9999;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px; border-radius: var(--r);
+  background: rgba(6,11,20,.92);
+  backdrop-filter: var(--blur-sm);
+  border: .5px solid var(--line-strong);
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  font-size: 13px; color: var(--t1);
+  transform: translateY(80px); opacity: 0;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .25s ease;
+  pointer-events: none; max-width: 360px;
+}
+#upd-toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+#upd-toast .upd-toast-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+#upd-toast a { color: var(--accent-text); text-decoration: none; }
+#upd-toast a:hover { text-decoration: underline; }
+#upd-toast-close {
+  margin-left: auto; background: none; border: none;
+  color: var(--t3); font-size: 14px; padding: 0 0 0 8px; line-height: 1;
+}
+#upd-toast-close:hover { color: var(--t1); }
 .model-pill {
   font-family: var(--mono); font-size: 12px;
   padding: 5px 14px; border-radius: var(--pill);
@@ -1129,7 +1176,11 @@ button { cursor: pointer; }
       <span class="glo-dot idle" id="glo-dot"></span>Live log
     </button>
     <div class="topbar-right">
-      <span class="ver-badge">v0.6</span>
+      <span class="ver-badge" id="ver-badge">v0.6.1</span>
+      <button id="upd-btn" class="upd-btn" onclick="checkForUpdates(true)" title="Check for updates">
+        <span id="upd-dot" class="upd-dot upd-idle"></span>
+        <span id="upd-label">Updates</span>
+      </button>
     </div>
   </header>
 
@@ -5949,6 +6000,84 @@ function toggleResultsPanel() {
     <code id="glo-fp-code" style="font-family:var(--mono);font-size:11px;color:var(--green-text);background:var(--green-soft);padding:4px 10px;border-radius:6px;word-break:break-all;display:block"></code>
   </div>
 </div>
+
+<!-- ═══════ UPDATE TOAST ═══════ -->
+<div id="upd-toast">
+  <span class="upd-toast-dot" id="upd-toast-dot"></span>
+  <span id="upd-toast-msg"></span>
+  <button id="upd-toast-close" onclick="hideUpdToast()" title="Dismiss">✕</button>
+</div>
+
+<script>
+// ── Check for Updates ────────────────────────────────────────────────────────
+(function () {
+  const DOT   = document.getElementById('upd-dot');
+  const LABEL = document.getElementById('upd-label');
+  const TOAST      = document.getElementById('upd-toast');
+  const TOAST_DOT  = document.getElementById('upd-toast-dot');
+  const TOAST_MSG  = document.getElementById('upd-toast-msg');
+  let _toastTimer = null;
+
+  function _setState(state, labelText) {
+    DOT.className = 'upd-dot upd-' + state;
+    LABEL.textContent = labelText;
+  }
+
+  function _showToast(dotColor, html, autoDismissMs) {
+    TOAST_DOT.style.background = dotColor;
+    TOAST_MSG.innerHTML = html;
+    TOAST.classList.add('show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    if (autoDismissMs) {
+      _toastTimer = setTimeout(() => TOAST.classList.remove('show'), autoDismissMs);
+    }
+  }
+
+  window.hideUpdToast = function () {
+    TOAST.classList.remove('show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+  };
+
+  window.checkForUpdates = async function (manual = false) {
+    if (manual) hideUpdToast();
+    _setState('spin', 'Checking…');
+    try {
+      const res  = await fetch('/check-updates');
+      const data = await res.json();
+
+      if (data.status === 'offline') {
+        _setState('offline', 'Offline');
+        if (manual) _showToast('var(--t3)', 'No internet connection — check again later.', 4000);
+        return;
+      }
+      if (data.status === 'error') {
+        _setState('offline', 'Error');
+        if (manual) _showToast('var(--red)', 'Update check failed. Try again.', 4000);
+        return;
+      }
+
+      if (data.update_available) {
+        _setState('avail', 'Update!');
+        _showToast(
+          'var(--amber)',
+          `<strong>v${data.latest_version}</strong> is available&ensp;·&ensp;` +
+          `<a href="${data.release_url}" target="_blank">Download →</a>`,
+          0   // stay until dismissed
+        );
+      } else {
+        _setState('ok', 'Up to date');
+        if (manual) _showToast('var(--green)', 'You\'re on the latest version.', 3500);
+      }
+    } catch (e) {
+      _setState('offline', 'Offline');
+      if (manual) _showToast('var(--t3)', 'Could not reach update server.', 4000);
+    }
+  };
+
+  // Auto-check 4s after load so it doesn't block startup
+  setTimeout(() => checkForUpdates(false), 4000);
+})();
+</script>
 
 </body>
 </html>
