@@ -176,7 +176,7 @@ async def validation_exception_handler(request, exc):
     logger.error(f"Response serialization error: {exc}")
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Backend generated an invalid response (likely NaN estimates). Details: {str(exc)[:300]}"}
+        content={"detail": "Backend generated an invalid response (likely NaN estimates). Check server logs for details."}
     )
 # --------------------------------------------------------------------------------
 app.add_middleware(
@@ -277,7 +277,7 @@ async def check_updates():
                 "Accept": "application/vnd.github+json",
             },
         )
-        with urlopen(req, timeout=8) as resp:
+        with urlopen(req, timeout=8) as resp:  # nosec B310 – URL is a compile-time https:// constant, not user-supplied
             data = _json.loads(resp.read())
 
         latest_tag  = data.get("tag_name", "").lstrip("v")
@@ -296,8 +296,8 @@ async def check_updates():
     except URLError:
         return {"current_version": APP_VERSION, "status": "offline"}
     except Exception as exc:
-        logger.warning(f"check-updates failed: {exc}")
-        return {"current_version": APP_VERSION, "status": "error", "detail": str(exc)}
+        logger.warning(f"check-updates failed: {exc}")  # details stay server-side only
+        return {"current_version": APP_VERSION, "status": "error"}
 
 
 @app.post("/predict", response_model=PredictResult)
