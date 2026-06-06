@@ -24,6 +24,15 @@ if exist "%WIX3_BIN%\candle.exe" (
     set "PATH=%PATH%;%WIX3_BIN%"
 )
 
+REM -- Derive version: first arg, latest git tag, or "dev" ---------------
+set "APP_VERSION=%~1"
+if not defined APP_VERSION (
+    for /f "tokens=* delims=" %%i in ('git describe --tags --abbrev^=0 2^>nul') do set "APP_VERSION=%%i"
+    if defined APP_VERSION if "!APP_VERSION:~0,1!"=="v" set "APP_VERSION=!APP_VERSION:~1!"
+)
+if not defined APP_VERSION set "APP_VERSION=dev"
+echo  Version: !APP_VERSION!
+
 REM -- 1. Check Python ---------------------------------------------------
 python --version >nul 2>&1
 if errorlevel 1 (
@@ -64,7 +73,7 @@ echo         Then re-run this script to also produce an MSI.
 goto :done
 
 :build_msi_wix3
-candle.exe installer\naval_sem.wxs -o installer\naval_sem.wixobj
+candle.exe installer\naval_sem.wxs -o installer\naval_sem.wixobj "-dProductVersion=!APP_VERSION!"
 if errorlevel 1 goto :wix_error
 light.exe installer\naval_sem.wixobj -o dist\NAVAL-SEM-Setup.msi -ext WixUIExtension
 if errorlevel 1 goto :wix_error

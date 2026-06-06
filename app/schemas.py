@@ -348,3 +348,122 @@ class MGAResult(BaseModel):
     warnings: List[str] = []
 
 ModelResult.model_rebuild()
+
+# ── v0.7 schemas ──────────────────────────────────────────────────────────────
+
+class SimpleSlope(BaseModel):
+    """
+    Conditional effect of the predictor on outcome at one level of the moderator.
+    Slope = β_X + β_XM × moderator_value.
+    """
+    moderator_level: str          # "low (−1 SD)" | "mean (0)" | "high (+1 SD)"
+    moderator_value: float        # actual mean-centred value used
+    slope: float                  # conditional β
+    ci_lower_95: Optional[float] = None
+    ci_upper_95: Optional[float] = None
+    significant: Optional[bool]  = None   # CI excludes 0
+
+
+class ModerationTerm(BaseModel):
+    """
+    One interaction effect: IV × Moderator → Outcome.
+    Holds the interaction β, Δ R², f², and simple slopes.
+    """
+    iv:               str
+    moderator:        str
+    outcome:          str
+    interaction_col:  str          # product column name added to df
+
+    beta_iv:           float
+    beta_moderator:    float
+    beta_interaction:  float
+    ci_lower_95:       Optional[float] = None
+    ci_upper_95:       Optional[float] = None
+    significant:       bool = False
+
+    r2_with:           float       # R² of outcome with interaction term
+    r2_without:        float       # R² without interaction term
+    delta_r2:          float       # R²_with − R²_without
+    f2_interaction:    float       # Cohen's f² = ΔR² / (1 − R²_with)
+
+    simple_slopes:     List[SimpleSlope] = []
+
+
+class ModerationResult(BaseModel):
+    """Full moderation analysis output."""
+    algorithm:         str
+    n_obs:             int
+    bootstrap_n:       int
+    moderation_terms:  List[ModerationTerm]
+    parameters:        List[PathParameter]  # full model parameters incl. interaction
+    fit:               FitIndices
+    warnings:          List[str] = []
+
+
+# ── IPMA ──────────────────────────────────────────────────────────────────────
+
+class IPMAEntry(BaseModel):
+    """
+    One construct in the Importance-Performance Map.
+
+    Importance  = total effect of this construct on the target LV
+                  (direct + all indirect paths).
+    Performance = mean composite score rescaled to 0–100.
+    """
+    lv:          str
+    importance:  float    # total effect on target_lv  (0–1 for standardised)
+    performance: float    # rescaled mean composite (0–100)
+
+
+class IPMAResult(BaseModel):
+    """
+    Importance-Performance Map Analysis result.
+    Entries are sorted by importance descending.
+    """
+    target_lv:   str
+    entries:     List[IPMAEntry]
+    scale_min:   float            # theoretical or observed scale minimum used
+    scale_max:   float            # theoretical or observed scale maximum used
+    algorithm:   str
+    warnings:    List[str] = []
+
+
+# ── NCA ───────────────────────────────────────────────────────────────────────
+
+class NCAEntry(BaseModel):
+    """
+    Necessary Condition Analysis result for one IV → DV pair.
+
+    Dul (2016, 2020) CE-FDH and CR-FDH ceiling lines;
+    effect size d = ceiling zone / scope.
+    """
+    iv:            str
+    dv:            str
+    n_obs:         int
+
+    # CE-FDH (staircase ceiling)
+    ce_fdh_d:      float
+    ce_fdh_label:  str            # "negligible" | "small" | "medium" | "large"
+    ce_fdh_p:      Optional[float] = None   # permutation p-value
+
+    # CR-FDH (linear regression ceiling)
+    cr_fdh_d:      float
+    cr_fdh_label:  str
+    cr_fdh_slope:  float
+    cr_fdh_intercept: float
+    cr_fdh_p:      Optional[float] = None
+
+    significant:   bool           # max(ce_fdh_p, cr_fdh_p) < 0.05
+
+    # Ceiling line points for frontend scatter plot (sampled to ≤ 200 pts)
+    scatter_x:     List[float] = []
+    scatter_y:     List[float] = []
+    ceiling_x:     List[float] = []
+    ceiling_y:     List[float] = []
+
+
+class NCAResult(BaseModel):
+    """Full NCA output across all structural IV → DV pairs."""
+    entries:         List[NCAEntry]
+    n_permutations:  int
+    warnings:        List[str] = []

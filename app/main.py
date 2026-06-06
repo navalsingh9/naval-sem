@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 import pandas as pd
 
 # ── Single source of truth for the app version ───────────────────────────────
-APP_VERSION = "0.6.1"
+APP_VERSION = "0.7.0"
 _GITHUB_REPO  = "navalsingh9/naval-sem"
 
 
@@ -129,8 +129,11 @@ from app.parser import (parse_spss, parse_excel, parse_lavaan, parse_csv_robust,
 from app.schemas import (
     ModelResult, BootstrapResult, HTMTResult, IndirectResult,
     CMBMarkerResult, PredictResult, MGAResult,
+    ModerationResult, IPMAResult, NCAResult,          # v0.7
 )
 from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stage
+from app.engine_v07 import run_moderation, compute_ipma                           # v0.7
+from app.nca       import compute_nca                                              # v0.7
 
 def auto_reverse_score(df: pd.DataFrame, model_syntax: str, log_fn=None) -> pd.DataFrame:
     """
@@ -818,6 +821,256 @@ async def hoc_analysis(
         log("error", f"HOC unexpected error: {exc}")
         _run_store[run_id]["done"] = True
         raise HTTPException(500, f"HOC error: {exc}")
+
+    _run_store[run_id]["done"] = True
+    return result
+
+
+# ── v0.7: Moderation ──────────────────────────────────────────────────────────
+
+@app.post("/moderation", response_model=ModerationResult)
+async def moderation_analysis(
+    file:        UploadFile = File(...),
+    model:       str        = Form(...),
+    algorithm:   str        = Form("pls"),
+    bootstrap_n: int        = Form(500),
+    missing:     str        = Form("listwise"),
+    run_id:      str        = Form(None),
+):
+    """
+    Moderation analysis via the product-of-composites approach.
+
+    Detects ``X*M`` interaction terms in the lavaan structural syntax.
+
+    Form fields
+    -----------
+    file        : CSV, XLSX, or SAV dataset.
+    model       : lavaan syntax with at least one ``X*M`` interaction term.
+                  Example::
+
+                      Y  ~  X + M + X*M
+                      X  =~ x1 + x2 + x3
+                      M  =~ m1 + m2 + m3
+                      Y  =~ y1 + y2 + y3
+
+    algorithm   : ``pls`` (default) | ``cb`` | ``wls``.
+    bootstrap_n : Bootstrap resamples for simple-slope CIs (default 500).
+    missing     : ``listwise`` (default) | ``mean``.
+    run_id      : Optional SSE tracking ID.
+
+    Returns
+    -------
+    ModerationResult — interaction β with CI, Δ R², f², simple slopes at
+    −1 SD / mean / +1 SD of the moderator.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+
+    raw = await file.read()
+    log("step", f"Moderation: parsing {file.filename}")
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        _run_store[run_id]["done"] = True
+        raise
+    except Exception as exc:
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, f"File parse error: {exc}")
+
+    if missing == "listwise":
+        df = df.dropna()
+        log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+
+    df = auto_reverse_score(df, model, log_fn=log)
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: run_moderation(
+                df, model,
+                algorithm=algorithm,
+                bootstrap_n=bootstrap_n,
+                log_fn=log,
+            ),
+        )
+    except ValueError as exc:
+        log("error", f"Moderation failed: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        log("error", f"Moderation unexpected error: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(500, f"Moderation error: {exc}")
+
+    _run_store[run_id]["done"] = True
+    return result
+
+
+# ── v0.7: IPMA ────────────────────────────────────────────────────────────────
+
+@app.post("/ipma", response_model=IPMAResult)
+async def ipma_analysis(
+    file:      UploadFile    = File(...),
+    model:     str           = Form(...),
+    target_lv: str           = Form(...),
+    algorithm: str           = Form("pls"),
+    scale_min: float         = Form(None),
+    scale_max: float         = Form(None),
+    missing:   str           = Form("listwise"),
+    run_id:    str           = Form(None),
+):
+    """
+    Importance-Performance Map Analysis (IPMA).
+
+    Ringle & Sarstedt (2016) / Hair et al. (2022).
+
+    Form fields
+    -----------
+    file       : CSV, XLSX, or SAV dataset.
+    model      : lavaan syntax.
+    target_lv  : The dependent LV for which importance is computed
+                 (e.g. ``"Loyalty"``).
+    algorithm  : ``pls`` (default) | ``cb`` | ``wls``.
+    scale_min  : Theoretical scale minimum (e.g. ``1`` for Likert 1-5).
+                 If omitted, the observed minimum composite score is used.
+    scale_max  : Theoretical scale maximum (e.g. ``5`` for Likert 1-5).
+    missing    : ``listwise`` (default) | ``mean``.
+    run_id     : Optional SSE tracking ID.
+
+    Returns
+    -------
+    IPMAResult — importance (total effect) and performance (0–100 rescaled
+    composite mean) for each predictor of ``target_lv``, sorted by importance.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+
+    raw = await file.read()
+    log("step", f"IPMA: parsing {file.filename}")
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        _run_store[run_id]["done"] = True
+        raise
+    except Exception as exc:
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, f"File parse error: {exc}")
+
+    if missing == "listwise":
+        df = df.dropna()
+        log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+
+    df = auto_reverse_score(df, model, log_fn=log)
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: compute_ipma(
+                df, model,
+                target_lv=target_lv,
+                algorithm=algorithm,
+                scale_min=scale_min,
+                scale_max=scale_max,
+                log_fn=log,
+            ),
+        )
+    except ValueError as exc:
+        log("error", f"IPMA failed: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        log("error", f"IPMA unexpected error: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(500, f"IPMA error: {exc}")
+
+    _run_store[run_id]["done"] = True
+    return result
+
+
+# ── v0.7: NCA ─────────────────────────────────────────────────────────────────
+
+@app.post("/nca", response_model=NCAResult)
+async def nca_analysis(
+    file:            UploadFile = File(...),
+    model:           str        = Form(...),
+    n_permutations:  int        = Form(1000),
+    missing:         str        = Form("listwise"),
+    run_id:          str        = Form(None),
+):
+    """
+    Necessary Condition Analysis (NCA).
+
+    Dul (2016, 2020) — CE-FDH and CR-FDH ceiling lines and effect size d.
+
+    Form fields
+    -----------
+    file           : CSV, XLSX, or SAV dataset.
+    model          : lavaan syntax. All structural IV → DV pairs are tested.
+    n_permutations : Permutation samples for significance test (default 1000).
+    missing        : ``listwise`` (default) | ``mean``.
+    run_id         : Optional SSE tracking ID.
+
+    Returns
+    -------
+    NCAResult — CE-FDH d, CR-FDH d, ceiling line coordinates (for scatter
+    plot rendering), and permutation p-values for each IV → DV pair.
+
+    Effect size benchmarks (Dul 2016)
+    ----------------------------------
+    d < 0.1   negligible
+    d < 0.3   small
+    d < 0.5   medium
+    d ≥ 0.5   large
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+
+    raw = await file.read()
+    log("step", f"NCA: parsing {file.filename}")
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        _run_store[run_id]["done"] = True
+        raise
+    except Exception as exc:
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, f"File parse error: {exc}")
+
+    if missing == "listwise":
+        df = df.dropna()
+        log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+
+    df = auto_reverse_score(df, model, log_fn=log)
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: compute_nca(
+                df, model,
+                n_permutations=n_permutations,
+                log_fn=log,
+            ),
+        )
+    except ValueError as exc:
+        log("error", f"NCA failed: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        log("error", f"NCA unexpected error: {exc}")
+        _run_store[run_id]["done"] = True
+        raise HTTPException(500, f"NCA error: {exc}")
 
     _run_store[run_id]["done"] = True
     return result

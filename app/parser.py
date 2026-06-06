@@ -386,3 +386,149 @@ def build_hoc_stage2_parsed(parsed: dict, stage1_score_cols: dict[str, str]) -> 
         "latent_vars": new_lv,
         "observed_vars": new_obs,
     }
+
+
+# ─── v0.7: Interaction / Moderation helpers ───────────────────────────────────
+
+def detect_interactions(parsed: dict) -> list:
+    """
+    Scan the structural block for interaction terms (``X*M`` notation).
+
+    Returns a list of dicts, one per detected interaction::
+
+        [{"iv": "X", "moderator": "M", "term": "X*M",
+          "outcome": "Y", "interaction_col": "X_x_M"}, ...]
+
+    ``interaction_col`` is the sanitised column name that will be created in
+    the dataframe by :func:`expand_interaction_terms`.
+
+    A term is recognised when a structural RHS variable contains ``*``.
+    Example input lavaan syntax::
+
+        Y ~ X + M + X*M
+        X =~ x1 + x2
+        M =~ m1 + m2
+    """
+    interactions = []
+    seen = set()
+
+    for rel in parsed.get("structural", []):
+        rhs = rel["rhs"]
+        if "*" not in rhs:
+            continue
+
+        parts = [p.strip() for p in rhs.split("*", 1)]
+        if len(parts) != 2:
+            continue
+
+        iv, mod = parts[0], parts[1]
+        key = (iv, mod, rel["lhs"])
+        if key in seen:
+            continue
+        seen.add(key)
+
+        # Sanitise: replace special chars with underscore for column name
+        col = re.sub(r"[^A-Za-z0-9_]", "_", f"{iv}_x_{mod}")
+        interactions.append({
+            "iv":              iv,
+            "moderator":       mod,
+            "term":            rhs,
+            "outcome":         rel["lhs"],
+            "interaction_col": col,
+        })
+
+    return interactions
+
+
+def expand_interaction_terms(
+    parsed: dict,
+    df: "pd.DataFrame",
+) -> "tuple[dict, pd.DataFrame]":
+    """
+    Create mean-centred product columns for all interaction terms and update
+    the parsed model dict so the structural block references the new column
+    names instead of the ``X*M`` notation.
+
+    Procedure
+    ---------
+    For each interaction ``X*M → Y``:
+
+    1. Compute composite score for X and M (mean of their indicators, or
+       the column itself if X / M is an observed variable).
+    2. Mean-centre both composites.
+    3. Create the product column: ``df["X_x_M"] = X_mc × M_mc``.
+    4. In the parsed structural block, replace ``{"lhs": Y, "rhs": "X*M"}``
+       with ``{"lhs": Y, "rhs": "X_x_M"}``.
+    5. The interaction column is treated as a single-indicator observed
+       variable — it does NOT get its own ``=~`` block.
+
+    Returns
+    -------
+    (new_parsed, df_augmented)
+        ``new_parsed`` has the ``X*M`` rhs entries replaced and an extra key
+        ``"interactions"`` that mirrors :func:`detect_interactions` output.
+        ``df_augmented`` contains all original columns plus the product
+        column(s).
+
+    Raises
+    ------
+    ValueError
+        If a composite cannot be constructed for X or M.
+    """
+    import copy
+    import numpy as np
+
+    interactions = detect_interactions(parsed)
+    if not interactions:
+        return parsed, df.copy()
+
+    result   = copy.deepcopy(parsed)
+    df_aug   = df.copy()
+    meas     = result.get("measurement", {})
+
+    def _composite(name: str) -> "np.ndarray":
+        """Return mean composite for LV *name* or raw column if observed."""
+        if name in meas:
+            cols = [c for c in meas[name] if c in df_aug.columns]
+            if not cols:
+                raise ValueError(
+                    f"expand_interaction_terms: no indicator columns found "
+                    f"for LV '{name}'. Check that the dataset is uploaded."
+                )
+            return df_aug[cols].astype(float).mean(axis=1).values
+        elif name in df_aug.columns:
+            return df_aug[name].astype(float).values
+        else:
+            raise ValueError(
+                f"expand_interaction_terms: '{name}' is neither a latent "
+                f"variable in the model nor a column in the dataset."
+            )
+
+    for itx in interactions:
+        iv_comp  = _composite(itx["iv"])
+        mod_comp = _composite(itx["moderator"])
+
+        # Mean-centre
+        iv_mc  = iv_comp  - iv_comp.mean()
+        mod_mc = mod_comp - mod_comp.mean()
+
+        col = itx["interaction_col"]
+        df_aug[col] = iv_mc * mod_mc
+
+        # Patch structural block: replace X*M → interaction_col
+        new_structural = []
+        for rel in result["structural"]:
+            if rel["rhs"] == itx["term"] and rel["lhs"] == itx["outcome"]:
+                new_structural.append({"lhs": rel["lhs"], "rhs": col})
+            else:
+                new_structural.append(rel)
+        result["structural"] = new_structural
+
+        # The interaction column is observed — add to observed_vars if absent
+        obs = result.get("observed_vars", [])
+        if col not in obs:
+            obs.append(col)
+        result["observed_vars"] = obs
+
+    result["interactions"] = interactions
+    return result, df_aug
