@@ -13,7 +13,7 @@
 
 <?define ProductName     = "NAVAL-SEM" ?>
 <!-- Local-build fallback only. CI overrides this via: candle -dProductVersion=x.y.z -->
-<?define ProductVersion  = "0.0.0" ?>
+
 <?define Manufacturer    = "NAVAL-SEM Project" ?>
 <?define UpgradeCode     = "a1b2c3d4-e5f6-7890-abcd-ef1234567890" ?>
 <?define ExeSource       = "..\dist\NAVAL-SEM.exe" ?>
