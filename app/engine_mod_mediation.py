@@ -357,7 +357,7 @@ def run_mod_mediation(
                     for k, lvl in enumerate(mod_levels):
                         bs_cond[k].append(a_bs * (b_bs + b3_bs * lvl))
 
-            except Exception:
+            except (ValueError, np.linalg.LinAlgError):
                 continue
 
         imm_lo, imm_hi = _ci_from_bootstrap(bs_imm)

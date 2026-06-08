@@ -237,7 +237,8 @@ def _manifest_moderation(
                     try:
                         cb, *_ = np.linalg.lstsq(Xf[idx], y[idx], rcond=None)
                         boot.append(float(cb[3]))
-                    except Exception:
+                    except (np.linalg.LinAlgError, ValueError):
+                        # Singular or rank-deficient matrix on this bootstrap resample — skip sample
                         pass
                 if boot:
                     ci_lower_95 = round(float(np.percentile(boot, 2.5)), 6)
@@ -324,7 +325,7 @@ def _expand_covariances(model_syntax: str) -> str:
     for raw in model_syntax.split("\n"):
         line = raw.strip()
         if "~~" in line and "=~" not in line:
-            m = re.match(r"^(\w+)\s*~~\s*(.+)$", line)
+            m = re.match(r"^(\w+)\s*~~\s*([^\r\n]+)$", line)
             if m:
                 lhs = m.group(1).strip()
                 rhs_parts = [p.strip() for p in m.group(2).split("+") if p.strip()]

@@ -886,7 +886,7 @@ def fit_model(
                               f"CB-SEM attempt {_att + 1}/{len(_cb_solvers)} "
                               f"failed (solver={_slv}): {str(_e)[:100]}")
                     except Exception:
-                        pass   # never let a logging failure mask the real error
+                        pass   # noqa: BLE001  — never let a logging failure mask the real error
                     sem_model = None
             if sem_model is None:
                 raise ValueError(

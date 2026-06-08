@@ -351,12 +351,12 @@ def compute_nca(
             try:
                 d_ce_p, *_ = _ce_fdh(x_c, y_perm)
                 perm_ce.append(d_ce_p)
-            except Exception:
+            except (ValueError, np.linalg.LinAlgError, ArithmeticError):
                 pass
             try:
                 d_cr_p, *_ = _cr_fdh(x_c, y_perm)
                 perm_cr.append(d_cr_p)
-            except Exception:
+            except (ValueError, np.linalg.LinAlgError, ArithmeticError):
                 pass
 
         ce_p = float(np.mean(np.array(perm_ce) >= ce_d)) if perm_ce else None

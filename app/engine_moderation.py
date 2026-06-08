@@ -240,7 +240,7 @@ def run_moderation(
                 for lvl, store in zip(mod_levels,
                                       [bs_slopes_lo, bs_slopes_mid, bs_slopes_hi]):
                     store.append(b_x + b_int * lvl)
-            except Exception:
+            except (ValueError, np.linalg.LinAlgError):
                 continue
 
         ci_lo, ci_hi = _ci_from_bootstrap(bs_beta_int)
