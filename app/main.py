@@ -38,10 +38,12 @@ _run_store: dict[str, dict] = {}
 
 def _init_run(run_id: str):
     _run_store[run_id] = {"logs": [], "done": False, "fingerprint": None, "audit": None}
-    # Prune old runs (keep last 50) to avoid unbounded memory
-    if len(_run_store) > 50:
-        oldest = sorted(_run_store, key=lambda k: _run_store[k]["logs"][0]["t"]
-                        if _run_store[k]["logs"] else 0)[:len(_run_store) - 50]
+    # Prune old runs (keep last 200) — only evict completed runs to avoid
+    # deleting an in-flight run_id and causing KeyError when it tries to mark done.
+    if len(_run_store) > 200:
+        completed = [k for k in _run_store if k != run_id and _run_store[k]["done"]]
+        oldest = sorted(completed, key=lambda k: _run_store[k]["logs"][0]["t"]
+                        if _run_store[k]["logs"] else 0)[:max(0, len(_run_store) - 200)]
         for k in oldest:
             del _run_store[k]
 
@@ -130,10 +132,208 @@ from app.schemas import (
     ModelResult, BootstrapResult, HTMTResult, IndirectResult,
     CMBMarkerResult, PredictResult, MGAResult,
     ModerationResult, IPMAResult, NCAResult,          # v0.7
+    ModMediationResult,                               # v0.7 — moderated mediation
 )
 from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stage
-from app.engine_v07 import run_moderation, compute_ipma                           # v0.7
-from app.nca       import compute_nca                                              # v0.7
+from app.engine_moderation    import run_moderation                                # v0.7
+from app.engine_ipma          import compute_ipma                                  # v0.7
+from app.nca                  import compute_nca                                   # v0.7
+from app.engine_mod_mediation import run_mod_mediation                             # v0.7
+
+
+def _manifest_moderation(
+    df: pd.DataFrame,
+    model_syntax: str,
+    bootstrap_n: int = 0,
+    log_fn=None,
+) -> dict:
+    """
+    OLS fallback for moderation models that have no latent variables (no =~ lines).
+    Handles ``Y ~ X + M + X*M`` syntax for observed variables only.
+    Returns a dict shaped like ModerationResult so FastAPI can serialize it.
+    """
+    import re
+    import numpy as np
+
+    if log_fn:
+        log_fn("info", "No latent variables detected — using OLS fallback for manifest moderation.")
+
+    moderation_terms: list = []
+    all_params: list = []
+
+    for raw_line in model_syntax.strip().split("\n"):
+        line = raw_line.strip()
+        if not line or "=~" in line or "~~" in line or "~" not in line:
+            continue
+
+        lhs, rhs = line.split("~", 1)
+        lhs = lhs.strip()
+        if lhs not in df.columns:
+            continue
+
+        rhs_parts = [p.strip() for p in rhs.split("+")]
+        interactions = [p for p in rhs_parts if "*" in p]
+        plain_preds  = [p for p in rhs_parts if "*" not in p and p in df.columns]
+
+        y = df[lhs].values.astype(float)
+        ss_tot = float(np.sum((y - y.mean()) ** 2))
+
+        if not interactions:
+            # Plain OLS regression — emit parameters only
+            if not plain_preds:
+                continue
+            X = np.column_stack([np.ones(len(y))] + [df[c].values.astype(float) for c in plain_preds])
+            coeffs, *_ = np.linalg.lstsq(X, y, rcond=None)
+            for i, col in enumerate(plain_preds):
+                all_params.append({
+                    "lhs": lhs, "op": "~", "rhs": col,
+                    "estimate": round(float(coeffs[i + 1]), 6),
+                    "std_estimate": None, "std_error": None,
+                    "z_value": None, "p_value": None,
+                    "ci_lower": None, "ci_upper": None, "significant": None,
+                })
+            continue
+
+        for interaction in interactions:
+            parts = [v.strip() for v in interaction.split("*")]
+            if len(parts) != 2:
+                continue
+            iv, moderator = parts
+            if iv not in df.columns or moderator not in df.columns:
+                continue
+
+            # Standardise IV and moderator for interpretable β and simple slopes
+            iv_vals  = (df[iv].values.astype(float))
+            mod_vals = (df[moderator].values.astype(float))
+            iv_c     = iv_vals  - iv_vals.mean()
+            mod_c    = mod_vals - mod_vals.mean()
+            iv_s     = iv_c  / (iv_c.std()  or 1.0)
+            mod_s    = mod_c / (mod_c.std() or 1.0)
+            int_s    = iv_s * mod_s
+
+            # Full model (with interaction)
+            Xf = np.column_stack([np.ones(len(y)), iv_s, mod_s, int_s])
+            cf, *_ = np.linalg.lstsq(Xf, y, rcond=None)
+            yhat_f  = Xf @ cf
+            r2_with = float(1.0 - np.sum((y - yhat_f) ** 2) / ss_tot) if ss_tot else 0.0
+
+            # Reduced model (without interaction)
+            Xr = np.column_stack([np.ones(len(y)), iv_s, mod_s])
+            cr, *_ = np.linalg.lstsq(Xr, y, rcond=None)
+            yhat_r  = Xr @ cr
+            r2_without = float(1.0 - np.sum((y - yhat_r) ** 2) / ss_tot) if ss_tot else 0.0
+
+            delta_r2 = max(0.0, r2_with - r2_without)
+            f2 = delta_r2 / (1.0 - r2_with) if r2_with < 1.0 else 0.0
+
+            # Bootstrap CIs for interaction β
+            beta_int = float(cf[3])
+            ci_lower_95 = ci_upper_95 = None
+            if bootstrap_n > 0:
+                rng = np.random.default_rng(42)
+                n, boot = len(y), []
+                for _ in range(bootstrap_n):
+                    idx = rng.integers(0, n, size=n)
+                    try:
+                        cb, *_ = np.linalg.lstsq(Xf[idx], y[idx], rcond=None)
+                        boot.append(float(cb[3]))
+                    except Exception:
+                        pass
+                if boot:
+                    ci_lower_95 = round(float(np.percentile(boot, 2.5)), 6)
+                    ci_upper_95 = round(float(np.percentile(boot, 97.5)), 6)
+
+            significant = bool(
+                ci_lower_95 is not None and (ci_lower_95 > 0 or ci_upper_95 < 0)
+            )
+
+            # Simple slopes at −1 SD / mean / +1 SD of moderator
+            mod_sd = float(mod_c.std() or 1.0)
+            simple_slopes = []
+            for label, level in [("low (−1 SD)", -1.0), ("mean (0)", 0.0), ("high (+1 SD)", 1.0)]:
+                slope = round(float(cf[1] + cf[3] * level), 6)
+                simple_slopes.append({
+                    "moderator_level": label,
+                    "moderator_value": round(level * mod_sd, 3),
+                    "slope": slope,
+                    "ci_lower_95": None, "ci_upper_95": None,
+                    "significant": abs(slope) > 0.05,
+                })
+
+            moderation_terms.append({
+                "iv": iv, "moderator": moderator, "outcome": lhs,
+                "interaction_col": f"{iv}_x_{moderator}",
+                "beta_iv": round(float(cf[1]), 6),
+                "beta_moderator": round(float(cf[2]), 6),
+                "beta_interaction": round(beta_int, 6),
+                "ci_lower_95": ci_lower_95, "ci_upper_95": ci_upper_95,
+                "significant": significant,
+                "r2_with": round(r2_with, 4),
+                "r2_without": round(r2_without, 4),
+                "delta_r2": round(delta_r2, 4),
+                "f2_interaction": round(f2, 4),
+                "simple_slopes": simple_slopes,
+            })
+
+            for col_name, coeff in [
+                (iv, cf[1]), (moderator, cf[2]), (f"{iv}_x_{moderator}", cf[3])
+            ]:
+                all_params.append({
+                    "lhs": lhs, "op": "~", "rhs": col_name,
+                    "estimate": round(float(coeff), 6),
+                    "std_estimate": None, "std_error": None,
+                    "z_value": None, "p_value": None,
+                    "ci_lower": None, "ci_upper": None, "significant": None,
+                })
+
+    return {
+        "algorithm": "ols",
+        "n_obs": len(df),
+        "bootstrap_n": bootstrap_n,
+        "moderation_terms": moderation_terms,
+        "parameters": all_params,
+        "fit": {
+            "cfi": None, "tli": None, "rmsea": None,
+            "rmsea_ci_lower": None, "rmsea_ci_upper": None,
+            "srmr": None, "chi_square": None, "df": None,
+            "p_value": None, "aic": None, "bic": None,
+            "r_squared": None,
+        },
+        "warnings": [
+            "OLS fallback: model contains no latent variables (=~). "
+            "Moderation computed via ordinary least squares on observed variables.",
+        ],
+    }
+
+def _expand_covariances(model_syntax: str) -> str:
+    """
+    TC-52: Expand multi-target residual covariance lines into individual pairs.
+
+    semopy requires each covariance to be on its own line.  lavaan allows shorthand
+    like ``y2 ~~ y4 + y6`` which the parser may re-emit verbatim — semopy then fails
+    with an eigenvalue convergence error because its model-implied covariance matrix
+    is mis-specified.
+
+    Transforms:
+        y2 ~~ y4 + y6   →   y2 ~~ y4
+                             y2 ~~ y6
+    Single-target lines and all other syntax are left unchanged.
+    """
+    import re
+    out = []
+    for raw in model_syntax.split("\n"):
+        line = raw.strip()
+        if "~~" in line and "=~" not in line:
+            m = re.match(r"^(\w+)\s*~~\s*(.+)$", line)
+            if m:
+                lhs = m.group(1).strip()
+                rhs_parts = [p.strip() for p in m.group(2).split("+") if p.strip()]
+                if len(rhs_parts) > 1:
+                    out.extend(f"{lhs} ~~ {rhs}" for rhs in rhs_parts)
+                    continue
+        out.append(raw)
+    return "\n".join(out)
+
 
 def auto_reverse_score(df: pd.DataFrame, model_syntax: str, log_fn=None) -> pd.DataFrame:
     """
@@ -195,7 +395,7 @@ if Path(_STATIC_DIR).exists():
 else:
     @app.get("/", include_in_schema=False)
     def root_missing():
-        return JSONResponse({"error": f"Static folder not found: {_STATIC_DIR}"}, status_code=500)
+        return JSONResponse({"error": "Static files not found. Check server configuration."}, status_code=500)
 
 
 
@@ -213,7 +413,7 @@ async def stream_logs(run_id: str):
             wait_time += 0.5
         last = 0
         elapsed = 0.0
-        while elapsed < 3600:
+        while elapsed < 14400:
             run = _run_store.get(run_id)
             if run is None:
                 yield f"data: {json.dumps({'level': 'error', 'msg': 'run_id not found'})}\n\n"
@@ -228,7 +428,7 @@ async def stream_logs(run_id: str):
                 return
             await asyncio.sleep(0.2)
             elapsed += 0.2
-        yield f"data: {json.dumps({'level': 'error', 'msg': 'SSE timeout (60 min)'})}\n\n"
+        yield f"data: {json.dumps({'level': 'warn', 'msg': 'Live log closed after 4 h — computation still running in background. Results will appear when complete.'})}\n\n"
 
     return StreamingResponse(
         event_gen(),
@@ -329,7 +529,8 @@ async def predictive_relevance(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(422, f"File parse error: {e}")
+        logger.error("File parse error in /predict: %s", e, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -346,7 +547,8 @@ async def predictive_relevance(
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
-        raise HTTPException(500, f"Predictive relevance error: {e}")
+        logger.error("Unexpected error in /predict: %s", e, exc_info=True)
+        raise HTTPException(500, "Predictive relevance analysis failed. Check server logs.")
 
 
 @app.post("/cmb", response_model=CMBMarkerResult)
@@ -374,7 +576,8 @@ async def cmb_analysis(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(422, f"File parse error: {e}")
+        logger.error("File parse error in /cmb: %s", e, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -387,7 +590,8 @@ async def cmb_analysis(
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
-        raise HTTPException(500, f"CMB analysis error: {e}")
+        logger.error("Unexpected error in /cmb: %s", e, exc_info=True)
+        raise HTTPException(500, "CMB analysis failed. Check server logs.")
 
 
 @app.post("/indirect", response_model=IndirectResult)
@@ -402,6 +606,7 @@ async def indirect_effects(
     via paths of length ≥ 2. Returns indirect effects with bootstrapped 95% CIs
     and a total effects matrix (direct + indirect).
     """
+    bootstrap_n = min(bootstrap_n, 20_000)
     content = await file.read()
     ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
@@ -416,7 +621,8 @@ async def indirect_effects(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(422, f"File parse error: {e}")
+        logger.error("File parse error in /indirect: %s", e, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -429,7 +635,8 @@ async def indirect_effects(
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
-        raise HTTPException(500, f"Indirect effects error: {e}")
+        logger.error("Unexpected error in /indirect: %s", e, exc_info=True)
+        raise HTTPException(500, "Indirect effects computation failed. Check server logs.")
 
 
 @app.post("/upload/preview")
@@ -448,7 +655,8 @@ async def upload_preview(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(422, f"Could not parse file: {e}")
+        logger.error("File parse error in /upload/preview: %s", e, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
     return {
         "columns": df.columns.tolist(),
         "n_rows": len(df),
@@ -469,6 +677,7 @@ async def run_model(
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
     log = _make_log_fn(run_id)
+    bootstrap_n = min(bootstrap_n, 20_000)
 
     raw = await file.read()
     ext = file.filename.rsplit(".", 1)[-1].lower()
@@ -481,14 +690,15 @@ async def run_model(
         elif ext == "sav":
             df = parse_spss(raw)
         else:
-            _run_store[run_id]["done"] = True
+            if run_id in _run_store: _run_store[run_id]["done"] = True
             raise HTTPException(400, f"Unsupported file type: {ext}")
     except HTTPException:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise
     except Exception as e:
-        _run_store[run_id]["done"] = True
-        raise HTTPException(422, f"File parse error: {e}")
+        logger.error("File parse error in /run: %s", e, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -498,6 +708,7 @@ async def run_model(
         log("info", "Missing data: mean imputation applied")
 
     df = auto_reverse_score(df, model, log_fn=log)
+    model = _expand_covariances(model)   # TC-52: expand 'y2 ~~ y4 + y6' → individual pairs
     # Run blocking computation in thread executor so SSE stream stays live
     loop = asyncio.get_event_loop()
     try:
@@ -508,25 +719,26 @@ async def run_model(
         )
     except ValueError as e:
         log("error", f"Model fit failed: {e}")
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(422, str(e))
     except Exception as e:
-        log("error", f"Unexpected engine error: {e}")
-        _run_store[run_id]["done"] = True
-        raise HTTPException(500, f"Model fitting error: {e}")
+        log("error", "Unexpected engine error — see server logs for details")
+        logger.error("Unexpected engine error in /run: %s", e, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "Model fitting failed. Check server logs.")
 
     # Fingerprint
     try:
         fp, audit = _compute_fingerprint(run_id, model, df, algorithm, result)
         result.run_id = run_id
         result.fingerprint = fp
-        _run_store[run_id]["fingerprint"] = fp
-        _run_store[run_id]["audit"] = audit
+        if run_id in _run_store: _run_store[run_id]["fingerprint"] = fp
+        if run_id in _run_store: _run_store[run_id]["audit"] = audit
         log("ok", f"Fingerprint: {fp[:16]}…{fp[-8:]}")
     except Exception as e:
         log("warn", f"Fingerprint computation failed: {e}")
 
-    _run_store[run_id]["done"] = True
+    if run_id in _run_store: _run_store[run_id]["done"] = True
     return result
 
 
@@ -534,36 +746,49 @@ async def run_model(
 async def bootstrap_only(
     file: UploadFile = File(...),
     model: str = Form(...),
-    n: int = Form(500),
+    bootstrap_n: int = Form(500),
     algorithm: str = Form("pls"),
 ):
+    bootstrap_n = min(bootstrap_n, 20_000)
     content = await file.read()
-    ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
-        df = parse_csv_robust(content) if ext == "csv" else parse_excel(content)
+        df = _parse_upload(content, file.filename)
         df = df.dropna()
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(422, str(e))
+        logger.error("File parse error in /bootstrap: %s", e, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
+    df = auto_reverse_score(df, model)   # TC-67: parity with /run — must reverse-score before fitting
+    model = _expand_covariances(model)   # TC-52: expand multi-target ~~ before engine sees the model
     try:
-        return run_bootstrap(df, model, n=n, algorithm=algorithm)
+        return run_bootstrap(df, model, n=bootstrap_n, algorithm=algorithm)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     except Exception as e:
-        raise HTTPException(500, str(e))
+        logger.error("Unexpected error in /bootstrap: %s", e, exc_info=True)
+        raise HTTPException(500, "Bootstrap analysis failed. Check server logs.")
 
 
 @app.post("/htmt", response_model=HTMTResult)
 async def htmt(file: UploadFile = File(...), model: str = Form(...)):
     content = await file.read()
-    ext = file.filename.rsplit(".", 1)[-1].lower()
     try:
-        df = parse_csv_robust(content) if ext == "csv" else parse_excel(content)
+        df = _parse_upload(content, file.filename)
         df = df.dropna()
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(422, str(e))
+        logger.error("File parse error in /htmt: %s", e, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
     df = auto_reverse_score(df, model)
     try:
         return compute_htmt(df, model)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     except Exception as e:
-        raise HTTPException(500, str(e))
+        logger.error("Unexpected error in /htmt: %s", e, exc_info=True)
+        raise HTTPException(500, "HTMT computation failed. Check server logs.")
 
 
 @app.post("/validate-syntax")
@@ -571,12 +796,28 @@ async def validate_syntax(payload: dict):
     model = payload.get("model", "")
     try:
         parsed = parse_lavaan(model)
+        # TC-64: a non-empty string that contains no SEM operators (=~, ~, ~~)
+        # parses without raising but produces empty dicts — treat as invalid.
+        if not parsed.get("measurement") and not parsed.get("structural"):
+            return {
+                "valid": False,
+                "error": "No SEM operators (=~, ~) found in model syntax.",
+            }
         return {"valid": True, "parsed": parsed}
-    except Exception as e:
-        logger.exception("Model validation error")
+    except ValueError as e:
+        # Expected: user submitted syntactically incomplete/invalid lavaan syntax.
+        # Log at WARNING — this is routine input validation, not a server fault.
+        logger.warning("Model syntax validation failed: %s", e)
         return {
             "valid": False,
-            "error": "Model validation failed."
+            "error": str(e),          # surface the actual message to the client
+        }
+    except Exception as e:
+        # Unexpected: a real server-side failure (programming error, OOM, etc.)
+        logger.exception("Unexpected error in validate_syntax")
+        return {
+            "valid": False,
+            "error": "Model validation failed.",
         }
 
 
@@ -606,7 +847,8 @@ async def export_code(payload: dict):
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
-        raise HTTPException(500, f"Export error: {e}")
+        logger.error("Unexpected error in /export: %s", e, exc_info=True)
+        raise HTTPException(500, "Code export failed. Check server logs.")
 
     ext_map = {"r": "R", "python": "py", "lav": "lav"}
     ext = ext_map.get(fmt, "txt")
@@ -667,20 +909,23 @@ async def multi_group_analysis(
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
     log = _make_log_fn(run_id)
+    bootstrap_n    = min(bootstrap_n, 20_000)
+    n_permutations = min(n_permutations, 20_000)
 
     raw = await file.read()
     log("step", f"MGA: parsing uploaded file: {file.filename}")
     try:
         df = _parse_upload(raw, file.filename)
     except HTTPException:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise
     except Exception as exc:
-        _run_store[run_id]["done"] = True
-        raise HTTPException(422, f"File parse error: {exc}")
+        logger.error("File parse error in /mga: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if group_col not in df.columns:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(
             422,
             f"Group column '{group_col}' not found. "
@@ -712,14 +957,15 @@ async def multi_group_analysis(
         )
     except ValueError as exc:
         log("error", f"MGA failed: {exc}")
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(422, str(exc))
     except Exception as exc:
-        log("error", f"MGA unexpected error: {exc}")
-        _run_store[run_id]["done"] = True
-        raise HTTPException(500, f"MGA error: {exc}")
+        log("error", "MGA unexpected error — see server logs for details")
+        logger.error("Unexpected error in /mga: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "MGA analysis failed. Check server logs.")
 
-    _run_store[run_id]["done"] = True
+    if run_id in _run_store: _run_store[run_id]["done"] = True
     return result
 
 
@@ -768,17 +1014,19 @@ async def hoc_analysis(
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
     log = _make_log_fn(run_id)
+    bootstrap_n = min(bootstrap_n, 20_000)
 
     raw = await file.read()
     log("step", f"HOC: parsing uploaded file: {file.filename}")
     try:
         df = _parse_upload(raw, file.filename)
     except HTTPException:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise
     except Exception as exc:
-        _run_store[run_id]["done"] = True
-        raise HTTPException(422, f"File parse error: {exc}")
+        logger.error("File parse error in /hoc: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -789,8 +1037,28 @@ async def hoc_analysis(
 
     df = auto_reverse_score(df, model, log_fn=log)
 
+    # TC-68: reject models that contain no higher-order constructs before hitting the engine.
+    # A HOC is any latent variable whose measurement block lists other latent variables as indicators.
+    try:
+        _parsed = parse_lavaan(model)
+        _latent = set(_parsed.get("latent_vars", []))
+        _measurement = _parsed.get("measurement", {})
+        _has_hoc = any(
+            any(ind in _latent for ind in indicators)
+            for indicators in _measurement.values()
+        )
+    except Exception:
+        _has_hoc = True  # if we can't parse, let the engine decide
+    if not _has_hoc:
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(
+            422,
+            "No higher-order constructs detected in model syntax. "
+            "Use /run for standard (first-order) models.",
+        )
+
     if hoc_method not in ("repeated_indicator", "two_stage"):
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(
             400,
             f"Unknown hoc_method '{hoc_method}'. "
@@ -815,14 +1083,15 @@ async def hoc_analysis(
         )
     except ValueError as exc:
         log("error", f"HOC failed: {exc}")
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(422, str(exc))
     except Exception as exc:
-        log("error", f"HOC unexpected error: {exc}")
-        _run_store[run_id]["done"] = True
-        raise HTTPException(500, f"HOC error: {exc}")
+        log("error", "HOC unexpected error — see server logs for details")
+        logger.error("Unexpected error in /hoc: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "HOC analysis failed. Check server logs.")
 
-    _run_store[run_id]["done"] = True
+    if run_id in _run_store: _run_store[run_id]["done"] = True
     return result
 
 
@@ -866,17 +1135,19 @@ async def moderation_analysis(
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
     log = _make_log_fn(run_id)
+    bootstrap_n = min(bootstrap_n, 20_000)
 
     raw = await file.read()
     log("step", f"Moderation: parsing {file.filename}")
     try:
         df = _parse_upload(raw, file.filename)
     except HTTPException:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise
     except Exception as exc:
-        _run_store[run_id]["done"] = True
-        raise HTTPException(422, f"File parse error: {exc}")
+        logger.error("File parse error in /moderation: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -885,6 +1156,26 @@ async def moderation_analysis(
         df = df.fillna(df.mean(numeric_only=True))
 
     df = auto_reverse_score(df, model, log_fn=log)
+
+    # TC-40: manifest-variable models have no =~ lines — run_moderation() calls the
+    # PLS engine which requires at least one latent variable → guaranteed crash.
+    # Detect this up front and route to the OLS fallback instead.
+    try:
+        _mod_parsed = parse_lavaan(model)
+        _is_manifest_only = not _mod_parsed.get("measurement")
+    except Exception:
+        _is_manifest_only = False
+
+    if _is_manifest_only:
+        log("info", "Manifest-variable moderation model (no =~) — using OLS fallback.")
+        try:
+            _manifest_result = _manifest_moderation(df, model, bootstrap_n=bootstrap_n, log_fn=log)
+        except Exception as exc:
+            logger.error("OLS manifest moderation failed: %s", exc, exc_info=True)
+            if run_id in _run_store: _run_store[run_id]["done"] = True
+            raise HTTPException(422, f"Manifest moderation failed: {exc}")
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        return JSONResponse(content=_manifest_result)
 
     loop = asyncio.get_event_loop()
     try:
@@ -899,14 +1190,15 @@ async def moderation_analysis(
         )
     except ValueError as exc:
         log("error", f"Moderation failed: {exc}")
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(422, str(exc))
     except Exception as exc:
-        log("error", f"Moderation unexpected error: {exc}")
-        _run_store[run_id]["done"] = True
-        raise HTTPException(500, f"Moderation error: {exc}")
+        log("error", "Moderation unexpected error — see server logs for details")
+        logger.error("Unexpected error in /moderation: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "Moderation analysis failed. Check server logs.")
 
-    _run_store[run_id]["done"] = True
+    if run_id in _run_store: _run_store[run_id]["done"] = True
     return result
 
 
@@ -955,11 +1247,12 @@ async def ipma_analysis(
     try:
         df = _parse_upload(raw, file.filename)
     except HTTPException:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise
     except Exception as exc:
-        _run_store[run_id]["done"] = True
-        raise HTTPException(422, f"File parse error: {exc}")
+        logger.error("File parse error in /ipma: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -984,14 +1277,15 @@ async def ipma_analysis(
         )
     except ValueError as exc:
         log("error", f"IPMA failed: {exc}")
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(422, str(exc))
     except Exception as exc:
-        log("error", f"IPMA unexpected error: {exc}")
-        _run_store[run_id]["done"] = True
-        raise HTTPException(500, f"IPMA error: {exc}")
+        log("error", "IPMA unexpected error — see server logs for details")
+        logger.error("Unexpected error in /ipma: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "IPMA analysis failed. Check server logs.")
 
-    _run_store[run_id]["done"] = True
+    if run_id in _run_store: _run_store[run_id]["done"] = True
     return result
 
 
@@ -1033,17 +1327,19 @@ async def nca_analysis(
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
     log = _make_log_fn(run_id)
+    n_permutations = min(n_permutations, 20_000)
 
     raw = await file.read()
     log("step", f"NCA: parsing {file.filename}")
     try:
         df = _parse_upload(raw, file.filename)
     except HTTPException:
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise
     except Exception as exc:
-        _run_store[run_id]["done"] = True
-        raise HTTPException(422, f"File parse error: {exc}")
+        logger.error("File parse error in /nca: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
 
     if missing == "listwise":
         df = df.dropna()
@@ -1065,12 +1361,109 @@ async def nca_analysis(
         )
     except ValueError as exc:
         log("error", f"NCA failed: {exc}")
-        _run_store[run_id]["done"] = True
+        if run_id in _run_store: _run_store[run_id]["done"] = True
         raise HTTPException(422, str(exc))
     except Exception as exc:
-        log("error", f"NCA unexpected error: {exc}")
-        _run_store[run_id]["done"] = True
-        raise HTTPException(500, f"NCA error: {exc}")
+        log("error", "NCA unexpected error — see server logs for details")
+        logger.error("Unexpected error in /nca: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "NCA analysis failed. Check server logs.")
 
-    _run_store[run_id]["done"] = True
+    if run_id in _run_store: _run_store[run_id]["done"] = True
+    return result
+
+
+# ── v0.7: Moderated Mediation ─────────────────────────────────────────────────
+
+@app.post("/mod-mediation", response_model=ModMediationResult)
+async def mod_mediation_analysis(
+    file:        UploadFile = File(...),
+    model:       str        = Form(...),
+    algorithm:   str        = Form("pls"),
+    bootstrap_n: int        = Form(500),
+    missing:     str        = Form("listwise"),
+    run_id:      str        = Form(None),
+):
+    """
+    Moderated Mediation / Conditional Process Analysis.
+
+    Edwards & Lambert (2007); Hayes (2018, Chapters 11–14).
+
+    Detect interaction terms (``X*W``) in the structural syntax and compute:
+      - Path coefficients a, b, c', and the interaction β.
+      - Index of Moderated Mediation (IMM) with bootstrap 95 % CI.
+      - Conditional indirect effects at W = −1 SD, mean (0), +1 SD.
+
+    Supported Hayes PROCESS patterns
+    ---------------------------------
+    a-path moderation (Process Model 7):
+        M ~ X + W + X*W
+        Y ~ X + M
+
+    b-path moderation (Process Model 14):
+        M ~ X
+        Y ~ X + M + W + M*W
+
+    Both paths (Process Model 58/59): combine both interaction terms.
+
+    Form fields
+    -----------
+    file        : CSV, XLSX, or SAV dataset.
+    model       : lavaan syntax with at least one ``X*W`` interaction term.
+    algorithm   : ``pls`` (default) | ``cb`` | ``wls``.
+    bootstrap_n : Bootstrap resamples for IMM and conditional IE CIs (default 500).
+    missing     : ``listwise`` (default) | ``mean``.
+    run_id      : Optional SSE tracking ID.
+
+    Returns
+    -------
+    ModMediationResult — one ModMediationPath entry per detected X→M→Y chain.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    bootstrap_n = min(bootstrap_n, 20_000)
+
+    raw = await file.read()
+    log("step", f"ModMediation: parsing {file.filename}")
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise
+    except Exception as exc:
+        logger.error("File parse error in /mod-mediation: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
+
+    if missing == "listwise":
+        df = df.dropna()
+        log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+
+    df = auto_reverse_score(df, model, log_fn=log)
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: run_mod_mediation(
+                df, model,
+                algorithm=algorithm,
+                bootstrap_n=bootstrap_n,
+                log_fn=log,
+            ),
+        )
+    except ValueError as exc:
+        log("error", f"ModMediation failed: {exc}")
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        log("error", "ModMediation unexpected error — see server logs for details")
+        logger.error("Unexpected error in /mod-mediation: %s", exc, exc_info=True)
+        if run_id in _run_store: _run_store[run_id]["done"] = True
+        raise HTTPException(500, "Moderated mediation analysis failed. Check server logs.")
+
+    if run_id in _run_store: _run_store[run_id]["done"] = True
     return result

@@ -17,12 +17,7 @@ from typing import Optional, Callable
 logger = logging.getLogger("naval_sem.engine")
 
 
-def _emit(log_fn, level: str, msg: str):
-    """Emit a structured log entry via callback and standard logger."""
-    if log_fn is not None:
-        log_fn(level, msg)
-    getattr(logger, level.lower(), logger.info)(msg)
-
+from app.engine_utils import _emit, _safe_float, _p_to_sig, _build_composites
 from app.parser import parse_lavaan, build_semopy_syntax
 from app.schemas import (
     ModelResult, PathParameter, FitIndices,
@@ -34,32 +29,21 @@ from app.schemas import (
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _safe_float(val, default=None):
-    try:
-        if hasattr(val, 'iloc'):   # pandas Series — extract scalar first
-            val = val.iloc[0]
-        v = float(val)
-        # CHANGE: Return `default` instead of `None` when NaN/Inf is detected
-        return default if (np.isnan(v) or np.isinf(v)) else round(v, 6)
-    except Exception as _e:
-        return default
-
-
-def _p_to_sig(p: Optional[float]) -> bool:
-    if p is None:
-        return False
-    return p < 0.05
+# _emit, _safe_float, _p_to_sig, _build_composites live in engine_utils.py
 
 
 def _fit_verdict(fit: FitIndices) -> FitIndices:
     if fit.cfi is not None:
+        # Thresholds are CB-SEM (Hu & Bentler 1999).
+        # For PLS, cfi here is ULS-based; these verdicts are informational only.
         fit.cfi_acceptable = fit.cfi >= 0.90
         fit.cfi_good = fit.cfi >= 0.95
     if fit.tli is not None:
         fit.tli_acceptable = fit.tli >= 0.90
         fit.tli_good = fit.tli >= 0.95
     if fit.rmsea is not None:
+        # Thresholds are CB-SEM (MacCallum et al. 1996).
+        # For PLS, rmsea here is ULS-based; these verdicts are informational only.
         fit.rmsea_acceptable = fit.rmsea <= 0.08
         fit.rmsea_good = fit.rmsea <= 0.06
     if fit.srmr is not None:
@@ -584,6 +568,134 @@ def _compute_fornell_larcker(
     return matrix, all_pass
 
 
+# ── PLS global fit indices ───────────────────────────────────────────────────
+
+def _compute_pls_global_fit(
+    df: pd.DataFrame,
+    pls_result,
+    parsed: dict,
+) -> tuple[Optional[float], Optional[float]]:
+    """
+    Approximate CFI and RMSEA for PLS-SEM using the ULS discrepancy.
+
+    Uses the Unweighted Least Squares discrepancy F_ULS = 0.5·tr[(S−Σ)²]
+    rather than the ML discrepancy, which is required for CB-SEM but
+    inappropriate for PLS (PLS does not minimise F_ML; applying it produces
+    systematically inflated chi-square and poor CFI/RMSEA vs CB-SEM benchmarks).
+
+    The Hu & Bentler (1999) cutoffs CFI≥0.90 / RMSEA<0.08 DO NOT APPLY to
+    these values.  Use SRMR (computed in pls.py) as the primary global fit
+    criterion for PLS-SEM.  These CFI/RMSEA values are supplementary only.
+
+    Degrees of freedom (covariance-structure approximation)
+    -------------------------------------------------------
+      n_free_params  = p (outer loadings) + q*(q-1)/2 (unique LV correlations)
+      df_model       = p*(p-1)/2 − n_free_params        (unique off-diagonals)
+      df_null        = p*(p-1)/2                          (independence model)
+
+    Reference: Henseler, Ringle & Sarstedt (2014) JAMS 43(1), 115–135.
+
+    Returns (cfi, rmsea) in [0, 1], or (None, None) on any numeric error.
+    """
+    try:
+        measurement = parsed.get("measurement", {})
+        if not measurement:
+            return None, None
+
+        # ── Gather indicators in a stable order ───────────────────────────
+        all_indicators: list[str] = []
+        lv_for_ind: dict[str, str] = {}
+        for lv, inds in measurement.items():
+            for ind in inds:
+                if ind not in lv_for_ind:
+                    all_indicators.append(ind)
+                    lv_for_ind[ind] = lv
+
+        obs = [ind for ind in all_indicators if ind in df.columns]
+        p   = len(obs)
+        n   = len(df)
+        if p < 2 or n <= p:
+            return None, None
+
+        # ── Loading lookup ────────────────────────────────────────────────
+        lam: dict[str, float] = {}
+        for lv, ind_map in pls_result.outer_loadings.items():
+            for ind, loading in ind_map.items():
+                lam[ind] = float(loading)
+
+        # ── LV inter-correlations from actual PLS scores ──────────────────
+        lvs     = [lv for lv in measurement if lv in pls_result.outer_loadings]
+        q       = len(lvs)
+        lv_idx  = {lv: i for i, lv in enumerate(lvs)}
+        scores_df  = pls_result.scores
+        scores_arr = (
+            scores_df[lvs].values
+            if hasattr(scores_df, "columns")
+            else scores_df
+        )
+        phi = np.corrcoef(scores_arr.T) if q > 1 else np.array([[1.0]])
+        phi = np.clip(phi, -1.0, 1.0)
+
+        # ── Sample correlation matrix S ───────────────────────────────────
+        S = df[obs].corr(numeric_only=True).values.astype(float)
+
+        # ── Model-implied correlation matrix Σ ────────────────────────────
+        Sigma = np.zeros((p, p))
+        for i, ind_i in enumerate(obs):
+            lv_i  = lv_for_ind.get(ind_i)
+            lam_i = lam.get(ind_i, 0.0)
+            for j, ind_j in enumerate(obs):
+                lv_j  = lv_for_ind.get(ind_j)
+                lam_j = lam.get(ind_j, 0.0)
+                if i == j:
+                    Sigma[i, j] = 1.0
+                elif lv_i is None or lv_j is None:
+                    Sigma[i, j] = S[i, j]          # passthrough
+                elif lv_i == lv_j:
+                    Sigma[i, j] = lam_i * lam_j    # within-block
+                else:
+                    li = lv_idx.get(lv_i, 0)
+                    lj = lv_idx.get(lv_j, 0)
+                    Sigma[i, j] = lam_i * phi[li, lj] * lam_j  # cross-block
+
+        # Regularise for positive-definiteness
+        eps   = 1e-6
+        S_r   = S     + eps * np.eye(p)
+        Sig_r = Sigma + eps * np.eye(p)
+
+        # ── ULS discrepancy: F_ULS = 0.5 · tr[(S − Σ)²]  ─────────────────
+        # Preferred over ML discrepancy for PLS: no normality / ML assumption.
+        # (Henseler, Ringle & Sarstedt 2014; Hair et al. 2022 ch. 4)
+        residual   = S_r - Sig_r
+        F_model    = 0.5 * float(np.einsum("ij,ij->", residual, residual))
+        chi2_model = (n - 1) * F_model
+
+        # ── Degrees of freedom ────────────────────────────────────────────
+        n_free   = p + q * (q - 1) // 2   # loadings + unique LV correlations
+        df_model = max(1, p * (p - 1) // 2 - n_free)
+
+        # ── Null (independence): Σ_null = I  →  residual = S − I (off-diags only)
+        off_diag = S_r.copy()
+        np.fill_diagonal(off_diag, 0.0)
+        F_null    = 0.5 * float(np.einsum("ij,ij->", off_diag, off_diag))
+        chi2_null = (n - 1) * F_null
+        df_null   = p * (p - 1) // 2       # all off-diagonals constrained = 0
+
+        # ── CFI (Bentler 1990 formula, ULS-based ncp) ─────────────────────
+        ncp_model = max(0.0, chi2_model - df_model)
+        ncp_null  = max(1e-12, chi2_null  - df_null)
+        cfi       = round(max(0.0, min(1.0, 1.0 - ncp_model / ncp_null)), 6)
+
+        # ── RMSEA (Steiger 1990 formula, ULS-based) ───────────────────────
+        rmsea_sq = max(0.0, (chi2_model - df_model) / (df_model * (n - 1)))
+        rmsea    = round(min(1.0, float(np.sqrt(rmsea_sq))), 6)
+
+        return cfi, rmsea
+
+    except Exception:
+        return None, None
+
+
 # ── Main fit function ─────────────────────────────────────────────────────────
 
 def fit_model(
@@ -677,9 +789,11 @@ def fit_model(
         _emit(log_fn, "step", "Computing PLS fit indices (SRMR · AVE · CR)")
         fit = FitIndices()
 
-        # PLS-SEM: CFI/RMSEA/χ²/AIC/BIC are not applicable
-        fit.cfi        = None
-        fit.rmsea      = None
+        # PLS-SEM: approximate global fit via ML discrepancy function
+        # (Lohmöller 1989; Henseler et al. 2014; Bentler / Steiger formulae)
+        _pls_cfi, _pls_rmsea = _compute_pls_global_fit(df, pls_result, parsed)
+        fit.cfi        = _pls_cfi
+        fit.rmsea      = _pls_rmsea
         fit.chi_square = None
         fit.df         = None
         fit.p_value    = None
@@ -705,18 +819,95 @@ def fit_model(
 
     # ── CB-SEM / WLS branch ───────────────────────────────────────────────────
     else:
-        try:
-            sem_model = Model(syntax)
-            if estimator == "WLS":
+        # TC-31: semopy's SLSQP optimizer sporadically hits a degenerate
+        # starting point on real datasets (observed: 3/4 runs fail in < 2 s
+        # on HS1939).  Strategy: two SLSQP attempts with fresh Model objects
+        # (resolves transient thread/state issues), then an L-BFGS-B fallback
+        # for persistent ill-conditioning.  WLS uses a single attempt because
+        # its objective is fundamentally different and solver-swapping is not
+        # meaningful there.
+        _last_cbsem_exc: Optional[Exception] = None
+        sem_model = None
+
+        if estimator == "WLS":
+            try:
+                sem_model = Model(syntax)
                 sem_model.fit(df, obj="WLS")
-            else:
-                sem_model.fit(df)
-            algo_label = "CB-SEM" if algorithm == "cb" else ("WLS" if algorithm == "wls" else "CB-SEM (ML)")
-        except Exception as e:
-            raise ValueError(f"Model did not converge: {e}")
+            except Exception as e:
+                raise ValueError(f"Model did not converge: {e}")
+        else:
+            # TC-52 guard: near-constant columns make S rank-deficient, causing
+            # all solver attempts to fail.  Surface a clear error immediately.
+            # Scope to model indicator columns only (not all df.columns) — extra
+            # columns such as HS1939's 'school'/'grade' strings would raise
+            # TypeError: Cannot perform reduction 'std' with string dtype (TC-31).
+            _indicator_cols = [c for c in parsed.get("observed_vars", []) if c in df.columns]
+            _near_const = [
+                c for c in _indicator_cols
+                if pd.api.types.is_numeric_dtype(df[c]) and df[c].std(ddof=1) < 1e-6
+            ]
+            if _near_const:
+                raise ValueError(
+                    f"CB-SEM cannot fit near-constant columns (std ≈ 0): "
+                    f"{_near_const}. Check data scaling or switch to PLS-SEM."
+                )
+            _cb_solvers = ["SLSQP", "SLSQP", "L-BFGS-B", "SLSQP_standardised"]
+            # _df_fit tracks which dataframe was actually used for fitting;
+            # it may be z-scored (SLSQP_standardised) and must be forwarded
+            # to all downstream calls (calc_stats, predict_factors, _compute_srmr)
+            # so they operate on the same data the model internals reference.
+            _df_fit = df
+            for _att, _slv in enumerate(_cb_solvers):
+                try:
+                    _df_attempt = df
+                    _solver  = _slv
+                    if _slv == "SLSQP_standardised":
+                        # TC-52 fix: column-wise z-scoring eliminates scale-driven
+                        # ill-conditioning of the sample covariance matrix, which is
+                        # the proximate trigger for scipy.linalg.eigvalsh non-convergence
+                        # when correlated observed-indicator residuals (e.g. POLDEM y~~y
+                        # constraints) push off-diagonal Theta eigenvalues near zero.
+                        _std = df.std(ddof=1).replace(0, 1)
+                        _df_attempt = (df - df.mean()) / _std
+                        _solver = "SLSQP"
+                    sem_model = Model(syntax)
+                    try:
+                        sem_model.fit(_df_attempt, solver=_solver)
+                    except TypeError:
+                        # Older semopy versions: fit() has no solver kwarg
+                        sem_model.fit(_df_attempt)
+                    _df_fit = _df_attempt   # record the dataframe used for this fit
+                    _last_cbsem_exc = None
+                    break                        # success — exit retry loop
+                except Exception as _e:
+                    _last_cbsem_exc = _e
+                    try:
+                        _emit(log_fn, "warn",
+                              f"CB-SEM attempt {_att + 1}/{len(_cb_solvers)} "
+                              f"failed (solver={_slv}): {str(_e)[:100]}")
+                    except Exception:
+                        pass   # never let a logging failure mask the real error
+                    sem_model = None
+            if sem_model is None:
+                raise ValueError(
+                    f"Model did not converge after {len(_cb_solvers)} "
+                    f"attempts: {_last_cbsem_exc}"
+                )
+
+        algo_label = (
+            "CB-SEM" if algorithm == "cb"
+            else ("WLS" if algorithm == "wls" else "CB-SEM (ML)")
+        )
 
         _emit(log_fn, "step", "Extracting parameter estimates")
-        params_df = sem_model.inspect()
+        try:
+            params_df = sem_model.inspect()
+        except Exception as _insp_exc:
+            raise ValueError(
+                f"CB-SEM model converged but parameter extraction failed "
+                f"(semopy inspect() error): {_insp_exc}. "
+                "Try switching to PLS-SEM or check the model specification."
+            ) from _insp_exc
 
         parameters = []
         for _, row in params_df.iterrows():
@@ -802,7 +993,7 @@ def fit_model(
             fit.rmsea      = _first_match("RMSEA")
             fit.srmr       = _first_match("SRMR")
             if fit.srmr is None:
-                fit.srmr   = _compute_srmr(sem_model, df, params_df, parsed)
+                fit.srmr   = _compute_srmr(sem_model, _df_fit, params_df, parsed)
             fit.chi_square = _first_match("chi2", "chi_square", "Chi2", "Chi-square")
             _df_raw        = _first_match("dof", "DoF", "df", "DF")
             fit.df         = int(_df_raw) if _df_raw is not None else None
@@ -831,7 +1022,7 @@ def fit_model(
 
             r2: dict = {}
             try:
-                factor_scores = sem_model.predict_factors(df)
+                factor_scores = sem_model.predict_factors(_df_fit)
                 preds_by_lhs: dict = {}
                 for rel in parsed["structural"]:
                     preds_by_lhs.setdefault(rel["lhs"], []).append(rel["rhs"])
@@ -869,7 +1060,7 @@ def fit_model(
 
         loadings: dict = {}
         try:
-            loadings = _extract_loadings(params_df, measurement, df)
+            loadings = _extract_loadings(params_df, measurement, _df_fit)
             if loadings:
                 fit.ave = _compute_ave(loadings)
             else:
@@ -1351,16 +1542,23 @@ def compute_htmt(df: pd.DataFrame, model_syntax: str) -> HTMTResult:
         for lv_b in lvs[i + 1:]:
             inds_a = measurement[lv_a]
             inds_b = measurement[lv_b]
+            # Single-indicator constructs have no within-LV variance to compare;
+            # HTMT is undefined for them — skip rather than emitting a 9999 sentinel
+            # that inflates max_htmt and triggers false advisory failures.
+            if len(inds_a) < 2 or len(inds_b) < 2:
+                continue
             cross = mean_abs_corr(inds_a, inds_b)
             within_a = mean_abs_corr(inds_a, inds_a, same=True)
             within_b = mean_abs_corr(inds_b, inds_b, same=True)
             denom = np.sqrt(within_a * within_b)
             htmt_val = cross / denom if denom > 0 else np.nan
+            if np.isnan(htmt_val):
+                continue
             entries.append(HTMTEntry(
                 construct_a=lv_a,
                 construct_b=lv_b,
-                htmt=round(float(htmt_val), 4) if not np.isnan(htmt_val) else 9999.0,
-                acceptable=htmt_val < 0.90 if not np.isnan(htmt_val) else False,
+                htmt=round(float(htmt_val), 4),
+                acceptable=htmt_val < 0.90,
             ))
 
     return HTMTResult(
@@ -1422,8 +1620,18 @@ def _compute_outer_weights_point_only(
         return []
 
     m = Model(syntax)
-    m.fit(df)
-    loadings = _extract_loadings(m.inspect(), measurement, df)
+    try:
+        m.fit(df)
+    except Exception as _fit_exc:
+        raise ValueError(
+            f"_compute_outer_weights_point_only: model fit failed: {_fit_exc}"
+        ) from _fit_exc
+    try:
+        loadings = _extract_loadings(m.inspect(), measurement, df)
+    except Exception as _insp_exc:
+        raise ValueError(
+            f"_compute_outer_weights_point_only: inspect() failed: {_insp_exc}"
+        ) from _insp_exc
 
     entries: list[OuterWeightEntry] = []
     for lv, indicators in measurement.items():
@@ -1917,23 +2125,7 @@ def compute_cmb(
 
 
 # ── Q² Blindfolding ────────────────────────────────────────────────────────────
-
-def _build_composites(
-    df: pd.DataFrame,
-    measurement: dict[str, list[str]],
-    structural: list[dict],
-) -> dict[str, pd.Series]:
-    """Build LV composite scores (mean of indicators) for all variables."""
-    composites: dict[str, pd.Series] = {}
-    for lv, indicators in measurement.items():
-        cols = [c for c in indicators if c in df.columns]
-        if cols:
-            composites[lv] = df[cols].mean(axis=1)
-    for rel in structural:
-        for var in (rel["lhs"], rel["rhs"]):
-            if var not in composites and var in df.columns:
-                composites[var] = df[var]
-    return composites
+# _build_composites lives in engine_utils.py
 
 
 def compute_q2(

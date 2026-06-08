@@ -191,7 +191,7 @@ class PLSEstimator:
         outer_weights_d = self._weights_to_dict(lvs, measurement, weights, ind_idx)
 
         # ── 7. Structural OLS ──────────────────────────────────────────────────
-        path_coefs, r_sq = self._structural_ols(lvs, structural, scores, lv_idx)
+        path_coefs, r_sq = self._structural_ols(lvs, structural, scores, lv_idx, df=df)
 
         # ── 8. SRMR ────────────────────────────────────────────────────────────
         srmr = self._compute_srmr(
@@ -369,11 +369,18 @@ class PLSEstimator:
         structural: List[dict],
         scores:     np.ndarray,
         lv_idx:     Dict[str, int],
+        df:         Optional[pd.DataFrame] = None,
     ) -> Tuple[Dict[str, Dict[str, float]], Dict[str, float]]:
         """
         OLS for the structural (inner) model.
         For each endogenous LV: regress its score on all predictor LV scores.
         Returns (path_coefficients, r_squared).
+
+        Observed covariates — predictors that appear in structural paths but
+        have no measurement block (e.g. mean-centred product columns created
+        by expand_interaction_terms) — are included as additional standardised
+        regressors when ``df`` is supplied.  Without this, the interaction
+        coefficient a3 / b3 would be silently dropped, causing IMM = 0.
         """
         from collections import defaultdict
 
@@ -389,14 +396,37 @@ class PLSEstimator:
             j = lv_idx.get(lhs)
             if j is None:
                 continue
-            rhs_valid = [r for r in rhs_list if r in lv_idx]
-            if not rhs_valid:
+
+            # Split predictors into latent variables vs. observed covariates
+            rhs_lv  = [r for r in rhs_list if r in lv_idx]
+            rhs_obs = (
+                [r for r in rhs_list
+                 if r not in lv_idx and df is not None and r in df.columns]
+                if df is not None else []
+            )
+
+            if not rhs_lv and not rhs_obs:
                 continue
 
-            y = scores[:, j]
-            X = np.column_stack(
-                [np.ones(n)] + [scores[:, lv_idx[r]] for r in rhs_valid]
-            )
+            y       = scores[:, j]
+            X_cols  = [np.ones(n)]
+            rhs_all = []
+
+            # LV scores
+            for r in rhs_lv:
+                X_cols.append(scores[:, lv_idx[r]])
+                rhs_all.append(r)
+
+            # Observed covariates: standardise to same unit scale as LV scores
+            for r in rhs_obs:
+                vals = df[r].astype(float).values
+                std  = float(vals.std(ddof=1))
+                if std < 1e-12:
+                    std = 1.0
+                X_cols.append((vals - vals.mean()) / std)
+                rhs_all.append(r)
+
+            X = np.column_stack(X_cols)
             try:
                 beta  = np.linalg.lstsq(X, y, rcond=None)[0]
                 y_hat = X @ beta
@@ -406,7 +436,7 @@ class PLSEstimator:
                 r_squared[lhs] = round(r2, 6)
 
                 path_coefs.setdefault(lhs, {})
-                for idx_r, rhs in enumerate(rhs_valid):
+                for idx_r, rhs in enumerate(rhs_all):
                     path_coefs[lhs][rhs] = round(float(beta[idx_r + 1]), 8)
             except Exception as _e:  # B112
                 logger.debug("Non-critical exception suppressed: %s", _e)

@@ -24,6 +24,11 @@ from typing import Callable, Optional
 import numpy as np
 import pandas as pd
 
+# ── Top-level imports (moved from inside compute_nca to fix TC-26 / TC-49) ────
+from app.engine_utils import _build_composites, _emit, _safe_float
+from app.parser import parse_lavaan
+from app.schemas import NCAEntry, NCAResult
+
 logger = logging.getLogger("naval_sem.nca")
 
 
@@ -239,7 +244,7 @@ def compute_nca(
     n_permutations: int = 1000,
     seed: int = 42,
     log_fn: Optional[Callable] = None,
-) -> "NCAResult":
+) -> NCAResult:
     """
     Necessary Condition Analysis (NCA) across all structural IV→DV pairs.
 
@@ -262,10 +267,6 @@ def compute_nca(
     -------
     NCAResult
     """
-    from app.engine import _build_composites, _emit, _safe_float
-    from app.parser import parse_lavaan
-    from app.schemas import NCAEntry, NCAResult
-
     _emit(log_fn, "step", f"NCA: parsing model ({n_permutations} permutations)")
 
     parsed      = parse_lavaan(model_syntax)

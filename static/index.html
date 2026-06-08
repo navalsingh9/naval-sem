@@ -1466,10 +1466,10 @@ button { cursor: pointer; }
       <div class="ani" onclick="showAna(this,'hoc')">HOC <span class="nbadge nb-v">v0.6</span></div>
 
       <div class="ans">Advanced</div>
-      <div class="ani soon">Moderation <span class="nbadge nb-07">v0.7</span></div>
-      <div class="ani soon">IPMA <span class="nbadge nb-07">v0.7</span></div>
-      <div class="ani soon">NCA <span class="nbadge nb-07">v0.7</span></div>
-      <div class="ani soon">Mod. mediation <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'moderation')">Moderation <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'ipma')">IPMA <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'nca')">NCA <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'mod_mediation')">Mod. mediation <span class="nbadge nb-07">v0.7</span></div>
 
       <div class="andiv"></div>
       <div class="ans">Robustness</div>
@@ -1493,7 +1493,7 @@ button { cursor: pointer; }
         <input class="cinp" id="mga-group-col" type="text" value="" placeholder="column name" oninput="_mgaCheckRunnable()">
         <div class="cfg-sep"></div>
         <select class="csel" id="mga-bootstrap"><option value="200">200 BS samples</option><option value="500" selected>500 BS samples</option><option value="1000">1 000 BS samples</option><option value="5000">5 000 BS samples</option><option value="10000">10 000 BS samples</option><option value="20000">20 000 BS samples</option></select>
-        <select class="csel" id="mga-perms"><option value="200">200 MICOM perms</option><option value="500" selected>500 MICOM perms</option><option value="1000">1 000 MICOM perms</option></select>
+        <select class="csel" id="mga-perms"><option value="200">200 MICOM perms</option><option value="500" selected>500 MICOM perms</option><option value="1000">1 000 MICOM perms</option><option value="5000">5 000 MICOM perms</option><option value="10000">10 000 MICOM perms</option><option value="20000">20 000 MICOM perms</option></select>
         <label class="cchk"><input type="checkbox" id="mga-run-micom" checked style="accent-color:var(--accent)"> MICOM</label>
         <select class="csel" id="mga-missing"><option value="listwise">Listwise</option><option value="mean">Mean impute</option></select>
         <button class="run-sm" id="mga-run-btn" onclick="runMGA()" disabled style="opacity:.4;cursor:not-allowed">▶&nbsp; Run MGA</button>
@@ -1659,6 +1659,9 @@ button { cursor: pointer; }
           <option value="0">No bootstrap</option>
           <option value="500">500 samples</option>
           <option value="1000">1 000 samples</option>
+          <option value="5000">5 000 samples</option>
+          <option value="10000">10 000 samples</option>
+          <option value="20000">20 000 samples</option>
         </select>
         <select class="csel" id="hoc-missing">
           <option value="listwise">Listwise</option>
@@ -1693,6 +1696,170 @@ button { cursor: pointer; }
         <div class="no-data">
           Upload a dataset and run to see HOC results here.
           <em>Supports repeated indicator and two-stage approaches.</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MODERATION content (v0.7) ── -->
+    <div class="ana-content" id="ana-moderation" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Algorithm</span>
+        <select class="csel" id="mod-algo">
+          <option value="pls">PLS-SEM</option>
+          <option value="cb">CB-SEM</option>
+          <option value="wls">WLS</option>
+        </select>
+        <div class="cfg-sep"></div>
+        <span class="cfg-lbl">Bootstrap</span>
+        <select class="csel" id="mod-bootstrap">
+          <option value="200">200 samples</option>
+          <option value="500" selected>500 samples</option>
+          <option value="1000">1 000 samples</option>
+          <option value="5000">5 000 samples</option>
+          <option value="10000">10 000 samples</option>
+          <option value="20000">20 000 samples</option>
+        </select>
+        <select class="csel" id="mod-missing">
+          <option value="listwise">Listwise</option>
+          <option value="mean">Mean impute</option>
+        </select>
+        <button class="run-sm" id="mod-run-btn" onclick="runModeration()" style="margin-left:auto">▶&nbsp; Run Moderation</button>
+      </div>
+      <div class="infonote">
+        Include an interaction term using <span style="font-family:var(--mono);color:var(--accent-text)">X*M</span> notation in the structural path, e.g.
+        <span style="font-family:var(--mono);color:var(--accent-text)">Y&nbsp;~&nbsp;X&nbsp;+&nbsp;M&nbsp;+&nbsp;X*M</span>.
+        Bootstrap CIs are computed for β<sub>XM</sub> and simple slopes at −1&nbsp;SD, mean, +1&nbsp;SD.
+      </div>
+      <div id="mod-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running moderation analysis…
+      </div>
+      <div id="mod-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="mod-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="mod-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">
+          Upload a dataset and run to see Moderation results here.
+          <em>Uses the product-of-composites approach with bootstrap CIs.</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── IPMA content (v0.7) ── -->
+    <div class="ana-content" id="ana-ipma" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Target LV</span>
+        <input class="cinp" id="ipma-target-lv" type="text" placeholder="dependent LV name">
+        <div class="cfg-sep"></div>
+        <span class="cfg-lbl">Algorithm</span>
+        <select class="csel" id="ipma-algo">
+          <option value="pls">PLS-SEM</option>
+          <option value="cb">CB-SEM</option>
+        </select>
+        <div class="cfg-sep"></div>
+        <span class="cfg-lbl">Scale</span>
+        <input class="cinp" id="ipma-scale-min" type="number" placeholder="min (e.g. 1)" style="width:80px">
+        <input class="cinp" id="ipma-scale-max" type="number" placeholder="max (e.g. 7)" style="width:80px">
+        <select class="csel" id="ipma-missing">
+          <option value="listwise">Listwise</option>
+          <option value="mean">Mean impute</option>
+        </select>
+        <button class="run-sm" id="ipma-run-btn" onclick="runIPMA()" style="margin-left:auto">▶&nbsp; Run IPMA</button>
+      </div>
+      <div class="infonote">
+        IPMA plots each predictor LV by <b>importance</b> (total effect) on X and <b>performance</b> (rescaled composite mean) on Y.
+        Provide the theoretical scale range for correct 0–100 rescaling; otherwise the observed range is used.
+      </div>
+      <div id="ipma-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running IPMA…
+      </div>
+      <div id="ipma-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="ipma-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="ipma-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">
+          Specify the target LV and run to see the IPMA map here.
+          <em>Importance = total effect · Performance = rescaled composite mean (0–100).</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Mod. mediation content (v0.7) ── -->
+    <div class="ana-content" id="ana-mod_mediation" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Algorithm</span>
+        <select class="csel" id="modmed-algo">
+          <option value="pls">PLS-SEM</option>
+          <option value="cb">CB-SEM</option>
+          <option value="wls">WLS</option>
+        </select>
+        <div class="cfg-sep"></div>
+        <span class="cfg-lbl">Bootstrap</span>
+        <select class="csel" id="modmed-bootstrap">
+          <option value="200">200 samples</option>
+          <option value="500" selected>500 samples</option>
+          <option value="1000">1 000 samples</option>
+          <option value="5000">5 000 samples</option>
+          <option value="10000">10 000 samples</option>
+          <option value="20000">20 000 samples</option>
+        </select>
+        <select class="csel" id="modmed-missing">
+          <option value="listwise">Listwise</option>
+          <option value="mean">Mean impute</option>
+        </select>
+        <button class="run-sm" id="modmed-run-btn" onclick="runModMediation()" style="margin-left:auto">▶&nbsp; Run Mod. Mediation</button>
+      </div>
+      <div class="infonote">
+        Use <span style="font-family:var(--mono);color:var(--accent-text)">X*W</span> in a structural path to specify moderation.
+        a-path: <span style="font-family:var(--mono);color:var(--accent-text)">M&nbsp;~&nbsp;X&nbsp;+&nbsp;W&nbsp;+&nbsp;X*W</span> &nbsp;·&nbsp;
+        b-path: <span style="font-family:var(--mono);color:var(--accent-text)">Y&nbsp;~&nbsp;M&nbsp;+&nbsp;W&nbsp;+&nbsp;M*W</span>.
+        Returns IMM (Index of Moderated Mediation) and conditional indirect effects at ±1&nbsp;SD.
+      </div>
+      <div id="modmed-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running moderated mediation analysis…
+      </div>
+      <div id="modmed-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="modmed-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="modmed-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">
+          Upload a dataset and run to see Moderated Mediation results here.
+          <em>IMM (Index of Moderated Mediation) + conditional indirect effects at −1 SD, mean, +1 SD.</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NCA content (v0.7) ── -->
+    <div class="ana-content" id="ana-nca" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Permutations</span>
+        <select class="csel" id="nca-perms">
+          <option value="500">500 perms</option>
+          <option value="1000" selected>1 000 perms</option>
+          <option value="2000">2 000 perms</option>
+          <option value="5000">5 000 perms</option>
+          <option value="10000">10 000 perms</option>
+          <option value="20000">20 000 perms</option>
+        </select>
+        <select class="csel" id="nca-missing">
+          <option value="listwise">Listwise</option>
+          <option value="mean">Mean impute</option>
+        </select>
+        <button class="run-sm" id="nca-run-btn" onclick="runNCA()" style="margin-left:auto">▶&nbsp; Run NCA</button>
+      </div>
+      <div class="infonote">
+        NCA tests <em>necessary</em> (not sufficient) conditions. CE-FDH (staircase) and CR-FDH (ceiling regression) lines are computed
+        for every structural IV → DV pair. Effect size d: &lt;0.1 negligible · 0.1–0.3 small · 0.3–0.5 medium · ≥0.5 large.
+      </div>
+      <div id="nca-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running NCA…
+      </div>
+      <div id="nca-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="nca-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="nca-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">
+          Upload a dataset and run NCA to see ceiling-line results here.
+          <em>CE-FDH staircase + CR-FDH regression ceilings with permutation p-values.</em>
         </div>
       </div>
     </div>
@@ -5824,6 +5991,446 @@ function _hocRenderResults(data) {
 }
 // ── end HOC tab ────────────────────────────────────────────────────────────
 
+// ── Moderation (v0.7) ──────────────────────────────────────────────────────
+async function runModeration() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _modShowError('No model syntax — draw or type a model in the Model builder first.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _modShowError('Upload a dataset in the Model tab first.'); return; }
+
+  const algo    = document.getElementById('mod-algo')?.value      || 'pls';
+  const bsN     = document.getElementById('mod-bootstrap')?.value || '500';
+  const missing = document.getElementById('mod-missing')?.value   || 'listwise';
+  const runId   = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+
+  _runT0 = performance.now();
+  const modBtn = document.getElementById('mod-run-btn');
+  if (modBtn) { modBtn.disabled = true; modBtn.style.opacity = '0.4'; modBtn.style.cursor = 'not-allowed'; }
+  document.getElementById('mod-spinner').style.display = 'block';
+  document.getElementById('mod-error').style.display   = 'none';
+  document.getElementById('mod-results').style.display = 'none';
+  document.getElementById('mod-idle').style.display    = 'none';
+
+  const fd = new FormData();
+  fd.append('file',        file);
+  fd.append('model',       syntax);
+  fd.append('algorithm',   algo);
+  fd.append('bootstrap_n', bsN);
+  fd.append('missing',     missing);
+  fd.append('run_id',      runId);
+
+  _startLiveStream(runId, { label: `Moderation · algo: ${algo}`, bsSel: 'mod-bootstrap', bsN: parseInt(bsN) || 0 });
+
+  try {
+    const r    = await fetch('/moderation', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data);
+    _freezeReportSnapshot();
+    _renderModerationResults(data);
+    document.querySelectorAll('#rep-nav .rni[data-rni="moderation"]').forEach(el => el.classList.remove('rni-locked'));
+  } catch(err) {
+    _errRunRecord(err.message);
+    _modShowError('Moderation error: ' + err.message);
+  } finally {
+    if (modBtn) { modBtn.disabled = false; modBtn.style.opacity = ''; modBtn.style.cursor = ''; }
+  }
+}
+
+function _modShowError(msg) {
+  document.getElementById('mod-spinner').style.display = 'none';
+  document.getElementById('mod-results').style.display = 'none';
+  document.getElementById('mod-idle').style.display    = 'none';
+  const el = document.getElementById('mod-error');
+  el.textContent = '✗ ' + msg;
+  el.style.display = 'block';
+}
+
+function _renderModerationResults(data) {
+  document.getElementById('mod-spinner').style.display = 'none';
+  const el = document.getElementById('mod-results');
+  el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const params = data.parameters || data.moderation || [];
+
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Algorithm: <span style="color:var(--t1)">${data.algorithm || '—'}</span>
+    &nbsp;·&nbsp; Bootstrap: <span style="color:var(--t1)">${data.bootstrap_n ?? '—'}</span>
+    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+  </div>`;
+
+  if (params.length) {
+    const rows = params.map(p => `<tr>
+      <td style="color:var(--accent-text)">${p.lhs || p.path || ''}</td>
+      <td style="color:var(--t1)">${p.rhs || p.moderator || ''}</td>
+      <td style="color:var(--t0);text-align:right">${_fmt(p.estimate ?? p.beta)}</td>
+      <td style="color:var(--t2);text-align:right">${p.ci_low  != null ? _fmt(p.ci_low)  : '—'}</td>
+      <td style="color:var(--t2);text-align:right">${p.ci_high != null ? _fmt(p.ci_high) : '—'}</td>
+      <td style="color:var(--t2);text-align:right">${p.p_value != null ? _fmt(p.p_value) : '—'}</td>
+      <td style="text-align:center"><span class="${p.significant ? 'spill' : 'npill'}">${p.significant ? '✓' : '—'}</span></td>
+    </tr>`).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px">
+      <table class="gtable">
+        <thead><tr><th>Path</th><th>Moderator</th><th>β</th><th>CI low</th><th>CI high</th><th>p</th><th>Sig</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  if (data.simple_slopes?.length) {
+    const sRows = data.simple_slopes.map(s => `<tr>
+      <td style="color:var(--t1)">${s.level || ''}</td>
+      <td style="color:var(--t0);text-align:right">${_fmt(s.slope)}</td>
+      <td style="color:var(--t2);text-align:right">${_fmt(s.se)}</td>
+      <td style="color:var(--t2);text-align:right">${s.p_value != null ? _fmt(s.p_value) : '—'}</td>
+    </tr>`).join('');
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin:14px 0 6px">Simple slopes</div>
+      <div style="overflow-x:auto"><table class="gtable">
+        <thead><tr><th>Level</th><th>Slope</th><th>SE</th><th>p</th></tr></thead>
+        <tbody>${sRows}</tbody>
+      </table></div>`;
+  }
+
+  if (data.warnings?.length) {
+    html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── IPMA (v0.7) ────────────────────────────────────────────────────────────
+async function runIPMA() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _ipmaShowError('No model syntax — draw or type a model in the Model builder first.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _ipmaShowError('Upload a dataset in the Model tab first.'); return; }
+  const targetLV = (document.getElementById('ipma-target-lv')?.value || '').trim();
+  if (!targetLV) { _ipmaShowError('Specify a target LV name.'); return; }
+
+  const algo     = document.getElementById('ipma-algo')?.value      || 'pls';
+  const scaleMin = document.getElementById('ipma-scale-min')?.value || '';
+  const scaleMax = document.getElementById('ipma-scale-max')?.value || '';
+  const missing  = document.getElementById('ipma-missing')?.value   || 'listwise';
+  const runId    = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+
+  _runT0 = performance.now();
+  const ipmaBtn = document.getElementById('ipma-run-btn');
+  if (ipmaBtn) { ipmaBtn.disabled = true; ipmaBtn.style.opacity = '0.4'; ipmaBtn.style.cursor = 'not-allowed'; }
+  document.getElementById('ipma-spinner').style.display = 'block';
+  document.getElementById('ipma-error').style.display   = 'none';
+  document.getElementById('ipma-results').style.display = 'none';
+  document.getElementById('ipma-idle').style.display    = 'none';
+
+  const fd = new FormData();
+  fd.append('file',      file);
+  fd.append('model',     syntax);
+  fd.append('target_lv', targetLV);
+  fd.append('algorithm', algo);
+  fd.append('missing',   missing);
+  if (scaleMin) fd.append('scale_min', scaleMin);
+  if (scaleMax) fd.append('scale_max', scaleMax);
+  fd.append('run_id', runId);
+
+  _startLiveStream(runId, { label: `IPMA · target: ${targetLV} · algo: ${algo}`, bsSel: null, bsN: 0 });
+
+  try {
+    const r    = await fetch('/ipma', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data);
+    _freezeReportSnapshot();
+    _renderIPMAResults(data);
+    document.querySelectorAll('#rep-nav .rni[data-rni="ipma"]').forEach(el => el.classList.remove('rni-locked'));
+  } catch(err) {
+    _errRunRecord(err.message);
+    _ipmaShowError('IPMA error: ' + err.message);
+  } finally {
+    if (ipmaBtn) { ipmaBtn.disabled = false; ipmaBtn.style.opacity = ''; ipmaBtn.style.cursor = ''; }
+  }
+}
+
+function _ipmaShowError(msg) {
+  document.getElementById('ipma-spinner').style.display = 'none';
+  document.getElementById('ipma-results').style.display = 'none';
+  document.getElementById('ipma-idle').style.display    = 'none';
+  const el = document.getElementById('ipma-error');
+  el.textContent = '✗ ' + msg;
+  el.style.display = 'block';
+}
+
+function _renderIPMAResults(data) {
+  document.getElementById('ipma-spinner').style.display = 'none';
+  const el = document.getElementById('ipma-results');
+  el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const items = data.ipma || data.constructs || [];
+
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Target LV: <span style="color:var(--accent-text)">${data.target_lv || '—'}</span>
+    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+  </div>`;
+
+  if (items.length) {
+    const rows = items.map(c => `<tr>
+      <td style="color:var(--accent-text)">${c.construct || c.name || ''}</td>
+      <td style="color:var(--t0);text-align:right">${_fmt(c.importance ?? c.total_effect)}</td>
+      <td style="color:var(--t0);text-align:right">${_fmt(c.performance ?? c.perf_score)}</td>
+    </tr>`).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px">
+      <table class="gtable">
+        <thead><tr><th>Construct</th><th>Importance (total effect)</th><th>Performance (0–100)</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  if (data.warnings?.length) {
+    html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── Moderated Mediation (v0.7) ─────────────────────────────────────────────
+async function runModMediation() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _modmedShowError('No model syntax — draw or type a model in the Model builder first.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _modmedShowError('Upload a dataset in the Model tab first.'); return; }
+
+  const algo    = document.getElementById('modmed-algo')?.value      || 'pls';
+  const bsN     = document.getElementById('modmed-bootstrap')?.value || '500';
+  const missing = document.getElementById('modmed-missing')?.value   || 'listwise';
+  const runId   = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+
+  _runT0 = performance.now();
+  const btn = document.getElementById('modmed-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('modmed-spinner').style.display = 'block';
+  document.getElementById('modmed-error').style.display   = 'none';
+  document.getElementById('modmed-results').style.display = 'none';
+  document.getElementById('modmed-idle').style.display    = 'none';
+
+  const fd = new FormData();
+  fd.append('file',        file);
+  fd.append('model',       syntax);
+  fd.append('algorithm',   algo);
+  fd.append('bootstrap_n', bsN);
+  fd.append('missing',     missing);
+  fd.append('run_id',      runId);
+
+  _startLiveStream(runId, { label: `Mod. Mediation · algo: ${algo}`, bsSel: 'modmed-bootstrap', bsN: parseInt(bsN) || 0 });
+
+  try {
+    const r    = await fetch('/mod-mediation', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data);
+    _renderModMediationResults(data);
+  } catch(err) {
+    _errRunRecord(err.message);
+    _modmedShowError('Moderated mediation error: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+  }
+}
+
+function _modmedShowError(msg) {
+  document.getElementById('modmed-spinner').style.display = 'none';
+  document.getElementById('modmed-results').style.display = 'none';
+  document.getElementById('modmed-idle').style.display    = 'none';
+  const el = document.getElementById('modmed-error');
+  el.textContent = '✗ ' + msg;
+  el.style.display = 'block';
+}
+
+function _renderModMediationResults(data) {
+  document.getElementById('modmed-spinner').style.display = 'none';
+  const el = document.getElementById('modmed-results');
+  el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const _sig = (lo, hi) => (lo != null && hi != null && !(lo <= 0 && hi >= 0));
+
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Algorithm: <span style="color:var(--t1)">${data.algorithm || '—'}</span>
+    &nbsp;·&nbsp; Bootstrap: <span style="color:var(--t1)">${data.bootstrap_n ?? '—'}</span>
+    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+  </div>`;
+
+  (data.paths || []).forEach((p, idx) => {
+    const pathLabel = p.moderated_path === 'a'
+      ? `a-path moderated: W=(${p.w}) moderates ${p.x}→${p.m}`
+      : `b-path moderated: W=(${p.w}) moderates ${p.m}→${p.y}`;
+
+    // IMM row
+    const immSig = _sig(p.imm_ci_lower_95, p.imm_ci_upper_95);
+    html += `
+    <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:4px">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Chain ${idx + 1}: ${p.x} → ${p.m} → ${p.y}
+        <span style="color:var(--accent-text);margin-left:8px">${pathLabel}</span>
+      </div>
+      <table class="gtable" style="margin-bottom:10px"><thead>
+        <tr><th>Path</th><th>β</th><th>CI 95% lo</th><th>CI 95% hi</th><th>Sig</th></tr>
+      </thead><tbody>
+        <tr>
+          <td style="color:var(--t1)">${p.x} → ${p.m} (a)</td>
+          <td style="text-align:right">${_fmt(p.a_path)}</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:center">—</td>
+        </tr>
+        <tr>
+          <td style="color:var(--t1)">${p.m} → ${p.y} (b)</td>
+          <td style="text-align:right">${_fmt(p.b_path)}</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:center">—</td>
+        </tr>
+        <tr>
+          <td style="color:var(--t1)">${p.x} → ${p.y} (c′)</td>
+          <td style="text-align:right">${_fmt(p.c_prime)}</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:center">—</td>
+        </tr>
+        ${p.a3_interaction != null ? `<tr>
+          <td style="color:var(--accent-text)">${p.x}×${p.w} → ${p.m} (a₃)</td>
+          <td style="text-align:right">${_fmt(p.a3_interaction)}</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:center">—</td>
+        </tr>` : ''}
+        ${p.b3_interaction != null ? `<tr>
+          <td style="color:var(--accent-text)">${p.m}×${p.w} → ${p.y} (b₃)</td>
+          <td style="text-align:right">${_fmt(p.b3_interaction)}</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:right;color:var(--t2)">—</td>
+          <td style="text-align:center">—</td>
+        </tr>` : ''}
+        <tr style="border-top:1px solid var(--line)">
+          <td style="color:var(--accent-text);font-weight:600">IMM</td>
+          <td style="text-align:right;font-weight:600">${_fmt(p.imm)}</td>
+          <td style="text-align:right;color:var(--t2)">${_fmt(p.imm_ci_lower_95)}</td>
+          <td style="text-align:right;color:var(--t2)">${_fmt(p.imm_ci_upper_95)}</td>
+          <td style="text-align:center"><span class="${immSig ? 'spill' : 'npill'}">${immSig ? '✓' : '—'}</span></td>
+        </tr>
+      </tbody></table>
+
+      <div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin:10px 0 6px">
+        Conditional indirect effects
+      </div>
+      <table class="gtable"><thead>
+        <tr><th>W level</th><th>W value</th><th>IE</th><th>CI lo</th><th>CI hi</th><th>Sig</th></tr>
+      </thead><tbody>
+        ${(p.conditional_effects || []).map(c => `<tr>
+          <td style="color:var(--t1)">${c.moderator_level}</td>
+          <td style="text-align:right;color:var(--t2)">${_fmt(c.moderator_value)}</td>
+          <td style="text-align:right">${_fmt(c.indirect_effect)}</td>
+          <td style="text-align:right;color:var(--t2)">${_fmt(c.ci_lower_95)}</td>
+          <td style="text-align:right;color:var(--t2)">${_fmt(c.ci_upper_95)}</td>
+          <td style="text-align:center"><span class="${c.significant ? 'spill' : 'npill'}">${c.significant ? '✓' : '—'}</span></td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>`;
+  });
+
+  if (data.warnings?.length) {
+    html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── NCA (v0.7) ─────────────────────────────────────────────────────────────
+async function runNCA() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _ncaShowError('No model syntax — draw or type a model in the Model builder first.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _ncaShowError('Upload a dataset in the Model tab first.'); return; }
+
+  const perms   = document.getElementById('nca-perms')?.value   || '1000';
+  const missing = document.getElementById('nca-missing')?.value || 'listwise';
+  const runId   = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+
+  _runT0 = performance.now();
+  const ncaBtn = document.getElementById('nca-run-btn');
+  if (ncaBtn) { ncaBtn.disabled = true; ncaBtn.style.opacity = '0.4'; ncaBtn.style.cursor = 'not-allowed'; }
+  document.getElementById('nca-spinner').style.display = 'block';
+  document.getElementById('nca-error').style.display   = 'none';
+  document.getElementById('nca-results').style.display = 'none';
+  document.getElementById('nca-idle').style.display    = 'none';
+
+  const fd = new FormData();
+  fd.append('file',    file);
+  fd.append('model',   syntax);
+  fd.append('perms',   perms);
+  fd.append('missing', missing);
+  fd.append('run_id',  runId);
+
+  _startLiveStream(runId, { label: `NCA · perms: ${perms}`, bsSel: null, bsN: 0 });
+
+  try {
+    const r    = await fetch('/nca', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data);
+    _freezeReportSnapshot();
+    _renderNCAResults(data);
+  } catch(err) {
+    _errRunRecord(err.message);
+    _ncaShowError('NCA error: ' + err.message);
+  } finally {
+    if (ncaBtn) { ncaBtn.disabled = false; ncaBtn.style.opacity = ''; ncaBtn.style.cursor = ''; }
+  }
+}
+
+function _ncaShowError(msg) {
+  document.getElementById('nca-spinner').style.display = 'none';
+  document.getElementById('nca-results').style.display = 'none';
+  document.getElementById('nca-idle').style.display    = 'none';
+  const el = document.getElementById('nca-error');
+  el.textContent = '✗ ' + msg;
+  el.style.display = 'block';
+}
+
+function _renderNCAResults(data) {
+  document.getElementById('nca-spinner').style.display = 'none';
+  const el = document.getElementById('nca-results');
+  el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const paths = data.paths || data.nca || [];
+
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Permutations: <span style="color:var(--t1)">${data.permutations ?? '—'}</span>
+    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+  </div>`;
+
+  if (paths.length) {
+    const rows = paths.map(p => {
+      const d = p.effect_size ?? p.d ?? null;
+      const dLbl = d == null ? '—' : d < 0.1 ? 'negligible' : d < 0.3 ? 'small' : d < 0.5 ? 'medium' : 'large';
+      return `<tr>
+        <td style="color:var(--accent-text)">${p.x || p.iv || ''}</td>
+        <td style="color:var(--t1)">${p.y || p.dv || ''}</td>
+        <td style="color:var(--t0);text-align:right">${_fmt(p.d_cefdh ?? p.d)}</td>
+        <td style="color:var(--t0);text-align:right">${_fmt(p.d_crfdh ?? p.d_cr)}</td>
+        <td style="color:var(--t2);text-align:right">${p.p_value != null ? _fmt(p.p_value) : '—'}</td>
+        <td style="color:var(--t2)">${dLbl}</td>
+      </tr>`;
+    }).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px">
+      <table class="gtable">
+        <thead><tr><th>IV</th><th>DV</th><th>d CE-FDH</th><th>d CR-FDH</th><th>p</th><th>Size</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  if (data.warnings?.length) {
+    html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  }
+  el.innerHTML = html;
+}
+// ── end v0.7 Advanced analysis tabs ────────────────────────────────────────
+
 </script>
 
 <div class="export-toast" id="export-toast">
@@ -5892,7 +6499,7 @@ function showAna(el, id) {
   // Update formula bar label to reflect active analysis panel
   const fbLabel = document.getElementById('fb-ctx-label');
   if (fbLabel) {
-    const _fbAnaMap = { mga: 'MGA', hoc: 'HOC' };
+    const _fbAnaMap = { mga: 'MGA', hoc: 'HOC', moderation: 'Moderation', ipma: 'IPMA', nca: 'NCA' };
     fbLabel.textContent = _fbAnaMap[id] || 'Analyse';
   }
 }

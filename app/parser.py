@@ -114,6 +114,10 @@ def parse_lavaan(model: str) -> Dict:
             parts = line.split("~", 1)
             lhs = parts[0].strip()
             rhs_vars = [v.strip() for v in re.split(r"\+", parts[1]) if v.strip()]
+            if not lhs:
+                raise ValueError(f"Missing LHS in structural path: {line}")
+            if not rhs_vars:
+                raise ValueError(f"No predictors found in structural path: {line}")
             for rhs in rhs_vars:
                 structural.append({"lhs": lhs, "rhs": rhs})
 

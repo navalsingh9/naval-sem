@@ -28,11 +28,8 @@ from typing import Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from app.engine import (
-    _emit,
-    _safe_float,
-    fit_model,
-)
+from app.engine_utils import _emit, _safe_float
+from app.engine import fit_model
 from app.parser import (
     build_semopy_syntax,
     detect_hoc,

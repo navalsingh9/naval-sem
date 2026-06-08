@@ -467,3 +467,76 @@ class NCAResult(BaseModel):
     entries:         List[NCAEntry]
     n_permutations:  int
     warnings:        List[str] = []
+
+
+# ── Moderated Mediation (v0.7) ────────────────────────────────────────────────
+
+class ConditionalIndirectEffect(BaseModel):
+    """
+    Indirect effect of X on Y through M at one specific level of moderator W.
+
+    IE(w) = (a + a₃·w) × b        (a-path moderation)
+          = a × (b + b₃·w)        (b-path moderation)
+    Significant when the 95 % bootstrap CI excludes zero.
+    """
+    moderator_level: str           # "low (−1 SD)" | "mean (0)" | "high (+1 SD)"
+    moderator_value: float         # actual SD-scaled value used (e.g. −1.23)
+    indirect_effect: float         # point-estimate IE at this W level
+    ci_lower_95:     Optional[float] = None
+    ci_upper_95:     Optional[float] = None
+    significant:     bool = False  # True when CI excludes 0
+
+
+class ModMediationPath(BaseModel):
+    """
+    One complete X → M → Y chain with moderation on either the a- or b-path.
+
+    Fields
+    ------
+    x / m / y / w          : variable names
+    moderated_path          : "a" (W moderates X→M) | "b" (W moderates M→Y)
+    a_path                  : β for X → M
+    b_path                  : β for M → Y
+    c_prime                 : direct X → Y path (partial effect)
+    a3_interaction          : β for the X*W → M product term (a-path only)
+    b3_interaction          : β for the M*W → Y product term (b-path only)
+    imm                     : Index of Moderated Mediation (a₃·b or a·b₃)
+    imm_ci_lower/upper_95   : bootstrap 95 % CI for IMM
+    imm_significant         : True when CI excludes 0
+    conditional_effects     : IE at W = −1 SD, mean (0), +1 SD
+    """
+    x: str
+    m: str
+    y: str
+    w: str
+    moderated_path:   str          # "a" | "b"
+
+    a_path:           float        # X → M
+    b_path:           float        # M → Y
+    c_prime:          float        # direct X → Y
+
+    a3_interaction:   Optional[float] = None   # interaction term on a-path
+    b3_interaction:   Optional[float] = None   # interaction term on b-path
+
+    imm:              float        # Index of Moderated Mediation (point estimate)
+    imm_ci_lower_95:  Optional[float] = None
+    imm_ci_upper_95:  Optional[float] = None
+    imm_significant:  bool = False
+
+    conditional_effects: List[ConditionalIndirectEffect] = []
+
+
+class ModMediationResult(BaseModel):
+    """
+    Full Moderated Mediation / Conditional Process Analysis output.
+
+    Edwards & Lambert (2007); Hayes (2018, Chapters 11–14).
+    One ModMediationPath entry per detected X→M→Y chain.
+    """
+    algorithm:   str
+    n_obs:       int
+    bootstrap_n: int
+    paths:       List[ModMediationPath]
+    parameters:  List[PathParameter]   # full model parameter table
+    fit:         FitIndices
+    warnings:    List[str] = []
