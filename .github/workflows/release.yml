@@ -56,7 +56,7 @@ jobs:
 
       - name: Build MSI
         run: |
-          candle.exe installer\naval_sem.wxs -o installer\naval_sem.wixobj "-dProductVersion=${{ env.APP_VERSION }}"
+          candle.exe installer\naval_sem.wxs -o installer\naval_sem.wixobj "-dProductVersion=$env:APP_VERSION"
           light.exe installer\naval_sem.wixobj -o dist\NAVAL-SEM-Setup.msi -ext WixUIExtension
 
       - name: Upload EXE artifact

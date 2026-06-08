@@ -15,7 +15,7 @@ set -e
 cd "$(dirname "$0")"
 
 VERSION="${GITHUB_REF_NAME#v}"
-VERSION="${VERSION:-0.6.0}"
+VERSION="${VERSION:-0.7.1}"
 ARCH="amd64"
 PKG_NAME="naval-sem"
 DEB_DIR="dist/deb_pkg"
