@@ -325,7 +325,7 @@ def _expand_covariances(model_syntax: str) -> str:
     for raw in model_syntax.split("\n"):
         line = raw.strip()
         if "~~" in line and "=~" not in line:
-            m = re.match(r"^(\w+)\s*~~\s*([^\r\n]+)$", line) # noqa: ReDOS
+            m = re.match(r"^(\w+)\s*~~\s*([^\r\n]+)$", line) # lgtm[py/polynomial-redos]
             if m:
                 lhs = m.group(1).strip()
                 rhs_parts = [p.strip() for p in m.group(2).split("+") if p.strip()]
