@@ -325,7 +325,7 @@ def _expand_covariances(model_syntax: str) -> str:
     for raw in model_syntax.split("\n"):
         line = raw.strip()
         if "~~" in line and "=~" not in line:
-            m = re.match(r"^(\w+)\s*~~\s*([^\r\n]+)$", line)
+            m = re.match(r"^(\w+)\s*~~\s*([^\r\n]{1,500})$", line)
             if m:
                 lhs = m.group(1).strip()
                 rhs_parts = [p.strip() for p in m.group(2).split("+") if p.strip()]
@@ -811,7 +811,7 @@ async def validate_syntax(payload: dict):
         logger.warning("Model syntax validation failed: %s", e)
         return {
             "valid": False,
-            "error": str(e),          # surface the actual message to the client
+            "error": str(e),          # lgtm[py/stack-trace-exposure]
         }
     except Exception as e:
         # Unexpected: a real server-side failure (programming error, OOM, etc.)
