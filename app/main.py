@@ -809,10 +809,9 @@ async def validate_syntax(payload: dict):
         # Expected: user submitted syntactically incomplete/invalid lavaan syntax.
         # Log at WARNING — this is routine input validation, not a server fault.
         logger.warning("Model syntax validation failed: %s", e)
-        msg = str(e)
         return {
             "valid": False,
-            "error": msg,          
+            "error": "Invalid model syntax: " + e.args[0] if e.args else "Invalid model syntax.",          
         }
     except Exception as e:
         # Unexpected: a real server-side failure (programming error, OOM, etc.)
