@@ -259,6 +259,8 @@ button { cursor: pointer; }
   position: relative;
 }
 #results-drawer.open { height: 55vh; }
+#results-drawer.collapsed { height: auto !important; }
+#results-drawer.collapsed .res-body { display: none; }
 
 /* drag handle / header row */
 .drawer-header {
@@ -278,6 +280,15 @@ button { cursor: pointer; }
   color: var(--t3); cursor: pointer; transition: color .13s;
 }
 .drawer-close:hover { color: var(--t1); }
+.drawer-collapse-btn {
+  flex-shrink: 0; margin-left: 6px;
+  font-size: 13px; padding: 4px 12px;
+  background: transparent; border: .5px solid var(--line);
+  border-radius: var(--r-sm); color: var(--t2);
+  cursor: pointer; transition: all .15s;
+  font-family: var(--mono); line-height: 1;
+}
+.drawer-collapse-btn:hover { color: var(--t0); border-color: var(--line-strong); background: var(--glass-hover); }
 .sl { font-size: 9px; font-weight: 500; letter-spacing: 2px; color: var(--t3); text-transform: uppercase; padding: 8px 8px 3px; }
 .sl:first-child { padding-top: 2px; }
 .tool {
@@ -1439,6 +1450,7 @@ button { cursor: pointer; }
           <button class="rtab"     data-tab="hoc"        onclick="showRes('hoc')" id="drawer-hoc-tab" style="display:none">HOC ✦</button>
           <button class="rtab"     data-tab="downloads"  onclick="showRes('downloads')">⬇</button>
         </div>
+        <button class="drawer-collapse-btn" id="drawer-collapse-btn" onclick="toggleDrawerCollapse()" title="Collapse / expand results">▼</button>
       </div>
       <div class="res-body" id="res-body">
         <div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>
@@ -6594,6 +6606,25 @@ function toggleResultsPanel() {
   drawer.classList.toggle('open', !isOpen);
   if (btn) btn.innerHTML = isOpen ? '▲&nbsp;Results' : '▼&nbsp;Close';
   setTimeout(resize, 360); // wait for CSS transition
+}
+
+function toggleDrawerCollapse() {
+  const drawer = document.getElementById('results-drawer');
+  const btn    = document.getElementById('drawer-collapse-btn');
+  if (!drawer || !btn) return;
+  const isCollapsed = drawer.classList.contains('collapsed');
+  if (isCollapsed) {
+    drawer.classList.remove('collapsed');
+    drawer.classList.add('open');
+    btn.innerHTML = '▼';
+    btn.title = 'Collapse results';
+  } else {
+    drawer.classList.add('collapsed');
+    drawer.classList.add('open');
+    btn.innerHTML = '▲';
+    btn.title = 'Expand results';
+  }
+  setTimeout(resize, 360);
 }
 
 </script>
