@@ -12,6 +12,7 @@ import time
 import webbrowser
 import socket
 import logging
+import base64
 from pathlib import Path
 
 
@@ -99,6 +100,53 @@ def wait_for_server(port: int, timeout: float = 20.0) -> bool:
     return False
 
 
+# ── JS–Python bridge (pywebview) ──────────────────────────────────────────────
+class JsApi:
+    """
+    Methods exposed to the frontend via ``window.pywebview.api``.
+    The primary use is to open a native Save-As dialog — WebView2 does not
+    handle Blob / URL.createObjectURL() / a.click() downloads.
+    """
+    def save_file(self, data_b64: str, filename: str) -> bool:
+        """
+        Decode base64 *data_b64*, show a native Save dialog, and write the
+        decoded bytes to the chosen path.
+
+        Returns ``True`` if the file was saved, ``False`` if the user
+        cancelled the dialog.
+        """
+        try:
+            data = base64.b64decode(data_b64)
+        except Exception:
+            logging.error("JsApi.save_file: invalid base64")
+            return False
+
+        try:
+            import webview
+            result = webview.create_file_dialog(
+                webview.SAVE_DIALOG,
+                directory="",
+                allow_multiple=False,
+                save_filename=filename,
+            )
+        except Exception:
+            logging.error("JsApi.save_file: create_file_dialog failed", exc_info=True)
+            result = None
+
+        if not result:
+            return False
+
+        path = result[0] if isinstance(result, (list, tuple)) else result
+        try:
+            with open(path, "wb") as f:
+                f.write(data)
+            logging.info(f"Saved file: {path}")
+            return True
+        except Exception:
+            logging.error("JsApi.save_file: write failed", exc_info=True)
+            return False
+
+
 # ── Open UI ───────────────────────────────────────────────────────────────────
 def open_ui(url: str):
     # Try pywebview first (native desktop window)
@@ -112,6 +160,7 @@ def open_ui(url: str):
             height=820,
             resizable=True,
             min_size=(900, 600),
+            js_api=JsApi(),
         )
         webview.start()
         logging.info("pywebview window closed — exiting")

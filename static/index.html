@@ -2168,12 +2168,7 @@ function downloadCanvasAsPNG() {
   octx.restore();
 
   // ── Download ───────────────────────────────────────────────────────────────
-  const link = document.createElement('a');
-  link.href = offscreen.toDataURL('image/png');
-  link.download = 'naval_sem_model.png';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  _saveBase64(offscreen.toDataURL('image/png').split(',')[1], 'naval_sem_model.png', 'image/png');
 }
 
 function generateCanvasFromSyntax(syntax) {
@@ -3890,12 +3885,7 @@ function downloadResults(kind){
     fetch('/export',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:syntax,algorithm:algo,format:fmtMap[kind]})})
       .then(r=>r.text()).then(code=>{
-        const blob=new Blob([code],{type:'text/plain'});
-        const a=document.createElement('a');
-        a.href=URL.createObjectURL(blob);
-        a.download=`naval_sem_model.${extMap[kind]}`;
-        document.body.appendChild(a);a.click();
-        setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+        _saveText(code, `naval_sem_model.${extMap[kind]}`, 'text/plain');
       }).catch(()=>alert('Export failed.'));
     return;
   }
@@ -3913,12 +3903,7 @@ function downloadResults(kind){
   }
 
   if(!content&&mime==='text/csv') return;
-  const blob=new Blob([content],{type:mime});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=filename;
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+  _saveText(content, filename, mime);
 }
 
 // ── Event Listeners for Collapsible Panels ──────────────────────────────────
@@ -4178,9 +4163,7 @@ function _lsDownload() {
     return prefix;
   });
   const ts = new Date().toISOString().slice(0,19).replace(/[:.]/g,'-');
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `naval_sem_log_${ts}.txt`; a.click();
+  _saveText(lines.join('\n'), `naval_sem_log_${ts}.txt`, 'text/plain');
 }
 
 // Render the saved-log panel from localStorage
@@ -4326,11 +4309,9 @@ function toggleGlobalLiveLog(){
 
 function downloadAuditJSON(){
   if(!_liveAuditData) return;
-  const blob = new Blob([JSON.stringify(_liveAuditData, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `naval_sem_audit_${(_liveRunId||'run').slice(0,8)}.json`;
-  a.click();
+  _saveText(JSON.stringify(_liveAuditData, null, 2),
+    `naval_sem_audit_${(_liveRunId||'run').slice(0,8)}.json`,
+    'application/json');
 }
 
 function _startLiveStream(runId, opts = {}){
@@ -5393,10 +5374,8 @@ async function downloadReport(fmt){
 
     if(fmt==='png'){
       if(msg) msg.textContent = 'Saving PNG…';
-      const a = document.createElement('a');
-      a.href = cvs.toDataURL('image/png');
-      a.download = `naval_sem_report_${runId.slice(0,8)}_${ts}.png`;
-      a.click();
+      _saveBase64(cvs.toDataURL('image/png').split(',')[1],
+        `naval_sem_report_${runId.slice(0,8)}_${ts}.png`, 'image/png');
     } else {
       if(msg) msg.textContent = 'Building PDF…';
       const { jsPDF } = window.jspdf;
@@ -5437,7 +5416,9 @@ async function downloadReport(fmt){
         pdf.text(`NAVAL-SEM  ·  Page ${page+1} of ${totalPages}`, A4_W / 2, A4_H - 10, { align: 'center' });
       }
 
-      pdf.save(`naval_sem_report_${runId.slice(0,8)}_${ts}.pdf`);
+      if (msg) msg.textContent = 'Saving PDF…';
+      _saveBase64(pdf.output('datauristring').split(',')[1],
+        `naval_sem_report_${runId.slice(0,8)}_${ts}.pdf`, 'application/pdf');
     }
   } catch(err){
     console.error(err);
@@ -5818,13 +5799,42 @@ function downloadMGAJson(){
   _dlText(JSON.stringify(_mgaResult, null, 2), 'naval_sem_mga_results.json', 'application/json');
 }
 
-function _dlText(content, filename, mime){
-  const blob = new Blob([content], {type: mime});
+// ══ Universal download helpers (pywebview + browser compatible) ══
+async function _saveBase64(b64, filename, mime){
+  // pywebview path: use native Save-As dialog via the JsApi bridge
+  if(window.pywebview && window.pywebview.api && window.pywebview.api.save_file){
+    const ok = await window.pywebview.api.save_file(b64, filename);
+    if(!ok) return; // user cancelled
+    return;
+  }
+  // Browser path: POST to backend /download which returns Content-Disposition: attachment
+  const resp = await fetch('/download', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: b64, filename, mime})
+  });
+  if(!resp.ok){ alert('Download failed.'); return; }
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
+  a.href = url; a.download = filename;
   document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 1000);
+  setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+}
+
+async function _saveText(content, filename, mime){
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(content);
+  const chunkSize = 8192;
+  let binary = '';
+  for(let i = 0; i < bytes.length; i += chunkSize){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return _saveBase64(btoa(binary), filename, mime);
+}
+
+function _dlText(content, filename, mime){
+  _saveText(content, filename, mime);
 }
 // ── end MGA tab ────────────────────────────────────────────────────────────
 

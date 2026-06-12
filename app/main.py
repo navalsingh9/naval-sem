@@ -861,6 +861,42 @@ async def export_code(payload: dict):
     )
 
 
+@app.post("/download")
+async def download_file(payload: dict):
+    """
+    Save-file proxy for pywebview compatibility.
+
+    pywebview's WebView2 engine does not faithfully support Blob /
+    URL.createObjectURL() / a.click() downloads.  This endpoint accepts
+    base64-encoded content and returns it with a Content-Disposition:
+    attachment header so the webview (or any browser) triggers a proper
+    file-save flow.
+    """
+    import base64
+
+    content = payload.get("content", "")
+    filename = payload.get("filename", "download.dat")
+    mime = payload.get("mime", "application/octet-stream")
+
+    try:
+        data = base64.b64decode(content)
+    except Exception:
+        raise HTTPException(400, "Invalid base64 content")
+
+    safe_name = "".join(c for c in filename if c.isalnum() or c in "._-()")
+    if not safe_name:
+        safe_name = "download.dat"
+
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type=mime,
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "Content-Length": str(len(data)),
+        },
+    )
+
+
 # ── v0.6: Multi-Group Analysis ─────────────────────────────────────────────────
 
 def _parse_upload(content: bytes, filename: str) -> pd.DataFrame:
