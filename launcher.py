@@ -107,6 +107,10 @@ class JsApi:
     The primary use is to open a native Save-As dialog — WebView2 does not
     handle Blob / URL.createObjectURL() / a.click() downloads.
     """
+    def ping(self) -> str:
+        """Simple health-check to verify the JS-Python bridge is alive."""
+        return "pong"
+
     def save_file(self, data_b64: str, filename: str) -> bool:
         """
         Decode base64 *data_b64*, show a native Save dialog, and write the

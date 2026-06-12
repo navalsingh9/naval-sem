@@ -2180,7 +2180,7 @@ function downloadCanvasAsPNG() {
   octx.restore();
 
   // ── Download ───────────────────────────────────────────────────────────────
-  _saveBase64(offscreen.toDataURL('image/png').split(',')[1], 'naval_sem_model.png', 'image/png');
+  _triggerDownload(offscreen.toDataURL('image/png').split(',')[1], 'naval_sem_model.png', 'image/png');
 }
 
 function generateCanvasFromSyntax(syntax) {
@@ -5386,7 +5386,7 @@ async function downloadReport(fmt){
 
     if(fmt==='png'){
       if(msg) msg.textContent = 'Saving PNG…';
-      _saveBase64(cvs.toDataURL('image/png').split(',')[1],
+      _triggerDownload(cvs.toDataURL('image/png').split(',')[1],
         `naval_sem_report_${runId.slice(0,8)}_${ts}.png`, 'image/png');
     } else {
       if(msg) msg.textContent = 'Building PDF…';
@@ -5429,7 +5429,7 @@ async function downloadReport(fmt){
       }
 
       if (msg) msg.textContent = 'Saving PDF…';
-      _saveBase64(pdf.output('datauristring').split(',')[1],
+      _triggerDownload(pdf.output('datauristring').split(',')[1],
         `naval_sem_report_${runId.slice(0,8)}_${ts}.pdf`, 'application/pdf');
     }
   } catch(err){
@@ -5812,37 +5812,37 @@ function downloadMGAJson(){
 }
 
 // ══ Universal download helpers (pywebview + browser compatible) ══
-async function _saveBase64(b64, filename, mime){
-  // pywebview path: use native Save-As dialog via the JsApi bridge
-  if(window.pywebview && window.pywebview.api && window.pywebview.api.save_file){
-    const ok = await window.pywebview.api.save_file(b64, filename);
-    if(!ok) return; // user cancelled
-    return;
-  }
-  // Browser path: POST to backend /download which returns Content-Disposition: attachment
-  const resp = await fetch('/download', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({content: b64, filename, mime})
-  });
-  if(!resp.ok){ alert('Download failed.'); return; }
-  const blob = await resp.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+function _isPywebview(){ return typeof window.pywebview !== 'undefined'; }
+
+function _strToBase64(str){
+  return btoa(unescape(encodeURIComponent(str)));
 }
 
-async function _saveText(content, filename, mime){
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(content);
-  const chunkSize = 8192;
-  let binary = '';
-  for(let i = 0; i < bytes.length; i += chunkSize){
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+function _triggerDownload(b64, filename, mime){
+  // pywebview: call API directly (must be initiated during user gesture)
+  if(_isPywebview()){
+    window.pywebview.api.save_file(b64, filename);
+    return;
   }
-  return _saveBase64(btoa(binary), filename, mime);
+  // Browser: POST to backend /download
+  fetch('/download', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: b64, filename: filename || 'download', mime: mime || 'application/octet-stream'})
+  }).then(function(resp){
+    if(!resp.ok) throw new Error('Download failed: ' + resp.status);
+    return resp.blob();
+  }).then(function(blob){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename || 'download';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  }).catch(function(e){ console.error(e); alert('Download failed.'); });
+}
+
+function _saveText(content, filename, mime){
+  _triggerDownload(_strToBase64(content), filename, mime);
 }
 
 function _dlText(content, filename, mime){
