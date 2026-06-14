@@ -52,9 +52,21 @@ class FitIndices(BaseModel):
     srmr_good: Optional[bool] = None         # SRMR <= 0.08
 
 
+class BootstrapParameter(BaseModel):
+    lhs: str
+    op: str
+    rhs: str
+    estimate: float
+    bs_mean: float
+    bs_se: float
+    ci_lower_95: float
+    ci_upper_95: float
+    significant: bool
+
+
 class BootstrapResult(BaseModel):
     n_samples: int
-    parameters: List[Dict[str, Any]]
+    parameters: List[BootstrapParameter]
     converged_pct: float
 
 
@@ -347,8 +359,6 @@ class MGAResult(BaseModel):
     micom: Optional[MICOMResult] = None
     warnings: List[str] = []
 
-ModelResult.model_rebuild()
-
 # ── v0.7 schemas ──────────────────────────────────────────────────────────────
 
 class SimpleSlope(BaseModel):
@@ -540,3 +550,112 @@ class ModMediationResult(BaseModel):
     parameters:  List[PathParameter]   # full model parameter table
     fit:         FitIndices
     warnings:    List[str] = []
+
+
+# ── Nonlinear (Polynomial) Effects (v0.7) ─────────────────────────────────────
+
+class NonlinearEntry(BaseModel):
+    path: str
+    base_var: str
+    outcome: str
+    beta_linear: float
+    beta_quadratic: float
+    r2_linear: float
+    r2_augmented: float
+    delta_r2: float
+    delta_f2: float
+    ci_lower_95: Optional[float] = None
+    ci_upper_95: Optional[float] = None
+    significant: bool = False
+
+
+class NonlinearResult(BaseModel):
+    entries: List[NonlinearEntry]
+    algorithm: str
+    bootstrap_n: int
+    warnings: List[str] = []
+
+
+# ── Gaussian Copula Endogeneity Correction (v0.8) ─────────────────────────────
+
+class CopulaEntry(BaseModel):
+    variable: str
+    normality_stat: float          # KS or Shapiro-Wilk statistic
+    normality_p: float             # p-value — low = non-normal (copula valid)
+    copula_coef: Optional[float] = None
+    copula_ci_lower_95: Optional[float] = None
+    copula_ci_upper_95: Optional[float] = None
+    copula_significant: bool = False
+    delta_r2: Optional[float] = None
+    f2_copula: Optional[float] = None
+    corrected_paths: Dict[str, float] = {}  # outcome: adjusted beta
+    original_paths:  Dict[str, float] = {}
+
+
+class GaussianCopulaResult(BaseModel):
+    entries: List[CopulaEntry]
+    algorithm: str
+    n_obs: int
+    bootstrap_n: int
+    warnings: List[str] = []
+
+
+# ── FIMIX-PLS (v0.8) ──────────────────────────────────────────────────────────
+
+class FIMIXSegment(BaseModel):
+    segment_id: int
+    size: int
+    proportion: float                    # pi_k — mixing weight
+    path_coefficients: Dict[str, float]  # "lhs~rhs": coef
+    r_squared: Dict[str, float]          # outcome: R²
+
+
+class FIMIXSolution(BaseModel):
+    k: int
+    log_likelihood: float
+    aic: float
+    bic: float
+    caic: float
+    relative_entropy: float              # R_E — separation quality 0–1
+    segments: List[FIMIXSegment]
+
+
+class FIMIXResult(BaseModel):
+    solutions: List[FIMIXSolution]
+    recommended_k: int                   # k minimising CAIC
+    algorithm: str = "fimix-pls"
+    n_obs: int
+    warnings: List[str] = []
+
+
+# ── PLS-POS (v0.8) ────────────────────────────────────────────────────────────
+
+class PLSPOSSegment(BaseModel):
+    segment_id: int
+    size: int
+    path_coefficients: Dict[str, float]  # "lhs~rhs": coef
+    r_squared: Dict[str, float]          # outcome: R²
+    stability: float                     # proportion of bootstrap runs with same assignment (0–1)
+
+
+class PLSPOSResult(BaseModel):
+    k: int
+    segments: List[PLSPOSSegment]
+    fimix_comparison: Optional[Dict[str, Any]] = None  # FIMIX vs POS coef table
+    algorithm: str = "pls-pos"
+    n_obs: int
+    warnings: List[str] = []
+
+
+# ── Robustness Checks wrapper (v0.8) ──────────────────────────────────────────
+
+class RobustnessChecks(BaseModel):
+    nonlinear:      Optional["NonlinearResult"]       = None
+    fimix:          Optional["FIMIXResult"]           = None
+    plspos:         Optional["PLSPOSResult"]          = None
+    copula:         Optional["GaussianCopulaResult"]  = None
+    copula_warning: Optional[str]                     = None
+
+
+# Resolve all forward references now that every class is defined.
+ModelResult.model_rebuild()

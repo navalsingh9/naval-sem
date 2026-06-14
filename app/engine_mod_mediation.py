@@ -51,7 +51,7 @@ from typing import Callable, Optional
 import numpy as np
 import pandas as pd
 
-from app.engine_utils import _build_composites, _emit, _safe_float
+from app.engine_utils import _build_composites, _ci_from_bootstrap, _coef_from_params, _emit, _safe_float, _sig_from_ci
 from app.engine import fit_model
 from app.parser import (
     build_semopy_syntax,
@@ -72,35 +72,7 @@ logger = logging.getLogger("naval_sem.mod_mediation")
 
 # ── private helpers ────────────────────────────────────────────────────────────
 
-def _coef_from_params(
-    parameters: list[PathParameter],
-    lhs: str,
-    rhs: str,
-) -> Optional[float]:
-    """Return the fitted estimate for a specific (lhs ~ rhs) path, or None."""
-    for p in parameters:
-        if p.op == "~" and p.lhs == lhs and p.rhs == rhs:
-            return p.estimate
-    return None
-
-
-def _ci_from_bootstrap(
-    samples: list[float],
-) -> tuple[Optional[float], Optional[float]]:
-    """Return 95 % percentile CI from bootstrap distribution (min 10 samples)."""
-    if len(samples) < 10:
-        return None, None
-    return (
-        float(np.percentile(samples, 2.5)),
-        float(np.percentile(samples, 97.5)),
-    )
-
-
-def _sig(lo: Optional[float], hi: Optional[float]) -> bool:
-    """True when 95 % CI excludes zero."""
-    if lo is None or hi is None:
-        return False
-    return not (lo <= 0.0 <= hi)
+_sig = _sig_from_ci
 
 
 # ── chain detection ────────────────────────────────────────────────────────────
@@ -262,6 +234,18 @@ def run_mod_mediation(
                         y_var = cand
                         break
 
+            if y_var == downstream[0] and len(downstream) > 1:
+                warnings.append(
+                    f"Moderated mediation: Y role ambiguous — selected '{y_var}' from "
+                    f"{downstream} based on graph heuristic. "
+                    "Specify roles explicitly via the roles parameter to override."
+                )
+            elif len(downstream) > 1:
+                warnings.append(
+                    f"Moderated mediation: multiple Y candidates found {downstream}; "
+                    f"selected '{y_var}'. Pass roles={{}} to specify explicitly."
+                )
+
         else:
             # ── b-path moderation ─────────────────────────────────────────────
             moderated_path = "b"
@@ -357,7 +341,8 @@ def run_mod_mediation(
                     for k, lvl in enumerate(mod_levels):
                         bs_cond[k].append(a_bs * (b_bs + b3_bs * lvl))
 
-            except (ValueError, np.linalg.LinAlgError):
+            except Exception as _e:  # B112
+                logger.debug("Non-critical exception suppressed: %s", _e)
                 continue
 
         imm_lo, imm_hi = _ci_from_bootstrap(bs_imm)

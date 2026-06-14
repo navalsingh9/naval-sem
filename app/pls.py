@@ -46,6 +46,27 @@ class PLSResult:
     warnings:          List[str] = field(default_factory=list)
 
 
+def _compute_srmr_matrix(S: np.ndarray, Sigma: np.ndarray, p: int) -> Optional[float]:
+    """
+    Canonical SRMR: lower triangle of (S - Sigma) / sqrt(S_ii * S_jj).
+
+    SRMR = sqrt( 2/(p(p+1)) · Σ_{i≥j} ((s_ij − σ_ij) / sqrt(s_ii·s_jj))² )
+
+    Shared by both PLSEstimator._compute_srmr (pls.py) and _compute_srmr
+    (engine.py CB-SEM version) to ensure a single canonical implementation.
+    """
+    total, count = 0.0, 0
+    for i in range(p):
+        for j in range(i + 1):
+            denom = abs(S[i, i] * S[j, j]) ** 0.5
+            if denom > 0:
+                total += ((S[i, j] - Sigma[i, j]) / denom) ** 2
+                count += 1
+    if count == 0:
+        return None
+    return round(float(np.sqrt(2.0 * total / (p * (p + 1)))), 6)
+
+
 # ── Estimator ─────────────────────────────────────────────────────────────────
 
 class PLSEstimator:
@@ -517,18 +538,7 @@ class PLSEstimator:
                         Sigma[i, j] = lam_i * phi[li, lj] * lam_j  # cross-block
 
             # SRMR (lower triangle including diagonal)
-            total = 0.0
-            count = 0
-            for i in range(p):
-                for j in range(i + 1):  # j ≤ i
-                    denom = abs(S[i, i] * S[j, j]) ** 0.5
-                    if denom > 0:
-                        total += ((S[i, j] - Sigma[i, j]) / denom) ** 2
-                        count += 1
-
-            if count == 0:
-                return None
-            return round(float(np.sqrt(2.0 * total / (p * (p + 1)))), 6)
+            return _compute_srmr_matrix(S, Sigma, p)
 
         except Exception as _e:
             return None

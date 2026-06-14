@@ -11,9 +11,10 @@ Public (internal) API
   _safe_float(val, default)
   _p_to_sig(p)
   _build_composites(df, measurement, structural)
+  _build_coef_map(parameters)
 
 Import pattern for all engine satellites:
-    from app.engine_utils import _emit, _safe_float, _p_to_sig, _build_composites
+    from app.engine_utils import _emit, _safe_float, _p_to_sig, _build_composites, _build_coef_map
 """
 
 from __future__ import annotations
@@ -34,19 +35,30 @@ def _emit(log_fn: Optional[Callable], level: str, msg: str) -> None:
     getattr(logger, level.lower(), logger.info)(msg)
 
 
-def _safe_float(val, default=None):
+def _safe_float(val, default=None, precision: int = 6):
     """
     Safely coerce val to a rounded float.
 
     Returns ``default`` (not None) when the value is NaN, Inf, or
     cannot be converted.  Handles pandas Series by extracting the
     first scalar element before conversion.
+
+    Parameters
+    ----------
+    precision : int
+        Decimal places passed to ``round()``.  Default 6.  Pass 12 for
+        p-values to prevent tiny values such as 1.8e-9 from rounding to 0.0.
     """
     try:
         if hasattr(val, "iloc"):   # pandas Series — extract scalar first
+            if len(val) > 1:
+                logger.debug(
+                    "_safe_float received a %d-element Series; using iloc[0]. "
+                    "This may indicate a logic error upstream.", len(val)
+                )
             val = val.iloc[0]
         v = float(val)
-        return default if (np.isnan(v) or np.isinf(v)) else round(v, 6)
+        return default if (np.isnan(v) or np.isinf(v)) else round(v, precision)
     except Exception:
         return default
 
@@ -93,3 +105,68 @@ def _build_composites(
                 composites[var] = df[var]
 
     return composites
+
+
+def _build_squared_terms(df: pd.DataFrame, composites: dict, nonlinear_terms: list) -> pd.DataFrame:
+    """
+    For each nonlinear term, mean-centre the base composite and create
+    a squared column. Returns augmented DataFrame copy (never mutates df).
+    """
+    df = df.copy()
+    for term in nonlinear_terms:
+        base   = term["base_var"]
+        sq_col = term["sq_col"]
+        series = composites.get(base)
+        if series is None and base in df.columns:
+            series = df[base].astype(float)
+        if series is None:
+            continue
+        mc = series - series.mean()
+        df[sq_col] = mc ** 2
+    return df
+
+
+def _build_coef_map(parameters) -> dict:
+    """Return {(rhs, lhs): coef} for structural paths (op == '~').
+
+    Convention: predictor-first (rhs), then outcome (lhs) — consistent
+    with the tuple key order used across engine.py, engine_mga.py, and
+    engine_moderation.py bootstrap loops.
+
+    Parameters
+    ----------
+    parameters : list[PathParameter]
+        The ``.parameters`` list from a ``SemResult`` / ``ModerationResult``.
+
+    Returns
+    -------
+    dict  {(rhs_name, lhs_name): float_estimate}
+    """
+    return {
+        (p.rhs, p.lhs): p.estimate
+        for p in parameters
+        if hasattr(p, "op") and p.op == "~"
+    }
+
+
+def _coef_from_params(parameters, lhs: str, rhs: str):
+    """Return the estimate for a specific structural (lhs ~ rhs) path, or None."""
+    for p in parameters:
+        if getattr(p, 'op', None) == '~' and p.lhs == lhs and p.rhs == rhs:
+            return p.estimate
+    return None
+
+
+def _ci_from_bootstrap(samples: list) -> tuple:
+    """Return (ci_lo_95, ci_hi_95) from a bootstrap distribution, or (None, None)."""
+    if len(samples) < 10:
+        return None, None
+    import numpy as np
+    return float(np.percentile(samples, 2.5)), float(np.percentile(samples, 97.5))
+
+
+def _sig_from_ci(ci_lo, ci_hi) -> bool:
+    """Return True when a 95% CI excludes zero."""
+    if ci_lo is None or ci_hi is None:
+        return False
+    return not (ci_lo <= 0.0 <= ci_hi)

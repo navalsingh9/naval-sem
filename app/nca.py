@@ -152,7 +152,7 @@ def _ce_fdh(
     d = round(float(ceiling_zone / scope), 6)
     d = max(0.0, min(1.0, d))
 
-    return d, plot_x, plot_y
+    return d, plot_x, plot_y, ceil_pts
 
 
 # ── CR-FDH ceiling ─────────────────────────────────────────────────────────────
@@ -185,19 +185,9 @@ def _cr_fdh(
         return 0.0, 0.0, 0.0, [x_min, x_max], [y_max, y_max]
 
     # Get CE-FDH ceiling observations (the "upper-left frontier" points)
-    _, _, _ = _ce_fdh(x, y)   # re-derive ceiling pts
-    order = np.argsort(x)[::-1]
-    ceil_xs: list[float] = []
-    ceil_ys: list[float] = []
-    running_max_y = -np.inf
-    for idx in order:
-        xi, yi = float(x[idx]), float(y[idx])
-        if yi > running_max_y:
-            running_max_y = yi
-            ceil_xs.append(xi)
-            ceil_ys.append(yi)
-    ceil_xs = ceil_xs[::-1]
-    ceil_ys = ceil_ys[::-1]
+    _, _, _, cp = _ce_fdh(x, y)
+    ceil_xs = [pt[0] for pt in reversed(cp)]
+    ceil_ys = [pt[1] for pt in reversed(cp)]
 
     # OLS through ceiling observations
     cx = np.array(ceil_xs)
@@ -221,14 +211,30 @@ def _cr_fdh(
     line_x = [x_min, x_max]
     line_y = [y_line_min, y_line_max]
 
-    # Ceiling zone: area above regression line, below y_max, within scope
-    # Integral of max(0, y_max - (slope*x + intercept)) from x_min to x_max
-    # = (y_max - intercept)(x_max - x_min)  - slope*(x_max² - x_min²)/2
-    # Clamped to 0 where regression exceeds y_max
-    a = y_max - intercept
-    ceiling_zone = a * (x_max - x_min) - slope * (x_max**2 - x_min**2) / 2
-    # Clamp (regression line might exceed y_max at some x)
-    ceiling_zone = max(0.0, ceiling_zone)
+    # Integrate max(0, y_max - (slope*x + intercept)) from x_min to x_max
+    # Find x_cross where the line equals y_max: x_cross = (y_max - intercept) / slope
+    ceiling_zone = 0.0
+    if abs(slope) < 1e-12:
+        # Horizontal line: simple rectangle
+        ceiling_zone = max(0.0, y_max - intercept) * (x_max - x_min)
+    else:
+        x_cross = (y_max - intercept) / slope
+        # Integration in two sub-intervals clamped to [x_min, x_max]
+        x_lo = max(x_min, min(x_cross, x_max))
+        x_hi = min(x_max, max(x_cross, x_min))
+        # Segment where line < y_max (before x_cross for positive slope)
+        seg_a_x0 = x_min
+        seg_a_x1 = x_lo if slope > 0 else x_hi
+        seg_b_x0 = x_hi if slope > 0 else x_lo
+        seg_b_x1 = x_max
+        def _integral(xa, xb):
+            if xb <= xa:
+                return 0.0
+            # Integral of (y_max - intercept - slope*x) dx from xa to xb
+            a_val = y_max - intercept
+            return max(0.0, a_val * (xb - xa) - slope * (xb**2 - xa**2) / 2)
+        ceiling_zone = _integral(seg_a_x0, seg_a_x1)
+    ceiling_zone = max(0.0, min(ceiling_zone, scope))
 
     d = round(float(ceiling_zone / scope), 6)
     d = max(0.0, min(1.0, d))
@@ -327,7 +333,7 @@ def compute_nca(
 
         # ── CE-FDH ──────────────────────────────────────────────────────────
         try:
-            ce_d, ceil_x_raw, ceil_y_raw = _ce_fdh(x_c, y_c)
+            ce_d, ceil_x_raw, ceil_y_raw, _ = _ce_fdh(x_c, y_c)
         except Exception as exc:
             warnings.append(f"NCA CE-FDH failed for {iv}→{dv}: {exc}")
             ce_d, ceil_x_raw, ceil_y_raw = 0.0, [], []

@@ -23,7 +23,7 @@ from typing import Callable, List, Optional
 import numpy as np
 import pandas as pd
 
-from app.engine_utils import _build_composites, _emit, _safe_float
+from app.engine_utils import _build_coef_map, _build_composites, _ci_from_bootstrap, _coef_from_params, _emit, _safe_float, _sig_from_ci
 from app.engine import fit_model
 from app.parser import (
     build_semopy_syntax,
@@ -59,31 +59,33 @@ def _ols_r2(y: np.ndarray, X: np.ndarray) -> float:
         return 0.0
 
 
-def _coef_from_params(
-    parameters: list[PathParameter],
-    lhs: str,
-    rhs: str,
-) -> Optional[float]:
-    """Return the estimate for a specific (lhs ~ rhs) path, or None."""
-    for p in parameters:
-        if p.op == "~" and p.lhs == lhs and p.rhs == rhs:
-            return p.estimate
-    return None
-
-
-def _ci_from_bootstrap(
-    samples: list[float],
-) -> tuple[Optional[float], Optional[float]]:
-    """Return (ci_lo_95, ci_hi_95) from a bootstrap distribution."""
-    if len(samples) < 10:
-        return None, None
-    return (
-        float(np.percentile(samples, 2.5)),
-        float(np.percentile(samples, 97.5)),
-    )
-
-
 # ── public API ─────────────────────────────────────────────────────────────────
+
+def _fit_path_coefs(df, syntax, algorithm):
+    """Lightweight fit returning only {(rhs, lhs): coef} for structural paths."""
+    from app.parser import parse_lavaan
+    parsed = parse_lavaan(syntax)
+    try:
+        if algorithm == "pls":
+            from app.pls import PLSEstimator
+            r = PLSEstimator().fit(df, parsed)
+            return {(rhs, lhs): v for lhs, d in r.path_coefficients.items() for rhs, v in d.items()}
+        else:
+            from semopy import Model
+            m = Model(syntax); m.fit(df)
+            p = m.inspect()
+            est_col = "Estimate" if "Estimate" in p.columns else "estimate"
+            coef = {}
+            for _, row in p.iterrows():
+                if str(row.get("op","")) == "~":
+                    lhs = str(row.get("lval", row.get("lhs","")))
+                    rhs = str(row.get("rval", row.get("rhs","")))
+                    val = float(row.get(est_col, 0) or 0)
+                    coef[(rhs, lhs)] = val
+            return coef
+    except Exception:
+        return {}
+
 
 def run_moderation(
     df: pd.DataFrame,
@@ -228,12 +230,11 @@ def run_moderation(
 
         for _bi in range(bootstrap_n):
             try:
-                s_idx = rng.integers(0, len(df_aug), size=len(df_aug))
-                df_bs = df_aug.iloc[s_idx].reset_index(drop=True)
-                r_bs  = fit_model(df_bs, syntax_full,
-                                  algorithm=algorithm, bootstrap_n=0)
-                b_x   = _coef_from_params(r_bs.parameters, outcome, iv)
-                b_int = _coef_from_params(r_bs.parameters, outcome, icol)
+                s_idx  = rng.integers(0, len(df_aug), size=len(df_aug))
+                df_bs  = df_aug.iloc[s_idx].reset_index(drop=True)
+                c_bs   = _fit_path_coefs(df_bs, syntax_full, algorithm)
+                b_x    = c_bs.get((iv,   outcome))
+                b_int  = c_bs.get((icol, outcome))
                 if b_x is None or b_int is None:
                     continue
                 bs_beta_int.append(b_int)
