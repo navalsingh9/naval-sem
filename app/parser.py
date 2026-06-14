@@ -136,7 +136,7 @@ def parse_lavaan(model: str) -> Dict:
                 observed_vars.append(var)
 
     nonlinear_terms = []
-    squared_pattern = re.compile(r'(\w+)\^2')  # nosec B608 # lgtm[py/polynomial-redos]
+    squared_pattern = re.compile(r'(\w+)\^2')
     for rel in structural:
         match = squared_pattern.search(rel.get("rhs", ""))
         if match:
