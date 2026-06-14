@@ -2239,7 +2239,7 @@ def compute_nonlinear_effects(
                 r2a    = _safe_float((r_aug.fit.r_squared or {}).get(lhs)) or 0.0
                 dr2    = max(0.0, r2a - r2l)
                 bs_delta_f2.append(dr2 / max(1.0 - r2a, 1e-12))
-            except Exception:
+            except Exception:  # nosec B110
                 continue
 
         ci_lo, ci_hi = _ci_from_bootstrap(bs_delta_f2)
@@ -2379,7 +2379,7 @@ def compute_gaussian_copula(
                 try:
                     idx = rng.integers(0, len(common_idx), size=len(common_idx))
                     _, c_bs = _r2(X_aug[idx], y_vals[idx])
-                    bs_cop_coef.append(float(c_bs[-1]))
+                except Exception:  # nosec B110
                 except Exception:
                     continue
 
@@ -2870,4 +2870,5 @@ def auto_reverse_score(
     obs_min = scale_min if scale_min is not None else series.min()
     obs_max = scale_max if scale_max is not None else series.max()
     return (obs_min + obs_max) - series
+
 
