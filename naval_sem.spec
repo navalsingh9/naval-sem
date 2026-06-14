@@ -61,9 +61,11 @@ a = Analysis(
         # Bundle the app package
         ("app", "app"),
         # DejaVu fonts for Unicode PDF output (Greek, arrows, checkmarks)
-        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",     "fonts"),
-        ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf","fonts"),
-        ("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "fonts"),
+        # Bundled in repo under fonts/ — works on Windows, macOS and Linux CI
+        *[
+            (str(p), "fonts")
+            for p in Path("fonts").glob("*.ttf")
+        ],
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
