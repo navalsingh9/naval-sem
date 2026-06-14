@@ -100,7 +100,9 @@ def _pls_weights(df: pd.DataFrame, parsed: dict) -> dict[str, dict[str, float]]:
 
 def _pls_paths(df: pd.DataFrame, parsed: dict) -> dict[tuple[str, str], float]:
     """
-    Fit PLSEstimator and return {(lhs, rhs): path_coef} for structural paths.
+    Fit PLSEstimator and return {(rhs, lhs): path_coef} for structural paths.
+    Key convention: predictor-first (rhs), then outcome (lhs) — consistent
+    with _build_coef_map() in engine_utils.py.
     Returns empty dict on failure.
     """
     from app.pls import PLSEstimator
@@ -109,7 +111,7 @@ def _pls_paths(df: pd.DataFrame, parsed: dict) -> dict[tuple[str, str], float]:
         coefs: dict[tuple[str, str], float] = {}
         for lhs, rhs_map in result.path_coefficients.items():
             for rhs, coef in rhs_map.items():
-                coefs[(lhs, rhs)] = coef
+                coefs[(rhs, lhs)] = coef
         return coefs
     except Exception as exc:
         logger.debug("_pls_paths failed: %s", exc)
@@ -118,7 +120,9 @@ def _pls_paths(df: pd.DataFrame, parsed: dict) -> dict[tuple[str, str], float]:
 
 def _cb_paths(df: pd.DataFrame, syntax: str) -> dict[tuple[str, str], float]:
     """
-    Fit semopy CB-SEM and return {(lhs, rhs): estimate} for structural (~) rows.
+    Fit semopy CB-SEM and return {(rhs, lhs): estimate} for structural (~) rows.
+    Key convention: predictor-first (rhs), then outcome (lhs) — consistent
+    with _build_coef_map() in engine_utils.py.
     Returns empty dict on failure.
     """
     try:
@@ -135,7 +139,7 @@ def _cb_paths(df: pd.DataFrame, syntax: str) -> dict[tuple[str, str], float]:
             rhs = str(row.get("rval", row.get("rhs", "")))
             val = _safe_float(row.get(est_col))
             if val is not None:
-                coefs[(lhs, rhs)] = val
+                coefs[(rhs, lhs)] = val
         return coefs
     except Exception as exc:
         logger.debug("_cb_paths failed: %s", exc)
@@ -536,7 +540,7 @@ def run_mga(
 
         # Collect path coefs for bootstrap diff computation
         group_path_maps[g_str] = {
-            (p.lhs, p.rhs): p.estimate
+            (p.rhs, p.lhs): p.estimate
             for p in res_g.parameters
             if p.op == "~"
         }
@@ -562,6 +566,18 @@ def run_mga(
     path_differences: list[MGAPathDiff] = []
     _t_bs = time.time()
 
+    import itertools
+    n_pairs = len(list(itertools.combinations(groups, 2)))
+    estimated_fits = n_pairs * bootstrap_n * 2
+    FIT_LIMIT = 500_000
+    if estimated_fits > FIT_LIMIT:
+        raise ValueError(
+            f"MGA: estimated {estimated_fits:,} bootstrap model fits "
+            f"({n_pairs} pairs x {bootstrap_n} iterations x 2) exceeds "
+            f"the safety limit of {FIT_LIMIT:,}. "
+            "Reduce bootstrap_n or the number of groups."
+        )
+
     for (i_a, g_a), (i_b, g_b) in combinations(enumerate(groups), 2):
         g_a_str, g_b_str = str(g_a), str(g_b)
         df_a = df[df[group_col] == g_a].drop(columns=[group_col]).reset_index(drop=True)
@@ -572,7 +588,7 @@ def run_mga(
 
         # Bootstrap distribution of β_a − β_b for each structural path
         bs_diffs: dict[tuple[str, str], list[float]] = {
-            (rel["lhs"], rel["rhs"]): [] for rel in structural
+            (rel["rhs"], rel["lhs"]): [] for rel in structural
         }
         converged_bs = 0
 
@@ -590,7 +606,7 @@ def run_mga(
                 paths_b = _fit_group_paths(sample_b, parsed, syntax, algorithm)
                 ok = False
                 for rel in structural:
-                    key = (rel["lhs"], rel["rhs"])
+                    key = (rel["rhs"], rel["lhs"])
                     ba = paths_a.get(key)
                     bb = paths_b.get(key)
                     if ba is not None and bb is not None:
@@ -614,7 +630,7 @@ def run_mga(
         # Assemble MGAPathDiff entries for this group pair
         for rel in structural:
             lhs, rhs = rel["lhs"], rel["rhs"]
-            key = (lhs, rhs)
+            key = (rhs, lhs)
             beta_a = coef_a_obs.get(key, 0.0)
             beta_b = coef_b_obs.get(key, 0.0)
             diff_obs = beta_a - beta_b

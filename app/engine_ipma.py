@@ -21,26 +21,12 @@ from typing import Callable, Optional
 import numpy as np
 import pandas as pd
 
-from app.engine_utils import _build_composites, _emit, _safe_float
+from app.engine_utils import _build_composites, _ci_from_bootstrap, _coef_from_params, _emit, _safe_float, _sig_from_ci
 from app.engine import compute_indirect_effects, fit_model
 from app.parser import parse_lavaan
 from app.schemas import IPMAEntry, IPMAResult, PathParameter
 
 logger = logging.getLogger("naval_sem.ipma")
-
-
-# ── private helper ─────────────────────────────────────────────────────────────
-
-def _coef_from_params(
-    parameters: list[PathParameter],
-    lhs: str,
-    rhs: str,
-) -> Optional[float]:
-    """Return the estimate for a specific (lhs ~ rhs) path, or None."""
-    for p in parameters:
-        if p.op == "~" and p.lhs == lhs and p.rhs == rhs:
-            return p.estimate
-    return None
 
 
 # ── public API ─────────────────────────────────────────────────────────────────
@@ -99,10 +85,18 @@ def compute_ipma(
     except Exception as exc:
         raise ValueError(f"IPMA: model fit failed — {exc}") from exc
 
+    _coef_map = {(p.rhs, p.lhs): p.estimate for p in res.parameters if p.op == "~"}
+
     try:
+        # existing_coef_map is passed so compute_indirect_effects skips its internal
+        # fit_model call entirely (it uses the map directly for path products).
+        # n_bootstrap=0 additionally skips the bootstrap loop.
+        # Do NOT remove either argument — doing so would cause a second full fit.
         indirect_res  = compute_indirect_effects(
-            df, model_syntax, 
+            df, model_syntax,
             n_bootstrap=0, log_fn=None,
+            algorithm=algorithm,
+            existing_coef_map=_coef_map,
         )
         total_effects = indirect_res.total_effects   # {from: {to: float}}
     except Exception as exc:

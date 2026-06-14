@@ -40,6 +40,15 @@ hiddenimports = [
     "anyio", "anyio._backends._asyncio",
     # email validator used by pydantic
     "email_validator",
+    # ReportLab
+    "reportlab",
+    "reportlab.platypus",
+    "reportlab.platypus.flowables",
+    "reportlab.graphics.shapes",
+    "reportlab.graphics.charts.barcharts",
+    "reportlab.pdfbase.ttfonts",
+    "reportlab.lib.styles",
+    "PIL", "PIL.Image",   # Pillow — reportlab dependency
 ]
 
 a = Analysis(
@@ -51,6 +60,12 @@ a = Analysis(
         ("static", "static"),
         # Bundle the app package
         ("app", "app"),
+        # DejaVu fonts for Unicode PDF output (Greek, arrows, checkmarks)
+        # Bundled in repo under fonts/ — works on Windows, macOS and Linux CI
+        *[
+            (str(p), "fonts")
+            for p in Path("fonts").glob("*.ttf")
+        ],
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
@@ -58,7 +73,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         # Exclude heavy stuff we don't need
-        "tkinter", "matplotlib", "PIL", "IPython",
+        "tkinter", "matplotlib", "IPython",
         "jupyter", "notebook", "test", "tests",
     ],
     win_no_prefer_redirects=False,

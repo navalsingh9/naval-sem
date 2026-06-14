@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: navalsem-release-main-sync
+  cancel-in-progress: false
+
 jobs:
   # ── Windows ────────────────────────────────────────────────────────────────
   build-windows:
@@ -37,7 +41,7 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
           if (-not ($version -match '^\d')) { $version = "dev" }
-          (Get-Content app/main.py) -replace 'APP_VERSION = ".*"', "APP_VERSION = `"$version`"" | Set-Content app/main.py
+          (Get-Content app/version.py) -replace '_DEFAULT_APP_VERSION = ".*"', "_DEFAULT_APP_VERSION = `"$version`"" | Set-Content app/version.py
           "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "Injected APP_VERSION=$version"
 
@@ -100,7 +104,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if [[ "$VERSION" == v* ]]; then VERSION="${VERSION#v}"; else VERSION="dev"; fi
-          sed -i "" "s/APP_VERSION = \".*\"/APP_VERSION = \"${VERSION}\"/" app/main.py
+          sed -i "" "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${VERSION}\"/" app/version.py
           echo "Injected APP_VERSION=${VERSION}"
 
       - name: Build .app
@@ -171,7 +175,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if [[ "$VERSION" == v* ]]; then VERSION="${VERSION#v}"; else VERSION="dev"; fi
-          sed -i "s/APP_VERSION = \".*\"/APP_VERSION = \"${VERSION}\"/" app/main.py
+          sed -i "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${VERSION}\"/" app/version.py
           echo "Injected APP_VERSION=${VERSION}"
 
       - name: Build binary
@@ -218,6 +222,29 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Checkout repository for version sync
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: master
+          path: repo
+          fetch-depth: 0
+
+      - name: Sync version back to main
+        working-directory: repo
+        run: |
+          version="${{ github.ref_name }}"
+          if [[ "$version" == v* ]]; then version="${version#v}"; else version="dev"; fi
+          sed -i "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${version}\"/" app/version.py
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- app/version.py; then
+            echo "No version change to commit"
+            exit 0
+          fi
+          git add app/version.py
+          git commit -m "chore: sync version to ${version} [skip ci]"
+          git push origin HEAD:master
+
       - name: List assets
         run: ls -lh release-assets/
 
@@ -237,7 +264,9 @@ jobs:
           body: |
             ## NAVAL-SEM ${{ github.ref_name }}
 
-            Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, and fit indices. No internet required after install.
+            Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, fit indices, and advanced robustness analysis. No internet required after install.
+
+            **What's new in ${{ github.ref_name }}:** FIMIX-PLS segmentation, PLS-POS segmentation, Gaussian Copula endogeneity correction, PDF report export, and centralised versioning.
 
             ---
 

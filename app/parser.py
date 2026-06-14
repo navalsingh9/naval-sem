@@ -49,7 +49,8 @@ def preprocess_lavaan(raw_model: str) -> str:
 
         # If the line ends with a continuation operator, keep reading
         # Otherwise, the equation is finished
-        if not (current_line.endswith('+') or current_line.endswith('=~') or current_line.endswith('~~') or current_line.endswith('~')):
+        if not (current_line.endswith('+') or current_line.endswith('~')
+                or current_line.endswith('=~') or current_line.endswith('~~')):
             cleaned_lines.append(current_line)
             current_line = ""
 
@@ -108,7 +109,12 @@ def parse_lavaan(model: str) -> Dict:
 
         elif "~~" in line:
             parts = line.split("~~", 1)
-            covariances.append({"lhs": parts[0].strip(), "rhs": parts[1].strip()})
+            lhs_cov = parts[0].strip()
+            rhs_vars = [v.strip() for v in re.split(r"\+", parts[1]) if v.strip()]
+            if not lhs_cov or not rhs_vars:
+                raise ValueError(f"Malformed covariance line: {line}")
+            for rhs_cov in rhs_vars:
+                covariances.append({"lhs": lhs_cov, "rhs": rhs_cov})
 
         elif "~" in line:
             parts = line.split("~", 1)
@@ -122,7 +128,27 @@ def parse_lavaan(model: str) -> Dict:
                 structural.append({"lhs": lhs, "rhs": rhs})
 
     latent_vars = list(measurement.keys())
-    observed_vars = list({v for inds in measurement.values() for v in inds})
+    observed_vars = list(dict.fromkeys(v for inds in measurement.values() for v in inds))
+    latent_set = set(measurement.keys())
+    for rel in structural:
+        for var in (rel["lhs"], rel["rhs"]):
+            if var not in latent_set and var not in observed_vars:
+                observed_vars.append(var)
+
+    nonlinear_terms = []
+    squared_pattern = re.compile(r'(\w+)\^2')
+    for rel in structural:
+        match = squared_pattern.search(rel.get("rhs", ""))
+        if match:
+            base_var = match.group(1)
+            sq_col   = f"{base_var}_sq"
+            nonlinear_terms.append({
+                "base_var": base_var,
+                "sq_col": sq_col,
+                "lhs": rel["lhs"],
+            })
+            if sq_col not in observed_vars:
+                observed_vars.append(sq_col)
 
     return {
         "measurement": measurement,
@@ -130,6 +156,7 @@ def parse_lavaan(model: str) -> Dict:
         "covariances": covariances,
         "latent_vars": latent_vars,
         "observed_vars": observed_vars,
+        "nonlinear_terms": nonlinear_terms,
     }
 
 
@@ -139,6 +166,10 @@ def build_semopy_syntax(parsed: Dict) -> str:
     for lv, indicators in parsed["measurement"].items():
         lines.append(f"{lv} =~ {' + '.join(indicators)}")
     for rel in parsed["structural"]:
+        # An interaction column (e.g. "X_x_M") may appear as rhs under multiple
+        # lhs outcomes when the same moderator is used in several equations.
+        # This produces apparently-duplicate rhs references across lines, but
+        # that is valid lavaan syntax — semopy deduplicates internally.
         lines.append(f"{rel['lhs']} ~ {rel['rhs']}")
     for cov in parsed["covariances"]:
         lines.append(f"{cov['lhs']} ~~ {cov['rhs']}")
@@ -321,9 +352,9 @@ def expand_hoc_repeated_indicator(parsed: dict) -> dict:
         measurement[hoc] = expanded
 
     # Recompute observed_vars from the new measurement blocks
-    result["observed_vars"] = list({
+    result["observed_vars"] = list(dict.fromkeys(
         v for inds in measurement.values() for v in inds
-    })
+    ))
     return result
 
 
@@ -426,6 +457,12 @@ def detect_interactions(parsed: dict) -> list:
             continue
 
         iv, mod = parts[0], parts[1]
+        if "*" in mod:
+            raise ValueError(
+                f"Three-way interactions ({parts[0]}*{mod}) are not "
+                "supported. Use two separate two-way interaction terms instead, "
+                "e.g.  Y ~ X + M + W + X*M + X*W"
+            )
         key = (iv, mod, rel["lhs"])
         if key in seen:
             continue

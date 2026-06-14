@@ -1,6 +1,6 @@
 [project]
 name = "naval-sem"
-version = "0.1.0"
+version = "0.8.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -44,6 +44,7 @@ dependencies = [
     "pywebview==6.2.1",
     "pywin32-ctypes==0.2.3",
     "pyyaml==6.0.3",
+    "reportlab==4.4.10",
     "scikit-learn==1.9.0",
     "scipy==1.17.1",
     "semopy==2.3.11",
