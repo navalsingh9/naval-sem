@@ -225,7 +225,7 @@ jobs:
       - name: Checkout repository for version sync
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: main
+          ref: master
           path: repo
           fetch-depth: 0
 
@@ -243,7 +243,7 @@ jobs:
           fi
           git add app/version.py
           git commit -m "chore: sync version to ${version} [skip ci]"
-          git push origin HEAD:main
+          git push origin HEAD:master
 
       - name: List assets
         run: ls -lh release-assets/
@@ -264,7 +264,9 @@ jobs:
           body: |
             ## NAVAL-SEM ${{ github.ref_name }}
 
-            Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, and fit indices. No internet required after install.
+            Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, fit indices, and advanced robustness analysis. No internet required after install.
+
+            **What's new in ${{ github.ref_name }}:** FIMIX-PLS segmentation, PLS-POS segmentation, Gaussian Copula endogeneity correction, PDF report export, and centralised versioning.
 
             ---
 
