@@ -2242,12 +2242,7 @@ function downloadCanvasAsPNG() {
   octx.restore();
 
   // ── Download ───────────────────────────────────────────────────────────────
-  const link = document.createElement('a');
-  link.href = offscreen.toDataURL('image/png');
-  link.download = 'naval_sem_model.png';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  _dlDataUrl(offscreen.toDataURL('image/png'), 'naval_sem_model.png');
 }
 
 function generateCanvasFromSyntax(syntax) {
@@ -4275,12 +4270,7 @@ function downloadResults(kind){
     fetch('/export',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:syntax,algorithm:algo,format:fmtMap[kind]})})
       .then(r=>r.text()).then(code=>{
-        const blob=new Blob([code],{type:'text/plain'});
-        const a=document.createElement('a');
-        a.href=URL.createObjectURL(blob);
-        a.download=`naval_sem_model.${extMap[kind]}`;
-        document.body.appendChild(a);a.click();
-        setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+        _dlText(code, `naval_sem_model.${extMap[kind]}`, 'text/plain');
       }).catch(()=>alert('Export failed.'));
     return;
   }
@@ -4298,12 +4288,7 @@ function downloadResults(kind){
   }
 
   if(!content&&mime==='text/csv') return;
-  const blob=new Blob([content],{type:mime});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=filename;
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);document.body.removeChild(a);},1000);
+  _dlText(content, filename, mime);
 }
 
 // ── Event Listeners for Collapsible Panels ──────────────────────────────────
@@ -5000,9 +4985,7 @@ function _lsDownload() {
     return prefix;
   });
   const ts = new Date().toISOString().slice(0,19).replace(/[:.]/g,'-');
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `naval_sem_log_${ts}.txt`; a.click();
+  _dlText(lines.join('\n'), `naval_sem_log_${ts}.txt`, 'text/plain');
 }
 
 // Render the saved-log panel from localStorage
@@ -5148,11 +5131,7 @@ function toggleGlobalLiveLog(){
 
 function downloadAuditJSON(){
   if(!_liveAuditData) return;
-  const blob = new Blob([JSON.stringify(_liveAuditData, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `naval_sem_audit_${(_liveRunId||'run').slice(0,8)}.json`;
-  a.click();
+  _dlText(JSON.stringify(_liveAuditData, null, 2), `naval_sem_audit_${(_liveRunId||'run').slice(0,8)}.json`, 'application/json');
 }
 
 function _startLiveStream(runId, opts = {}){
@@ -6558,10 +6537,7 @@ async function downloadReport(fmt){
       }
 
       if(msg) msg.textContent = 'Saving PNG…';
-      const a = document.createElement('a');
-      a.href = cvs.toDataURL('image/png');
-      a.download = `naval_sem_report_${runId.slice(0,8)}_${ts}.png`;
-      a.click();
+      _dlDataUrl(cvs.toDataURL('image/png'), `naval_sem_report_${runId.slice(0,8)}_${ts}.png`);
 
     } else {
       // ── PDF via backend ReportLab endpoint ───────────────────────────────
@@ -6632,12 +6608,7 @@ async function downloadReport(fmt){
         ? fnMatch[1]
         : `naval_sem_report_${runId.slice(0,8)}_${ts}.pdf`;
 
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href     = url;
-      a.download = filename;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      _dlBlob(blob, filename);
     }
 
   } catch(err){
@@ -7053,12 +7024,47 @@ function downloadMGAJson(){
 }
 
 function _dlText(content, filename, mime){
+  if(window.pywebview){
+    // Running inside .exe — use native Save As dialog via Python
+    const b64 = btoa(unescape(encodeURIComponent(content)));
+    window.pywebview.api.save_file(b64, filename);
+    return;
+  }
   const blob = new Blob([content], {type: mime});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 1000);
+}
+
+function _dlBlob(blob, filename){
+  if(window.pywebview){
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result.split(',')[1];
+      window.pywebview.api.save_file(b64, filename);
+    };
+    reader.readAsDataURL(blob);
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+}
+
+function _dlDataUrl(dataUrl, filename){
+  if(window.pywebview){
+    const b64 = dataUrl.split(',')[1];
+    window.pywebview.api.save_file(b64, filename);
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
 }
 // ── end MGA tab ────────────────────────────────────────────────────────────
 

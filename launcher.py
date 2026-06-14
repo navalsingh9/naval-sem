@@ -99,7 +99,35 @@ def wait_for_server(port: int, timeout: float = 20.0) -> bool:
     return False
 
 
-# ── Open UI ───────────────────────────────────────────────────────────────────
+# ── Native Save As dialog for pywebview (WebView2) ───────────────────────────
+class JsApi:
+    """
+    Exposed to JavaScript as window.pywebview.api
+    Provides a native Save As dialog for file downloads that WebView2
+    cannot handle via the standard blob/click browser pattern.
+    """
+    def save_file(self, data_b64: str, filename: str) -> bool:
+        import base64
+        try:
+            import webview
+            data = base64.b64decode(data_b64)
+            save_path = webview.windows[0].create_file_dialog(
+                webview.SAVE_DIALOG,
+                save_filename=filename,
+            )
+            if save_path:
+                # pywebview returns a tuple on some versions
+                path = save_path[0] if isinstance(save_path, (list, tuple)) else save_path
+                with open(path, 'wb') as f:
+                    f.write(data)
+                return True
+            return False
+        except Exception as e:
+            logging.error(f"JsApi.save_file error: {e}", exc_info=True)
+            return False
+
+
+
 def open_ui(url: str):
     # Try pywebview first (native desktop window)
     try:
@@ -112,6 +140,7 @@ def open_ui(url: str):
             height=820,
             resizable=True,
             min_size=(900, 600),
+            js_api=JsApi(),
         )
         webview.start()
         logging.info("pywebview window closed — exiting")
