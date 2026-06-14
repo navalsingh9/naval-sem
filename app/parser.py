@@ -573,3 +573,4 @@ def expand_interaction_terms(
 
     result["interactions"] = interactions
     return result, df_aug
+
