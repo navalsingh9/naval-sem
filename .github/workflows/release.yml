@@ -222,28 +222,6 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Checkout repository for version sync
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          ref: master
-          path: repo
-          fetch-depth: 0
-
-      - name: Sync version back to main
-        working-directory: repo
-        run: |
-          version="${{ github.ref_name }}"
-          if [[ "$version" == v* ]]; then version="${version#v}"; else version="dev"; fi
-          sed -i "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${version}\"/" app/version.py
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- app/version.py; then
-            echo "No version change to commit"
-            exit 0
-          fi
-          git add app/version.py
-          git commit -m "chore: sync version to ${version} [skip ci]"
-          git push origin HEAD:master
 
       - name: List assets
         run: ls -lh release-assets/
