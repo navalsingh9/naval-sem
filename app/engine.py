@@ -2380,7 +2380,6 @@ def compute_gaussian_copula(
                     idx = rng.integers(0, len(common_idx), size=len(common_idx))
                     _, c_bs = _r2(X_aug[idx], y_vals[idx])
                 except Exception:  # nosec B110
-                except Exception:
                     continue
 
             ci_lo, ci_hi = _ci_from_bootstrap(bs_cop_coef)
