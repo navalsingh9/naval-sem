@@ -850,7 +850,7 @@ def _fit_cbsem(
                     _emit(log_fn, "warn",
                           f"CB-SEM attempt {_att + 1}/{len(_cb_solvers)} "
                           f"failed (solver={_slv}): {str(_e)[:100]}")
-                except Exception: # nosec B112
+                except Exception: # nosec B110
                     pass   # never let a logging failure mask the real error
                 sem_model = None
         if sem_model is None:
