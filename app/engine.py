@@ -850,7 +850,7 @@ def _fit_cbsem(
                     _emit(log_fn, "warn",
                           f"CB-SEM attempt {_att + 1}/{len(_cb_solvers)} "
                           f"failed (solver={_slv}): {str(_e)[:100]}")
-                except Exception: # nosec B110
+                except Exception: # nosec B112
                     pass   # never let a logging failure mask the real error
                 sem_model = None
         if sem_model is None:
@@ -2239,7 +2239,7 @@ def compute_nonlinear_effects(
                 r2a    = _safe_float((r_aug.fit.r_squared or {}).get(lhs)) or 0.0
                 dr2    = max(0.0, r2a - r2l)
                 bs_delta_f2.append(dr2 / max(1.0 - r2a, 1e-12))
-            except Exception:  # nosec B110
+            except Exception:  # nosec B112
                 continue
 
         ci_lo, ci_hi = _ci_from_bootstrap(bs_delta_f2)
@@ -2379,7 +2379,7 @@ def compute_gaussian_copula(
                 try:
                     idx = rng.integers(0, len(common_idx), size=len(common_idx))
                     _, c_bs = _r2(X_aug[idx], y_vals[idx])
-                except Exception:  # nosec B110
+                except Exception:  # nosec B112
                     continue
 
             ci_lo, ci_hi = _ci_from_bootstrap(bs_cop_coef)
