@@ -7799,20 +7799,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const dot   = document.getElementById('srv-dot');
   const label = document.getElementById('srv-label');
 
-  async function checkHealth() {
+  async function checkHealth(retries = 5, delay = 1200) {
     try {
       const res = await fetch('/health', { cache: 'no-store' });
       const ok  = res.ok;
       if (dot)   dot.style.background = ok ? 'var(--green)' : 'var(--red)';
       if (label) label.textContent    = ok ? 'online'       : 'offline';
+      // Refresh version badge from live server response
+      if (ok) {
+        res.clone().json().then(d => {
+          const badge = document.getElementById('ver-badge');
+          if (badge && d.version) badge.textContent = 'v' + d.version;
+        }).catch(() => {});
+      }
     } catch {
+      if (retries > 0) {
+        setTimeout(() => checkHealth(retries - 1, delay), delay);
+        return;
+      }
       if (dot)   dot.style.background = 'var(--red)';
       if (label) label.textContent    = 'offline';
     }
   }
 
-  checkHealth();                       // check immediately on load
-  setInterval(checkHealth, 15_000);    // re-check every 15 s
+  setTimeout(() => checkHealth(), 1000);      // 1s head-start for FastAPI to bind
+  setInterval(() => checkHealth(0), 15_000);  // re-check every 15s (no retry on interval)
   // Sidebar toggle: wire toggle-sidebar-btn to model-sidebar
   const _tsbtn2 = document.getElementById('toggle-sidebar-btn');
   if (_tsbtn2) _tsbtn2.addEventListener('click', () => {
@@ -7927,14 +7938,7 @@ function toggleResultsPanel() {
     }
   };
 
-  // Set version badge from API
-  fetch('/health')
-    .then(r => r.json())
-    .then(d => {
-      const badge = document.getElementById('ver-badge');
-      if (badge && d.version) badge.textContent = 'v' + d.version;
-    })
-    .catch(() => {});
+  // Version badge is set by checkHealth() above — no separate fetch needed.
 
   // Auto-check 4s after load so it doesn't block startup
   setTimeout(() => checkForUpdates(false), 4000);
