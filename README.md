@@ -185,7 +185,7 @@ https://doi.org/10.5281/zenodo.20124109
 
 ## License
 
-[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — free to use and share with attribution, non-commercial, no modifications.
+[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — NAVAL-SEM is source-available, maintainer-controlled software. Users may inspect, use, and share unmodified copies under the CC BY-NC-ND 4.0 license. Modified redistributions and commercial use are not permitted. Bug reports and pull requests are welcome, but only official releases published by the maintainer are authorized NAVAL-SEM distributions.
 
 ---
 
