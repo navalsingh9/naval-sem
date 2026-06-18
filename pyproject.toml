@@ -22,7 +22,7 @@ dependencies = [
     "joblib==1.5.3",
     "macholib==1.16.4",
     "mpmath==1.4.1",
-    "narwhals==2.21.2",
+    "narwhals==2.22.1",
     "numdifftools==0.9.42",
     "numpy==2.4.6",
     "openpyxl==3.1.5",
