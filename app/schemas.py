@@ -182,6 +182,58 @@ class ModelSummary(BaseModel):
     verdict:              str
 
 
+class CVIResult(BaseModel):
+    item_cvi: Dict[str, float]       # I-CVI per item (proportion rating >= 3)
+    s_cvi_ave: float                 # mean of all I-CVIs
+    s_cvi_ua: float                  # proportion of items with I-CVI = 1.00
+    kappa_star: float                # mean modified kappa across items
+    n_experts: int
+    n_items: int
+    interpretation: str              # "Excellent" / "Acceptable" / "Poor"
+
+
+class ScaleDevelopmentResult(BaseModel):
+    method: str                      # e.g. "PCA_Varimax"
+    n_factors: int
+    kmo: float
+    bartlett_chi2: float
+    bartlett_p: float
+    eigenvalues: List[float]
+    variance_explained: List[float]  # per factor
+    cumulative_variance: float
+    loadings: List[Dict[str, Any]]   # [{item, factor, loading}]
+    cross_loadings: Optional[List[Dict[str, Any]]] = None
+    warnings: List[str] = []
+
+
+class NomologicalResult(BaseModel):
+    construct: str
+    r_squared: float
+    benchmark: float
+    passed: bool
+    interpretation: str              # "Substantial" / "Moderate" / "Weak" / "Not supported"
+
+
+class MeasurementInvarianceLevel(BaseModel):
+    model: str                       # "configural" | "metric" | "scalar"
+    cfi: Optional[float] = None
+    rmsea: Optional[float] = None
+    srmr: Optional[float] = None
+    delta_cfi: Optional[float] = None
+    delta_rmsea: Optional[float] = None
+    passed: bool
+
+
+class MeasurementInvarianceResult(BaseModel):
+    group_col: str
+    groups: List[str]
+    configural: MeasurementInvarianceLevel
+    metric: MeasurementInvarianceLevel
+    scalar: MeasurementInvarianceLevel
+    partial_invariance: Optional[List[str]] = None   # items released
+    conclusion: str   # "Full scalar" / "Partial scalar" / "Metric only" / "Configural only"
+
+
 class ModelResult(BaseModel):
     algorithm: str
     n_obs: int

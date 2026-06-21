@@ -18,7 +18,7 @@ import threading
 from pathlib import Path
 import logging
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
@@ -157,7 +157,9 @@ def _compute_fingerprint(
 from app.engine import (
     fit_model, run_bootstrap, compute_htmt, export_as_code,
     compute_indirect_effects, compute_cmb, compute_predict,
+    compute_nomological_validity, compute_measurement_invariance,
 )
+from app.scale import compute_efa, compute_cvi
 from app.parser import (parse_spss, parse_excel, parse_lavaan, parse_csv_robust,)
 from app.schemas import (
     ModelResult, BootstrapResult, HTMTResult, IndirectResult,
@@ -166,6 +168,9 @@ from app.schemas import (
     ModMediationResult,                               # v0.7 — moderated mediation
     RobustnessChecks, FIMIXResult, PLSPOSResult,      # v0.8
     GaussianCopulaResult, NonlinearResult,            # v0.8
+    NomologicalResult,                                # v0.9
+    MeasurementInvarianceResult,                      # v0.9
+    CVIResult, ScaleDevelopmentResult,                # v0.9 — scale development
 )
 from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stage
 from app.engine_moderation    import run_moderation                                # v0.7
@@ -1751,3 +1756,101 @@ async def mod_mediation_analysis(
             raise HTTPException(500, "Moderated mediation analysis failed. Check server logs.")
 
         return result
+
+
+# ── v0.9: Nomological Validity ─────────────────────────────────────────────────
+
+@app.post("/nomological", response_model=List[NomologicalResult])
+async def run_nomological(
+    file: UploadFile = File(...),
+    model_syntax: str = Form(...),
+):
+    df = pd.read_csv(file.file)
+    return compute_nomological_validity(df, model_syntax)
+
+
+# ── v0.9: Measurement Invariance ───────────────────────────────────────────────
+
+@app.post("/invariance", response_model=MeasurementInvarianceResult)
+async def run_invariance(
+    file: UploadFile = File(...),
+    model_syntax: str = Form(...),
+    group_col: str = Form(...),
+):
+    """
+    Full measurement invariance sequence: configural → metric → scalar.
+
+    Parameters
+    ----------
+    file         : CSV upload containing all variables + the group column.
+    model_syntax : lavaan-style model syntax (=~ / ~ / ~~).
+    group_col    : Column name whose values define groups (≥ 2 distinct values).
+
+    Returns
+    -------
+    MeasurementInvarianceResult — per-level CFI / RMSEA / SRMR / ΔCFI / ΔRMSEA,
+    partial invariance items (if scalar partially holds), and a plain-English
+    conclusion: "Full scalar" / "Partial scalar" / "Metric only" / "Configural only".
+    """
+    try:
+        df = pd.read_csv(file.file)
+    except Exception as exc:
+        raise HTTPException(422, f"Could not parse uploaded file: {exc}")
+
+    try:
+        return compute_measurement_invariance(df, model_syntax, group_col)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        logger.error("Unexpected error in /invariance: %s", exc, exc_info=True)
+        raise HTTPException(500, "Measurement invariance analysis failed. Check server logs.")
+
+
+# ── v0.9: EFA (Exploratory Factor Analysis) ────────────────────────────────────
+
+@app.post("/efa", response_model=ScaleDevelopmentResult)
+async def run_efa(
+    file: UploadFile = File(...),
+    n_factors: Optional[int] = Form(None),
+    rotation: str = Form("varimax"),
+):
+    """
+    Exploratory Factor Analysis with KMO, Bartlett's test, and varimax/oblimin rotation.
+
+    Form fields
+    -----------
+    file      : CSV file — rows = respondents, columns = items (numeric).
+    n_factors : Number of factors to extract; if omitted, Kaiser criterion (λ > 1) is used.
+    rotation  : Rotation method passed to sklearn FactorAnalysis (default ``varimax``).
+
+    Returns
+    -------
+    ScaleDevelopmentResult — KMO, Bartlett χ², eigenvalues, variance explained,
+    factor loadings, cross-loadings, and warnings.
+    """
+    df = pd.read_csv(file.file)
+    return compute_efa(df, n_factors=n_factors, rotation=rotation)
+
+
+# ── v0.9: CVI (Content Validity Index) ────────────────────────────────────────
+
+@app.post("/cvi", response_model=CVIResult)
+async def run_cvi(
+    file: UploadFile = File(...),
+    n_experts: int = Form(...),
+):
+    """
+    Content Validity Index from an expert ratings matrix.
+
+    Form fields
+    -----------
+    file      : CSV file — rows = experts, columns = items, values = 1–4 Likert ratings.
+    n_experts : Number of experts (rows) used for I-CVI proportion denominators.
+
+    Returns
+    -------
+    CVIResult — I-CVI per item, S-CVI/Ave, S-CVI/UA, modified kappa (κ*),
+    and an interpretation (Excellent / Acceptable / Poor).
+    """
+    df = pd.read_csv(file.file)
+    return compute_cvi(df, n_experts=n_experts)
