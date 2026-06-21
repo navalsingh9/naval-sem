@@ -4,7 +4,7 @@ Pydantic schemas for all API responses.
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PathParameter(BaseModel):
@@ -207,7 +207,15 @@ class ScaleDevelopmentResult(BaseModel):
 
 
 class NomologicalResult(BaseModel):
-    construct: str
+    # `construct` shadows pydantic's BaseModel.construct() (the deprecated
+    # v1-compat fast-instantiation classmethod), which pydantic warns about
+    # at class-definition time. The Python attribute is renamed below;
+    # alias= keeps the wire format identical — FastAPI serializes by alias
+    # by default, so the JSON key is still "construct" and no consumer
+    # (tests, frontend) needs to change.
+    model_config = ConfigDict(populate_by_name=True)
+
+    construct_name: str = Field(alias="construct")
     r_squared: float
     benchmark: float
     passed: bool
@@ -529,6 +537,50 @@ class NCAResult(BaseModel):
     entries:         List[NCAEntry]
     n_permutations:  int
     warnings:        List[str] = []
+
+
+# ── NCA-ESSE: Effect Size Sensitivity Extension (v0.9) ────────────────────────
+# Becker, J.-M., Richter, N. F., Ringle, C. M., & Sarstedt, M. (2026).
+# Must-have, or maybe not? A sensitivity-based extension to necessary condition
+# analysis. Journal of Business Research, 206, 115920.
+# https://doi.org/10.1016/j.jbusres.2025.115920  (CC BY 4.0)
+
+
+class NCAESSEThresholdPoint(BaseModel):
+    """One ECDF-threshold step in the sensitivity sweep for one IV→DV pair."""
+    threshold:         float
+    pct_excluded:      float
+    empirical_d:       float
+    theoretical_d:     float
+    delta_empirical:   Optional[float] = None   # Δ vs. previous threshold step
+    delta_theoretical: Optional[float] = None
+    delta_diff:        Optional[float] = None   # delta_empirical − delta_theoretical
+    p_value:           Optional[float] = None   # permutation p-value at this threshold
+    significant:       bool = False
+
+
+class NCAESSEEntry(BaseModel):
+    """NCA-ESSE sensitivity curve for one structural IV → DV pair."""
+    iv:                      str
+    dv:                      str
+    n_obs:                   int
+    thresholds:              List[NCAESSEThresholdPoint]
+    recommended_threshold:   Optional[float] = None
+    recommended_effect_size: Optional[float] = None
+    recommended_label:       Optional[str]   = None
+    ceiling_x:               List[float]     = []
+    ceiling_y:               List[float]     = []
+    warnings:                List[str]       = []
+
+
+class NCAESSEResult(BaseModel):
+    """Top-level container returned by compute_nca_esse()."""
+    entries:          List[NCAESSEEntry]
+    threshold_range:  List[float]
+    benchmark:        str = "joint_uniform"
+    n_permutations:   int
+    n_benchmark_reps: int
+    warnings:         List[str] = []
 
 
 # ── Moderated Mediation (v0.7) ────────────────────────────────────────────────

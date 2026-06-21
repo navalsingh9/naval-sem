@@ -165,6 +165,7 @@ from app.schemas import (
     ModelResult, BootstrapResult, HTMTResult, IndirectResult,
     CMBMarkerResult, PredictResult, MGAResult,
     ModerationResult, IPMAResult, NCAResult,          # v0.7
+    NCAESSEResult,                                    # v0.9
     ModMediationResult,                               # v0.7 — moderated mediation
     RobustnessChecks, FIMIXResult, PLSPOSResult,      # v0.8
     GaussianCopulaResult, NonlinearResult,            # v0.8
@@ -176,6 +177,7 @@ from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stag
 from app.engine_moderation    import run_moderation                                # v0.7
 from app.engine_ipma          import compute_ipma                                  # v0.7
 from app.nca                  import compute_nca                                   # v0.7
+from app.nca_esse             import compute_nca_esse                              # v0.9
 from app.engine_mod_mediation import run_mod_mediation                             # v0.7
 
 
@@ -1538,6 +1540,95 @@ async def nca_analysis(
             log("error", "NCA unexpected error — see server logs for details")
             logger.error("Unexpected error in /nca: %s", exc, exc_info=True)
             raise HTTPException(500, "NCA analysis failed. Check server logs.")
+
+        return result
+
+
+# ── v0.9: NCA-ESSE ────────────────────────────────────────────────────────────
+
+@app.post("/nca-esse", response_model=NCAESSEResult)
+async def nca_esse_analysis(
+    file:              UploadFile = File(...),
+    model:             str        = Form(...),
+    n_permutations:    int        = Form(200),
+    n_benchmark_reps:  int        = Form(200),
+    seed:              int        = Form(42),
+    missing:           str        = Form("listwise"),
+    run_id:            str        = Form(None),
+    reverse_items:     Optional[str] = Form(None),
+):
+    """
+    NCA Effect Size Sensitivity Extension (NCA-ESSE).
+
+    Becker, Richter, Ringle & Sarstedt (2026) — J. Bus. Res. 206, 115920.
+
+    Sweeps an ECDF threshold p from 0–5 % in 0.5 pt steps, recomputing the
+    CE-FDH ceiling at each step after discarding the most extreme ceiling-
+    violating observations. The empirical sensitivity curve is compared
+    against a joint-uniform benchmark (no necessity by construction) to
+    identify the largest threshold where relaxing the ceiling still reflects
+    genuine signal rather than chance. A permutation test (shuffled Y) is
+    applied at every threshold.
+
+    Form fields
+    -----------
+    file              : CSV, XLSX, or SAV dataset.
+    model             : lavaan syntax. All structural IV → DV pairs are tested.
+    n_permutations    : Permutation samples per threshold per pair (default 200).
+    n_benchmark_reps  : Joint-uniform benchmark replications per pair (default 200).
+    seed              : RNG seed for reproducibility (default 42).
+    missing           : ``listwise`` (default) | ``mean``.
+    run_id            : Optional SSE tracking ID.
+
+    Returns
+    -------
+    NCAESSEResult — per-pair sensitivity curves, benchmark curves,
+    recommended threshold and effect size, ceiling line coordinates,
+    and permutation p-values at every threshold step.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    n_permutations    = min(n_permutations, 5_000)
+    n_benchmark_reps  = min(n_benchmark_reps, 5_000)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"NCA-ESSE: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /nca-esse: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
+
+        if missing == "listwise":
+            df = df.dropna()
+            log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        df = auto_reverse_score(df, model, log_fn=log, reverse_items=reverse_items)
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: compute_nca_esse(
+                    df, model,
+                    n_permutations=n_permutations,
+                    n_benchmark_reps=n_benchmark_reps,
+                    seed=seed,
+                    log_fn=log,
+                ),
+            )
+        except ValueError as exc:
+            log("error", f"NCA-ESSE failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "NCA-ESSE unexpected error — see server logs for details")
+            logger.error("Unexpected error in /nca-esse: %s", exc, exc_info=True)
+            raise HTTPException(500, "NCA-ESSE analysis failed. Check server logs.")
 
         return result
 

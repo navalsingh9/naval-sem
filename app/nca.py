@@ -61,7 +61,7 @@ def _nca_label(d: float) -> str:
 def _ce_fdh(
     x: np.ndarray,
     y: np.ndarray,
-) -> tuple[float, list[float], list[float]]:
+) -> tuple[float, list[float], list[float], list[tuple[float, float]]]:
     """
     CE-FDH: Ceiling Envelopment — Free Disposal Hull.
 
@@ -83,10 +83,13 @@ def _ce_fdh(
 
     Returns
     -------
-    (d, ceiling_x, ceiling_y)
+    (d, ceiling_x, ceiling_y, ceil_pts)
         d             Effect size (0–1).
         ceiling_x/y   Staircase ceiling line coordinates for plotting
                       (sorted by x ascending; step function pairs).
+        ceil_pts      List of (x, y) corner points defining the staircase,
+                      sorted by x ascending. Used by nca_esse.py for the
+                      threshold-removal sweep (peaks[0] = worst violator).
     """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)

@@ -1325,7 +1325,7 @@ def compute_nomological_validity(
         else:
             interpretation = "Not supported"
         results.append(NomologicalResult(
-            construct=construct,
+            construct_name=construct,
             r_squared=round(r2, 4),
             benchmark=bench,
             passed=passed,
