@@ -248,7 +248,7 @@ def compute_nca_esse(
                 sweep_b = _threshold_sweep(xb, yb, thresholds)
                 for t in thresholds:
                     bench_acc[t].append(sweep_b[t]["ce_d"])
-            except Exception:
+            except Exception: # nosec B112 — skip failed benchmark rep; Monte Carlo loop tolerates occasional failures
                 continue
         theo = {
             t: float(np.mean(vals)) if vals else 0.0
@@ -263,7 +263,7 @@ def compute_nca_esse(
                 sweep_p = _threshold_sweep(x_c, y_perm, thresholds)
                 for t in thresholds:
                     perm_acc[t].append(sweep_p[t]["ce_d"])
-            except Exception:
+            except Exception: # nosec B112 — skip failed permutation rep; Monte Carlo loop tolerates occasional failures
                 continue
 
         # ── Assemble per-threshold points + deltas ───────────────────────────
