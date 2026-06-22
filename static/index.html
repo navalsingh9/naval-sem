@@ -504,7 +504,8 @@ button { cursor: pointer; }
 .nbadge { font-size: 9px; padding: 1px 6px; border-radius: var(--pill); font-style: normal; white-space: nowrap; }
 .nb-v  { background: var(--green-soft);  border: .5px solid rgba(52,211,153,.25);  color: var(--green-text); }
 .nb-07 { background: var(--purple-soft); border: .5px solid rgba(167,139,250,.25); color: var(--purple-text); }
-.nb-08 { background: var(--glass);       border: .5px solid var(--line);           color: var(--t3); }
+.nb-08 { background: var(--amber-soft);  border: .5px solid rgba(251,191,36,.25); color: var(--amber-text); }
+.nb-09 { background: var(--glass);       border: .5px solid var(--line);           color: var(--t2); }
 .andiv { height: .5px; background: var(--line); margin: 6px 10px; }
 
 /* analyse content */
@@ -1478,15 +1479,25 @@ button { cursor: pointer; }
       <div class="ani" onclick="showAna(this,'mod_mediation')">Mod. mediation <span class="nbadge nb-07">v0.7</span></div>
 
       <div class="andiv"></div>
+      <div class="ans">Segmentation</div>
+      <div class="ani" onclick="showAna(this,'fimix')">FIMIX <span class="nbadge nb-08">v0.8</span></div>
+      <div class="ani" onclick="showAna(this,'plspos')">PLS-POS <span class="nbadge nb-08">v0.8</span></div>
+
+      <div class="andiv"></div>
       <div class="ans">Robustness</div>
-      <div class="ani soon">FIMIX <span class="nbadge nb-08">v0.8</span></div>
-      <div class="ani soon">Gaussian Copula <span class="nbadge nb-08">v0.8</span></div>
+      <div class="ani" onclick="showAna(this,'copula')">Gaussian Copula <span class="nbadge nb-08">v0.8</span></div>
+      <div class="ani" onclick="showAna(this,'nca_esse')">NCA-ESSE <span class="nbadge nb-09">v0.9</span></div>
+
+      <div class="andiv"></div>
+      <div class="ans">Validity</div>
+      <div class="ani" onclick="showAna(this,'nomological')">Nomological <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'invariance')">Invariance <span class="nbadge nb-09">v0.9</span></div>
 
       <div class="andiv"></div>
       <div class="ans">Scale dev</div>
-      <div class="ani soon">EFA <span class="nbadge nb-08">v0.9</span></div>
-      <div class="ani soon">CVI <span class="nbadge nb-08">v0.9</span></div>
-      <div class="ani soon">fsQCA <span class="nbadge nb-08">v1.0</span></div>
+      <div class="ani" onclick="showAna(this,'efa')">EFA <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'cvi')">CVI <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani soon">fsQCA <span class="nbadge nb-09">v1.0</span></div>
     </nav>
 
     <!-- Core analysis -->
@@ -1922,6 +1933,237 @@ button { cursor: pointer; }
           Upload a dataset and run NCA to see ceiling-line results here.
           <em>CE-FDH staircase + CR-FDH regression ceilings with permutation p-values.</em>
         </div>
+      </div>
+    </div>
+
+    <!-- ── FIMIX (v0.8) ── -->
+    <div class="ana-content" id="ana-fimix" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Max K</span>
+        <select class="csel" id="fimix-kmax">
+          <option value="2">2 segments</option>
+          <option value="3" selected>3 segments</option>
+          <option value="4">4 segments</option>
+          <option value="5">5 segments</option>
+        </select>
+        <span class="cfg-lbl">Starts</span>
+        <select class="csel" id="fimix-starts">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+        </select>
+        <span class="cfg-lbl">Seed</span>
+        <input class="cinp" id="fimix-seed" type="number" value="42" style="width:64px">
+        <button class="run-sm" id="fimix-run-btn" onclick="runFIMIX()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run FIMIX</button>
+      </div>
+      <div class="infonote">
+        FIMIX-PLS uncovers unobserved heterogeneity by fitting <em>K</em> latent segment-specific path models via EM.
+        Recommended K is selected by minimum CAIC. Relative entropy ≥ 0.5 indicates good separation.
+      </div>
+      <div id="fimix-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running FIMIX…
+      </div>
+      <div id="fimix-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="fimix-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="fimix-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload a dataset and run FIMIX to see segment solutions here.<em>EM-based finite mixture of PLS path models.</em></div>
+      </div>
+    </div>
+
+    <!-- ── PLS-POS (v0.8) ── -->
+    <div class="ana-content" id="ana-plspos" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Segments K</span>
+        <select class="csel" id="plspos-k">
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+        <span class="cfg-lbl">Starts</span>
+        <select class="csel" id="plspos-starts">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+        </select>
+        <span class="cfg-lbl">Seed</span>
+        <input class="cinp" id="plspos-seed" type="number" value="42" style="width:64px">
+        <button class="run-sm" id="plspos-run-btn" onclick="runPLSPOS()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run PLS-POS</button>
+      </div>
+      <div class="infonote">
+        PLS-POS (Prediction-Oriented Segmentation) assigns observations to K segments by minimising within-segment residuals.
+        Run FIMIX first to enable cross-method comparison.
+      </div>
+      <div id="plspos-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running PLS-POS…
+      </div>
+      <div id="plspos-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="plspos-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="plspos-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload a dataset and run PLS-POS to see segment assignments here.<em>Prediction-oriented segmentation.</em></div>
+      </div>
+    </div>
+
+    <!-- ── Gaussian Copula / Robustness (v0.8) ── -->
+    <div class="ana-content" id="ana-copula" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Endogenous LV</span>
+        <input class="cinp" id="copula-endogenous" type="text" placeholder="e.g. ETA" style="width:120px">
+        <span class="cfg-lbl">Bootstrap</span>
+        <select class="csel" id="copula-bs">
+          <option value="0">No CI</option>
+          <option value="100">100</option>
+          <option value="200" selected>200</option>
+          <option value="500">500</option>
+        </select>
+        <span class="cfg-lbl">Seed</span>
+        <input class="cinp" id="copula-seed" type="number" value="42" style="width:64px">
+        <button class="run-sm" id="copula-run-btn" onclick="runCopula()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run Copula</button>
+      </div>
+      <div class="infonote">
+        The Gaussian Copula method (Park &amp; Gupta 2012) corrects for endogeneity bias by augmenting the structural model
+        with a copula term derived from the non-normal marginal distribution of the endogenous predictor.
+      </div>
+      <div id="copula-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running Gaussian Copula…
+      </div>
+      <div id="copula-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="copula-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="copula-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Specify the endogenous LV and run to see corrected path coefficients here.<em>Copula-corrected structural paths.</em></div>
+      </div>
+    </div>
+
+    <!-- ── NCA-ESSE (v0.9) ── -->
+    <div class="ana-content" id="ana-nca_esse" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Permutations</span>
+        <select class="csel" id="ncaesse-perms">
+          <option value="100">100</option>
+          <option value="200" selected>200</option>
+          <option value="500">500</option>
+        </select>
+        <span class="cfg-lbl">Benchmark reps</span>
+        <select class="csel" id="ncaesse-bench">
+          <option value="100">100</option>
+          <option value="200" selected>200</option>
+          <option value="500">500</option>
+        </select>
+        <span class="cfg-lbl">Seed</span>
+        <input class="cinp" id="ncaesse-seed" type="number" value="42" style="width:64px">
+        <button class="run-sm" id="ncaesse-run-btn" onclick="runNCAESSE()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run NCA-ESSE</button>
+      </div>
+      <div class="infonote">
+        NCA-ESSE (Becker et al. 2026) sweeps an ECDF removal threshold (0–5%) to test whether a ceiling effect persists
+        beyond random artefacts of atypical observations. Empirical effect-size curve is compared against a joint-uniform benchmark.
+      </div>
+      <div id="ncaesse-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running NCA-ESSE…
+      </div>
+      <div id="ncaesse-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="ncaesse-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="ncaesse-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload a dataset and run NCA-ESSE to see sensitivity curves here.<em>Requires ≥ 30 valid observations per IV→DV pair.</em></div>
+      </div>
+    </div>
+
+    <!-- ── Nomological Validity (v0.9) ── -->
+    <div class="ana-content" id="ana-nomological" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Algorithm</span>
+        <select class="csel" id="nomological-algo">
+          <option value="pls" selected>PLS-SEM</option>
+          <option value="cb">CB-SEM</option>
+        </select>
+        <button class="run-sm" id="nomological-run-btn" onclick="runNomological()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run Nomological</button>
+      </div>
+      <div class="infonote">
+        Nomological validity checks whether each endogenous construct's R² meets its theoretical benchmark
+        (Substantial ≥ 0.67 · Moderate ≥ 0.33 · Weak ≥ 0.19).
+      </div>
+      <div id="nomological-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running Nomological Validity…
+      </div>
+      <div id="nomological-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="nomological-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="nomological-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload a dataset and run to see R² benchmarks for each endogenous construct.<em>Hair et al. 2011 thresholds.</em></div>
+      </div>
+    </div>
+
+    <!-- ── Measurement Invariance (v0.9) ── -->
+    <div class="ana-content" id="ana-invariance" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Group column</span>
+        <input class="cinp" id="invariance-group-col" type="text" placeholder="group column name" style="width:160px" oninput="_invCheckRunnable()">
+        <button class="run-sm" id="invariance-run-btn" onclick="runInvariance()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run Invariance</button>
+      </div>
+      <div class="infonote">
+        Tests configural → metric → scalar invariance via CB-SEM. ΔCFI ≤ −0.010 signals non-invariance at each step.
+        Partial scalar invariance is sufficient for valid MGA path-coefficient comparisons.
+      </div>
+      <div id="invariance-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running Invariance tests…
+      </div>
+      <div id="invariance-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="invariance-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="invariance-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Specify a group column and run to see the invariance ladder here.<em>Configural → Metric → Scalar.</em></div>
+      </div>
+    </div>
+
+    <!-- ── EFA (v0.9) ── -->
+    <div class="ana-content" id="ana-efa" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Factors</span>
+        <input class="cinp" id="efa-factors" type="number" placeholder="auto (Kaiser)" style="width:130px">
+        <span class="cfg-lbl">Rotation</span>
+        <select class="csel" id="efa-rotation">
+          <option value="varimax" selected>Varimax</option>
+          <option value="oblimin">Oblimin</option>
+          <option value="promax">Promax</option>
+        </select>
+        <button class="run-sm" id="efa-run-btn" onclick="runEFA()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run EFA</button>
+      </div>
+      <div class="infonote">
+        Exploratory Factor Analysis — KMO ≥ 0.60 and significant Bartlett's test are prerequisites.
+        Factors are retained by Kaiser criterion (eigenvalue > 1) unless you specify a number. Primary loadings ≥ 0.40; cross-loadings flagged > 0.30.
+      </div>
+      <div id="efa-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running EFA…
+      </div>
+      <div id="efa-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="efa-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="efa-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload an items-only dataset and run EFA to see factor loadings here.<em>KMO · Bartlett · Eigenvalues · Loadings matrix.</em></div>
+      </div>
+    </div>
+
+    <!-- ── CVI (v0.9) ── -->
+    <div class="ana-content" id="ana-cvi" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Number of experts</span>
+        <input class="cinp" id="cvi-n-experts" type="number" placeholder="e.g. 5" style="width:80px" oninput="_cviCheckRunnable()">
+        <button class="run-sm" id="cvi-run-btn" onclick="runCVI()" disabled style="opacity:.4;cursor:not-allowed;margin-left:auto">▶&nbsp; Run CVI</button>
+      </div>
+      <div class="infonote">
+        Content Validity Index — upload a matrix (rows = experts, columns = items, values = 1–4 relevance ratings).
+        I-CVI ≥ 0.78 per item · S-CVI/Ave ≥ 0.90 across items → Excellent. Modified kappa (κ*) corrects for chance agreement.
+      </div>
+      <div id="cvi-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running CVI…
+      </div>
+      <div id="cvi-error"   style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="cvi-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="cvi-idle"    class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload an expert-ratings matrix and run CVI to see I-CVI and S-CVI scores here.<em>I-CVI · S-CVI/Ave · S-CVI/UA · κ*.</em></div>
       </div>
     </div>
 
@@ -7671,6 +7913,569 @@ function _renderNCAResults(data) {
 }
 // ── end v0.7 Advanced analysis tabs ────────────────────────────────────────
 
+// ════════════════════════════════════════════════════════
+//  v0.8  FIMIX-PLS
+// ════════════════════════════════════════════════════════
+function _fimixCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('syntax-area')?.value || '').trim());
+  const btn = document.getElementById('fimix-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runFIMIX() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _fimixShowError('No model syntax.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _fimixShowError('Upload a dataset first.'); return; }
+  const kMax   = document.getElementById('fimix-kmax')?.value   || '3';
+  const starts = document.getElementById('fimix-starts')?.value || '10';
+  const seed   = document.getElementById('fimix-seed')?.value   || '42';
+  const runId  = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('fimix-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('fimix-spinner').style.display = 'block';
+  document.getElementById('fimix-error').style.display   = 'none';
+  document.getElementById('fimix-results').style.display = 'none';
+  document.getElementById('fimix-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('data', file); fd.append('model', syntax);
+  fd.append('k_max', kMax); fd.append('n_starts', starts);
+  fd.append('seed', seed); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: `FIMIX · K_max: ${kMax}`, bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/fimix', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderFIMIXResults(data);
+  } catch(err) { _errRunRecord(err.message); _fimixShowError('FIMIX error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _fimixShowError(msg) {
+  document.getElementById('fimix-spinner').style.display = 'none';
+  document.getElementById('fimix-results').style.display = 'none';
+  document.getElementById('fimix-idle').style.display    = 'none';
+  const el = document.getElementById('fimix-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderFIMIXResults(data) {
+  document.getElementById('fimix-spinner').style.display = 'none';
+  const el = document.getElementById('fimix-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const sols = data.solutions || [];
+  const rec  = data.recommended_k;
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+    &nbsp;·&nbsp; Recommended K = <span style="color:var(--accent-text)">${rec ?? '—'}</span>
+  </div>`;
+  if (sols.length) {
+    const rows = sols.map(s => {
+      const hi = s.k === rec;
+      return `<tr style="${hi ? 'background:var(--accent-soft)' : ''}">
+        <td style="color:var(--accent-text)">${s.k}</td>
+        <td style="color:var(--t0);text-align:right">${_fmt(s.aic)}</td>
+        <td style="color:var(--t0);text-align:right">${_fmt(s.bic)}</td>
+        <td style="color:var(--t0);text-align:right">${_fmt(s.caic)}</td>
+        <td style="color:var(--t0);text-align:right">${_fmt(s.relative_entropy)}</td>
+        <td>${s.segments?.map(sg=>`${sg.label??'S'+sg.segment_id}: ${sg.size} obs`).join(', ')??'—'}</td>
+      </tr>`;
+    }).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+      <thead><tr><th>K</th><th>AIC</th><th>BIC</th><th>CAIC ★</th><th>Rel. Entropy</th><th>Segments</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.8  PLS-POS
+// ════════════════════════════════════════════════════════
+function _plsposCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('syntax-area')?.value || '').trim());
+  const btn = document.getElementById('plspos-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runPLSPOS() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _plsposShowError('No model syntax.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _plsposShowError('Upload a dataset first.'); return; }
+  const k      = document.getElementById('plspos-k')?.value      || '2';
+  const starts = document.getElementById('plspos-starts')?.value || '10';
+  const seed   = document.getElementById('plspos-seed')?.value   || '42';
+  const runId  = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('plspos-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('plspos-spinner').style.display = 'block';
+  document.getElementById('plspos-error').style.display   = 'none';
+  document.getElementById('plspos-results').style.display = 'none';
+  document.getElementById('plspos-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('data', file); fd.append('model', syntax);
+  fd.append('k', k); fd.append('n_starts', starts);
+  fd.append('seed', seed); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: `PLS-POS · K=${k}`, bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/plspos', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderPLSPOSResults(data);
+  } catch(err) { _errRunRecord(err.message); _plsposShowError('PLS-POS error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _plsposShowError(msg) {
+  document.getElementById('plspos-spinner').style.display = 'none';
+  document.getElementById('plspos-results').style.display = 'none';
+  document.getElementById('plspos-idle').style.display    = 'none';
+  const el = document.getElementById('plspos-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderPLSPOSResults(data) {
+  document.getElementById('plspos-spinner').style.display = 'none';
+  const el = document.getElementById('plspos-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const segs = data.segments || [];
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    K = <span style="color:var(--accent-text)">${data.k ?? '—'}</span>
+    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+  </div>`;
+  if (segs.length) {
+    const rows = segs.map(s => `<tr>
+      <td style="color:var(--accent-text)">${s.segment_id ?? '—'}</td>
+      <td style="text-align:right">${s.size ?? '—'}</td>
+      <td style="text-align:right">${_fmt(s.stability)}</td>
+      <td>${(s.path_coefficients||[]).map(p=>`${p.path||p.rhs+'→'+p.lhs}: ${_fmt(p.estimate)}`).join(', ')||'—'}</td>
+    </tr>`).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+      <thead><tr><th>Segment</th><th>N</th><th>Stability</th><th>Path coefficients</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.8  Gaussian Copula (endogeneity robustness)
+// ════════════════════════════════════════════════════════
+function _copulaCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('syntax-area')?.value || '').trim());
+  const btn = document.getElementById('copula-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runCopula() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _copulaShowError('No model syntax.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _copulaShowError('Upload a dataset first.'); return; }
+  const endog = (document.getElementById('copula-endogenous')?.value || '').trim();
+  const bs    = document.getElementById('copula-bs')?.value   || '200';
+  const seed  = document.getElementById('copula-seed')?.value || '42';
+  const runId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('copula-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('copula-spinner').style.display = 'block';
+  document.getElementById('copula-error').style.display   = 'none';
+  document.getElementById('copula-results').style.display = 'none';
+  document.getElementById('copula-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('data', file); fd.append('model', syntax);
+  fd.append('checks', 'copula');
+  if (endog) fd.append('endogenous', endog);
+  fd.append('bootstrap_n', bs); fd.append('seed', seed); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: 'Gaussian Copula', bsSel: null, bsN: parseInt(bs) });
+  try {
+    const r = await fetch('/robustness', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderCopulaResults(data);
+  } catch(err) { _errRunRecord(err.message); _copulaShowError('Copula error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _copulaShowError(msg) {
+  document.getElementById('copula-spinner').style.display = 'none';
+  document.getElementById('copula-results').style.display = 'none';
+  document.getElementById('copula-idle').style.display    = 'none';
+  const el = document.getElementById('copula-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderCopulaResults(data) {
+  document.getElementById('copula-spinner').style.display = 'none';
+  const el = document.getElementById('copula-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(4) : '—';
+  const cop = data.copula || {};
+  const entries = cop.entries || [];
+  let html = '';
+  if (entries.length) {
+    entries.forEach(e => {
+      const paths = e.corrected_paths || [];
+      const rows = paths.map(p => `<tr>
+        <td style="color:var(--accent-text)">${p.path||p.lhs+'←'+p.rhs}</td>
+        <td style="text-align:right;color:var(--t0)">${_fmt(p.original_estimate)}</td>
+        <td style="text-align:right;color:var(--accent-text)">${_fmt(p.corrected_estimate)}</td>
+        <td style="text-align:right">${_fmt(p.copula_term)}</td>
+        <td style="text-align:right">${p.significant ? '✓' : '—'}</td>
+      </tr>`).join('');
+      html += `<div style="font-size:10px;font-weight:600;color:var(--t1);margin-bottom:4px">Endogenous: ${e.endogenous||'—'}</div>
+        <div style="overflow-x:auto;margin-bottom:12px"><table class="gtable">
+        <thead><tr><th>Path</th><th>Original β</th><th>Corrected β</th><th>Copula term</th><th>Sig.</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    });
+  } else {
+    html = '<div style="color:var(--t3);font-size:11px;padding:8px">No copula entries returned.</div>';
+  }
+  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.9  NCA-ESSE
+// ════════════════════════════════════════════════════════
+function _ncaesseCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('syntax-area')?.value || '').trim());
+  const btn = document.getElementById('ncaesse-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runNCAESSE() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _ncaesseShowError('No model syntax.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _ncaesseShowError('Upload a dataset first.'); return; }
+  const perms = document.getElementById('ncaesse-perms')?.value || '200';
+  const bench = document.getElementById('ncaesse-bench')?.value || '200';
+  const seed  = document.getElementById('ncaesse-seed')?.value  || '42';
+  const runId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('ncaesse-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('ncaesse-spinner').style.display = 'block';
+  document.getElementById('ncaesse-error').style.display   = 'none';
+  document.getElementById('ncaesse-results').style.display = 'none';
+  document.getElementById('ncaesse-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('file', file); fd.append('model', syntax);
+  fd.append('n_permutations', perms); fd.append('n_benchmark_reps', bench);
+  fd.append('seed', seed); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: `NCA-ESSE · perms: ${perms}`, bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/nca-esse', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderNCAESSEResults(data);
+  } catch(err) { _errRunRecord(err.message); _ncaesseShowError('NCA-ESSE error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _ncaesseShowError(msg) {
+  document.getElementById('ncaesse-spinner').style.display = 'none';
+  document.getElementById('ncaesse-results').style.display = 'none';
+  document.getElementById('ncaesse-idle').style.display    = 'none';
+  const el = document.getElementById('ncaesse-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderNCAESSEResults(data) {
+  document.getElementById('ncaesse-spinner').style.display = 'none';
+  const el = document.getElementById('ncaesse-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(4) : '—';
+  const entries = data.entries || [];
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Permutations: <span style="color:var(--t1)">${data.n_permutations??'—'}</span>
+    &nbsp;·&nbsp; Benchmark reps: <span style="color:var(--t1)">${data.n_benchmark_reps??'—'}</span>
+  </div>`;
+  if (entries.length) {
+    const rows = entries.map(e => `<tr>
+      <td style="color:var(--accent-text)">${e.iv}</td>
+      <td style="color:var(--t1)">${e.dv}</td>
+      <td style="text-align:right">${e.n_obs}</td>
+      <td style="text-align:right;color:var(--t0)">${_fmt(e.thresholds?.[0]?.empirical_d)}</td>
+      <td style="text-align:right;color:var(--accent-text)">${_fmt(e.recommended_effect_size)}</td>
+      <td style="text-align:right">${(e.recommended_threshold*100).toFixed(1)}%</td>
+      <td>${e.recommended_label}</td>
+    </tr>`).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+      <thead><tr><th>IV</th><th>DV</th><th>N</th><th>d(0%)</th><th>d(rec.)</th><th>Threshold</th><th>Size</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.9  Nomological Validity
+// ════════════════════════════════════════════════════════
+function _nomologicalCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('syntax-area')?.value || '').trim());
+  const btn = document.getElementById('nomological-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runNomological() {
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _nomologicalShowError('No model syntax.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _nomologicalShowError('Upload a dataset first.'); return; }
+  const runId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('nomological-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('nomological-spinner').style.display = 'block';
+  document.getElementById('nomological-error').style.display   = 'none';
+  document.getElementById('nomological-results').style.display = 'none';
+  document.getElementById('nomological-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('file', file); fd.append('model_syntax', syntax); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: 'Nomological validity', bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/nomological', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderNomologicalResults(data);
+  } catch(err) { _errRunRecord(err.message); _nomologicalShowError('Nomological error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _nomologicalShowError(msg) {
+  document.getElementById('nomological-spinner').style.display = 'none';
+  document.getElementById('nomological-results').style.display = 'none';
+  document.getElementById('nomological-idle').style.display    = 'none';
+  const el = document.getElementById('nomological-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderNomologicalResults(data) {
+  document.getElementById('nomological-spinner').style.display = 'none';
+  const el = document.getElementById('nomological-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const entries = Array.isArray(data) ? data : (data.entries || []);
+  let html = '';
+  if (entries.length) {
+    const rows = entries.map(e => {
+      const cls = e.passed ? 'fc-good' : 'fc-bad';
+      return `<tr>
+        <td style="color:var(--accent-text)">${e.construct}</td>
+        <td style="text-align:right;color:var(--t0)">${_fmt(e.r_squared)}</td>
+        <td style="text-align:right;color:var(--t2)">${_fmt(e.benchmark)}</td>
+        <td><span class="fit-chip ${cls}">${e.interpretation}</span></td>
+      </tr>`;
+    }).join('');
+    html = `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+      <thead><tr><th>Construct</th><th>R²</th><th>Benchmark</th><th>Verdict</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  el.innerHTML = html || '<div style="color:var(--t3);padding:8px">No endogenous constructs found.</div>';
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.9  Measurement Invariance
+// ════════════════════════════════════════════════════════
+function _invCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('syntax-area')?.value || '').trim() &&
+                (document.getElementById('invariance-group-col')?.value || '').trim());
+  const btn = document.getElementById('invariance-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runInvariance() {
+  const syntax   = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!syntax) { _invShowError('No model syntax.'); return; }
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _invShowError('Upload a dataset first.'); return; }
+  const groupCol = (document.getElementById('invariance-group-col')?.value || '').trim();
+  if (!groupCol) { _invShowError('Specify a group column.'); return; }
+  const runId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('invariance-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('invariance-spinner').style.display = 'block';
+  document.getElementById('invariance-error').style.display   = 'none';
+  document.getElementById('invariance-results').style.display = 'none';
+  document.getElementById('invariance-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('file', file); fd.append('model_syntax', syntax);
+  fd.append('group_col', groupCol); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: `Invariance · group: ${groupCol}`, bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/invariance', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderInvarianceResults(data);
+  } catch(err) { _errRunRecord(err.message); _invShowError('Invariance error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _invShowError(msg) {
+  document.getElementById('invariance-spinner').style.display = 'none';
+  document.getElementById('invariance-results').style.display = 'none';
+  document.getElementById('invariance-idle').style.display    = 'none';
+  const el = document.getElementById('invariance-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderInvarianceResults(data) {
+  document.getElementById('invariance-spinner').style.display = 'none';
+  const el = document.getElementById('invariance-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  const levels = ['configural','metric','scalar'];
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Groups: <span style="color:var(--t1)">${(data.groups||[]).join(', ')}</span>
+    &nbsp;·&nbsp; Conclusion: <span style="color:var(--accent-text)">${data.conclusion??'—'}</span>
+  </div>`;
+  const rows = levels.map(lvl => {
+    const m = data[lvl] || {};
+    const cls = m.passed ? 'fc-good' : 'fc-bad';
+    return `<tr>
+      <td style="text-transform:capitalize;color:var(--t1)">${lvl}</td>
+      <td style="text-align:right">${_fmt(m.cfi)}</td>
+      <td style="text-align:right">${_fmt(m.rmsea)}</td>
+      <td style="text-align:right">${m.delta_cfi != null ? _fmt(m.delta_cfi) : '—'}</td>
+      <td><span class="fit-chip ${cls}">${m.passed ? 'Pass' : 'Fail'}</span></td>
+    </tr>`;
+  }).join('');
+  html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+    <thead><tr><th>Level</th><th>CFI</th><th>RMSEA</th><th>ΔCFI</th><th>Pass</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.9  EFA
+// ════════════════════════════════════════════════════════
+function _efaCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile);
+  const btn = document.getElementById('efa-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runEFA() {
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file)  { _efaShowError('Upload a dataset first.'); return; }
+  const nf       = (document.getElementById('efa-factors')?.value   || '').trim();
+  const rotation = document.getElementById('efa-rotation')?.value   || 'varimax';
+  const runId    = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('efa-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('efa-spinner').style.display = 'block';
+  document.getElementById('efa-error').style.display   = 'none';
+  document.getElementById('efa-results').style.display = 'none';
+  document.getElementById('efa-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('file', file);
+  if (nf) fd.append('n_factors', nf);
+  fd.append('rotation', rotation); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: `EFA · rotation: ${rotation}`, bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/efa', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderEFAResults(data);
+  } catch(err) { _errRunRecord(err.message); _efaShowError('EFA error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _efaShowError(msg) {
+  document.getElementById('efa-spinner').style.display = 'none';
+  document.getElementById('efa-results').style.display = 'none';
+  document.getElementById('efa-idle').style.display    = 'none';
+  const el = document.getElementById('efa-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderEFAResults(data) {
+  document.getElementById('efa-spinner').style.display = 'none';
+  const el = document.getElementById('efa-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(4) : '—';
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    KMO = <span style="color:${(data.kmo||0)>=0.6?'var(--green-text)':'var(--red)'}">${_fmt(data.kmo)}</span>
+    &nbsp;·&nbsp; Bartlett p = <span style="color:${(data.bartlett_p||1)<0.05?'var(--green-text)':'var(--red)'}">${_fmt(data.bartlett_p)}</span>
+    &nbsp;·&nbsp; Factors = <span style="color:var(--t1)">${data.n_factors??'—'}</span>
+    &nbsp;·&nbsp; Cumulative var. = <span style="color:var(--t1)">${data.cumulative_variance!=null?(data.cumulative_variance*100).toFixed(1)+'%':'—'}</span>
+  </div>`;
+  if ((data.loadings||[]).length) {
+    const rows = data.loadings.map(l => `<tr>
+      <td style="color:var(--accent-text)">${l.item}</td>
+      <td style="text-align:right">F${l.factor}</td>
+      <td style="text-align:right;color:${Math.abs(l.loading||0)>=0.4?'var(--t0)':'var(--amber-text)'}">${_fmt(l.loading)}</td>
+    </tr>`).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+      <thead><tr><th>Item</th><th>Factor</th><th>Loading</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  if ((data.cross_loadings||[]).length) {
+    html += `<div class="warn-box" style="margin-top:8px"><b>Cross-loadings detected:</b><br>${
+      data.cross_loadings.map(c=>`${c.item}: F${c.primary_factor}→F${c.secondary_factor} (${_fmt(c.secondary_loading)})`).join('<br>')}</div>`;
+  }
+  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+//  v0.9  CVI
+// ════════════════════════════════════════════════════════
+function _cviCheckRunnable() {
+  const ok = !!(typeof uploadedFile !== 'undefined' && uploadedFile &&
+                (document.getElementById('cvi-n-experts')?.value || '').trim());
+  const btn = document.getElementById('cvi-run-btn');
+  if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.4'; btn.style.cursor = ok ? '' : 'not-allowed'; }
+}
+async function runCVI() {
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!file) { _cviShowError('Upload a ratings matrix first.'); return; }
+  const nExp = (document.getElementById('cvi-n-experts')?.value || '').trim();
+  if (!nExp) { _cviShowError('Specify the number of experts.'); return; }
+  const runId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+  const btn = document.getElementById('cvi-run-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('cvi-spinner').style.display = 'block';
+  document.getElementById('cvi-error').style.display   = 'none';
+  document.getElementById('cvi-results').style.display = 'none';
+  document.getElementById('cvi-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('file', file); fd.append('n_experts', nExp); fd.append('run_id', runId);
+  _startLiveStream(runId, { label: 'CVI', bsSel: null, bsN: 0 });
+  try {
+    const r = await fetch('/cvi', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _okRunRecord(data); _freezeReportSnapshot(); _renderCVIResults(data);
+  } catch(err) { _errRunRecord(err.message); _cviShowError('CVI error: ' + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
+}
+function _cviShowError(msg) {
+  document.getElementById('cvi-spinner').style.display = 'none';
+  document.getElementById('cvi-results').style.display = 'none';
+  document.getElementById('cvi-idle').style.display    = 'none';
+  const el = document.getElementById('cvi-error');
+  el.textContent = '✗ ' + msg; el.style.display = 'block';
+}
+function _renderCVIResults(data) {
+  document.getElementById('cvi-spinner').style.display = 'none';
+  const el = document.getElementById('cvi-results'); el.style.display = 'flex';
+  const _fmt = v => v != null ? Number(v).toFixed(4) : '—';
+  const verd = data.interpretation === 'Excellent' ? 'fc-good' : data.interpretation === 'Acceptable' ? 'fc-ok' : 'fc-bad';
+  let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+    Experts: <span style="color:var(--t1)">${data.n_experts??'—'}</span>
+    &nbsp;·&nbsp; Items: <span style="color:var(--t1)">${data.n_items??'—'}</span>
+    &nbsp;·&nbsp; S-CVI/Ave: <span style="color:var(--accent-text)">${_fmt(data.s_cvi_ave)}</span>
+    &nbsp;·&nbsp; S-CVI/UA: <span style="color:var(--t1)">${_fmt(data.s_cvi_ua)}</span>
+    &nbsp;·&nbsp; κ*: <span style="color:var(--t1)">${_fmt(data.kappa_star)}</span>
+    &nbsp;·&nbsp; <span class="fit-chip ${verd}">${data.interpretation??'—'}</span>
+  </div>`;
+  const icvi = data.item_cvi || {};
+  if (Object.keys(icvi).length) {
+    const rows = Object.entries(icvi).map(([item, v]) => {
+      const cls = v >= 0.78 ? 'var(--green-text)' : 'var(--red)';
+      return `<tr><td style="color:var(--accent-text)">${item}</td>
+        <td style="text-align:right;color:${cls}">${_fmt(v)}</td>
+        <td>${v >= 0.78 ? '✓' : '✗'}</td></tr>`;
+    }).join('');
+    html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+      <thead><tr><th>Item</th><th>I-CVI</th><th>≥0.78</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  el.innerHTML = html;
+}
+
+
 </script>
 
 <div class="export-toast" id="export-toast">
@@ -7720,6 +8525,14 @@ function showView(v) {
     if (typeof _ipmaCheckRunnable      === 'function') _ipmaCheckRunnable();
     if (typeof _modmedCheckRunnable    === 'function') _modmedCheckRunnable();
     if (typeof _ncaCheckRunnable       === 'function') _ncaCheckRunnable();
+    if (typeof _fimixCheckRunnable     === 'function') _fimixCheckRunnable();
+    if (typeof _plsposCheckRunnable    === 'function') _plsposCheckRunnable();
+    if (typeof _copulaCheckRunnable    === 'function') _copulaCheckRunnable();
+    if (typeof _ncaesseCheckRunnable   === 'function') _ncaesseCheckRunnable();
+    if (typeof _nomologicalCheckRunnable === 'function') _nomologicalCheckRunnable();
+    if (typeof _invCheckRunnable       === 'function') _invCheckRunnable();
+    if (typeof _efaCheckRunnable       === 'function') _efaCheckRunnable();
+    if (typeof _cviCheckRunnable       === 'function') _cviCheckRunnable();
   }
 
   // Auto-populate HOC with model dataset so user doesn't upload twice
@@ -7743,7 +8556,9 @@ function showAna(el, id) {
   // Update formula bar label to reflect active analysis panel
   const fbLabel = document.getElementById('fb-ctx-label');
   if (fbLabel) {
-    const _fbAnaMap = { mga: 'MGA', hoc: 'HOC', moderation: 'Moderation', ipma: 'IPMA', nca: 'NCA' };
+    const _fbAnaMap = { mga: 'MGA', hoc: 'HOC', moderation: 'Moderation', ipma: 'IPMA', nca: 'NCA',
+      fimix: 'FIMIX', plspos: 'PLS-POS', copula: 'Copula', nca_esse: 'NCA-ESSE',
+      nomological: 'Nomological', invariance: 'Invariance', efa: 'EFA', cvi: 'CVI' };
     fbLabel.textContent = _fbAnaMap[id] || 'Analyse';
   }
 }
