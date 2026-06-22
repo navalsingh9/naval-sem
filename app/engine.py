@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import logging
 import time
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, List
 
 logger = logging.getLogger("naval_sem.engine")
 
@@ -25,6 +25,8 @@ from app.schemas import (
     VIFEntry, F2Entry, IndirectEffect, IndirectResult, OuterWeightEntry,
     Q2Entry, PLSPredictEntry, CVPATResult, CMBMarkerResult, PredictResult,
     ModelSummary, StructuralPathSummary, ConstructValiditySummary,
+    NomologicalResult,
+    MeasurementInvarianceLevel, MeasurementInvarianceResult,
 )
 
 
@@ -1292,6 +1294,45 @@ def fit_model(
         summary            = summary,
     )
 
+
+def compute_nomological_validity(
+    df: pd.DataFrame,
+    model_syntax: str,
+    benchmarks: Optional[Dict[str, float]] = None,
+    log_fn=None,
+) -> List[NomologicalResult]:
+    """
+    Runs fit_model() and checks whether each endogenous construct's R²
+    meets the expected benchmark (Hair et al., 2019).
+    benchmarks: {construct_name: min_R²} or {"*": 0.10} as wildcard default.
+    """
+    if benchmarks is None:
+        benchmarks = {"*": 0.10}
+
+    result = fit_model(df, model_syntax, log_fn=log_fn)
+    r_sq: Dict[str, float] = result.fit.r_squared or {}
+
+    results: List[NomologicalResult] = []
+    for construct, r2 in r_sq.items():
+        bench = benchmarks.get(construct, benchmarks.get("*", 0.10))
+        passed = r2 >= bench
+        if r2 >= 0.26:
+            interpretation = "Substantial"
+        elif r2 >= 0.13:
+            interpretation = "Moderate"
+        elif passed:
+            interpretation = "Weak"
+        else:
+            interpretation = "Not supported"
+        results.append(NomologicalResult(
+            construct_name=construct,
+            r_squared=round(r2, 4),
+            benchmark=bench,
+            passed=passed,
+            interpretation=interpretation,
+        ))
+
+    return results
 
 
 # ── Results summary builder ─────────────────────────────────────────────────────────────────────
@@ -2871,3 +2912,503 @@ def auto_reverse_score(
     return (obs_min + obs_max) - series
 
 
+# ── Measurement Invariance Testing (v0.9) ────────────────────────────────────
+
+def _mi_clip_cfi(cfi: Optional[float]) -> Optional[float]:
+    """
+    Clamp a raw CFI value to its theoretical [0, 1] range.
+
+    semopy's calc_cfi() returns the unclipped textbook ratio
+    1 - (chi2 - dof) / (chi2_base - dof_base). That ratio is not
+    bounded by construction: a small/negative baseline discrepancy
+    (e.g. from a near-saturated or underidentified constrained model,
+    which is easy to hit when loadings/intercepts are fixed across a
+    stacked-group fit) can blow it far outside [0, 1]. Downstream code
+    compares CFI across configural/metric/scalar levels and trusts the
+    sign and magnitude of the result, so an unclipped value can produce
+    a fabricated "invariance holds" verdict (e.g. delta_cfi of +3 or +5
+    sailing past the -0.010 threshold). This mirrors the clamp already
+    applied to the PLS-based global CFI elsewhere in this module
+    (see _compute_pls_global_fit), so all CFI values reported by the
+    engine share the same [0, 1] convention.
+    """
+    if cfi is None:
+        return None
+    return round(max(0.0, min(1.0, cfi)), 6)
+
+
+def _mi_fit_group(
+    df: pd.DataFrame,
+    syntax: str,
+) -> dict:
+    """
+    Fit a CB-SEM model to `df` using the given semopy syntax.
+    Returns dict with keys: cfi, rmsea, srmr, chi2, df_dof, model.
+    Best-effort: falls back to NaN rather than raising.
+    """
+    from semopy import Model
+    from semopy.stats import calc_stats as _cs
+
+    result = {"cfi": None, "rmsea": None, "srmr": None,
+              "chi2": None, "df_dof": None, "model": None}
+    try:
+        m = Model(syntax)
+        # Two-attempt strategy: SLSQP then L-BFGS-B
+        for solver in ("SLSQP", "L-BFGS-B"):
+            try:
+                m.fit(df, solver=solver)
+                break
+            except TypeError:
+                m.fit(df)
+                break
+            except Exception:
+                m = Model(syntax)
+        result["model"] = m
+
+        stats = _cs(m)
+
+        def _g(key):
+            # calc_stats returns a 1-row DataFrame; .items() yields (col, Series)
+            for k, v in stats.items():
+                if k.lower().replace("-", "_").replace(" ", "_") == \
+                        key.lower().replace("-", "_").replace(" ", "_"):
+                    try:
+                        raw = v.iloc[0] if hasattr(v, "iloc") else v
+                        f = float(raw)
+                        return None if (np.isnan(f) or np.isinf(f)) else f
+                    except Exception:
+                        return None
+            return None
+
+        result["cfi"]    = _mi_clip_cfi(_g("CFI"))
+        result["rmsea"]  = _g("RMSEA")
+        result["chi2"]   = _g("chi2")
+        result["df_dof"] = _g("DoF")
+
+        # SRMR via engine helper (needs parsed dict; build minimal one)
+        parsed_mini = parse_lavaan(syntax)
+        result["srmr"] = _compute_srmr(m, df, m.inspect(), parsed_mini)
+
+    except Exception as _e:
+        logger.debug("_mi_fit_group failed: %s", _e)
+
+    return result
+
+
+def _mi_pooled_fit(
+    group_fits: list[dict],
+    group_ns: list[int],
+) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    """
+    Weighted mean of CFI, RMSEA, SRMR across groups (weights = group n).
+    Returns (cfi, rmsea, srmr).  Any all-None metric returns None.
+    """
+    total = sum(group_ns)
+    if total == 0:
+        return None, None, None
+
+    def _wmean(key: str) -> Optional[float]:
+        vals = [f[key] for f in group_fits]
+        ns   = group_ns
+        pairs = [(v, n) for v, n in zip(vals, ns) if v is not None]
+        if not pairs:
+            return None
+        wsum  = sum(v * n for v, n in pairs)
+        denom = sum(n for _, n in pairs)
+        val = wsum / denom
+        return None if (np.isnan(val) or np.isinf(val)) else val
+
+    return _wmean("cfi"), _wmean("rmsea"), _wmean("srmr")
+
+
+def _mi_build_metric_syntax(parsed: dict) -> str:
+    """
+    Build semopy syntax with loading equality labels across groups.
+    Loading labels (lam_{lv}_{i}) are shared in the stacked-data fit,
+    which reproduces the metric-invariance constraint (equal loadings).
+    The reference indicator for each LV is fixed at 1.
+    """
+    measurement = parsed.get("measurement", {})
+    structural  = parsed.get("structural", [])
+    covariances = parsed.get("covariances", [])
+    lines = []
+
+    for lv, indicators in measurement.items():
+        if not indicators:
+            continue
+        ind_parts = []
+        for i, ind in enumerate(indicators):
+            if i == 0:
+                ind_parts.append(f"1*{ind}")           # reference indicator fixed
+            else:
+                ind_parts.append(f"lam_{lv}_{i}*{ind}")  # shared label → equality
+        lines.append(f"{lv} =~ {' + '.join(ind_parts)}")
+
+    for rel in structural:
+        lines.append(f"{rel['lhs']} ~ {rel['rhs']}")
+    for cov in covariances:
+        lines.append(f"{cov['lhs']} ~~ {cov['rhs']}")
+
+    return "\n".join(lines)
+
+
+def _mi_extract_loading_estimates(model) -> dict[str, float]:
+    """
+    Return {indicator: loading_estimate} from a fitted semopy Model.
+    Reference indicators (fixed at 1.0) are included.
+    """
+    insp = model.inspect()
+    loading_col = "Estimate" if "Estimate" in insp.columns else "estimate"
+    loads: dict[str, float] = {}
+    op_col = "op"
+    lval_col = "lval" if "lval" in insp.columns else "lhs"
+    rval_col = "rval" if "rval" in insp.columns else "rhs"
+    for _, row in insp.iterrows():
+        if str(row[op_col]) == "~":
+            ind = str(row[lval_col])
+            val = row[loading_col]
+            try:
+                loads[ind] = float(val)
+            except (TypeError, ValueError):
+                pass
+    return loads
+
+
+def _mi_build_scalar_syntax(parsed: dict, loading_estimates: dict[str, float]) -> str:
+    """
+    Build semopy syntax with loadings FIXED to their metric-model estimates.
+    Combined with mean-adjusted stacked data, this implements scalar invariance
+    (equal loadings + equal intercepts) without requiring ModelMeans.
+    """
+    measurement = parsed.get("measurement", {})
+    structural  = parsed.get("structural", [])
+    covariances = parsed.get("covariances", [])
+    lines = []
+
+    for lv, indicators in measurement.items():
+        if not indicators:
+            continue
+        ind_parts = []
+        for i, ind in enumerate(indicators):
+            if i == 0:
+                ind_parts.append(f"1*{ind}")           # reference always 1
+            else:
+                est = loading_estimates.get(ind, 1.0)
+                ind_parts.append(f"{est:.8f}*{ind}")   # fixed to metric estimate
+        lines.append(f"{lv} =~ {' + '.join(ind_parts)}")
+
+    for rel in structural:
+        lines.append(f"{rel['lhs']} ~ {rel['rhs']}")
+    for cov in covariances:
+        lines.append(f"{cov['lhs']} ~~ {cov['rhs']}")
+
+    return "\n".join(lines)
+
+
+def _mi_fit_constrained(
+    df_stacked: pd.DataFrame,
+    parsed: dict,
+    constrain: str,                          # "loadings" | "loadings+intercepts"
+    metric_model=None,                       # needed for scalar (provides loading ests)
+    free_intercepts: Optional[list[str]] = None,
+) -> dict:
+    """
+    Fit constrained model on pooled data.
+
+    Metric  : stacked data + loading labels (equality via shared label).
+    Scalar  : stacked mean-centred data + fixed loadings (from metric model).
+              For partial scalar, only non-freed items are mean-centred.
+    """
+    from semopy import Model
+    from semopy.stats import calc_stats as _cs
+
+    result = {"cfi": None, "rmsea": None, "srmr": None,
+              "chi2": None, "df_dof": None, "model": None}
+
+    try:
+        if constrain == "loadings":
+            syntax  = _mi_build_metric_syntax(parsed)
+            df_fit  = df_stacked
+        else:
+            # scalar: fixed loadings + mean-adjusted data
+            loading_estimates = (
+                _mi_extract_loading_estimates(metric_model)
+                if metric_model is not None
+                else {}
+            )
+            syntax = _mi_build_scalar_syntax(parsed, loading_estimates)
+
+            # Mean-adjust all indicators except freed ones
+            freed = set(free_intercepts or [])
+            all_inds = [
+                ind for inds in parsed.get("measurement", {}).values()
+                for ind in inds
+                if ind in df_stacked.columns
+            ]
+            df_fit = df_stacked.copy()
+            for ind in all_inds:
+                if ind not in freed:
+                    df_fit[ind] = df_fit[ind] - df_fit[ind].mean()
+
+        m = Model(syntax)
+        for solver in ("SLSQP", "L-BFGS-B"):
+            try:
+                m.fit(df_fit, solver=solver)
+                break
+            except TypeError:
+                m.fit(df_fit)
+                break
+            except Exception:
+                m = Model(syntax)
+
+        result["model"] = m
+        stats = _cs(m)
+
+        def _g(key):
+            # calc_stats returns a 1-row DataFrame; .items() yields (col, Series)
+            for k, v in stats.items():
+                if k.lower().replace("-", "_").replace(" ", "_") == \
+                        key.lower().replace("-", "_").replace(" ", "_"):
+                    try:
+                        raw = v.iloc[0] if hasattr(v, "iloc") else v
+                        f = float(raw)
+                        return None if (np.isnan(f) or np.isinf(f)) else f
+                    except Exception:
+                        return None
+            return None
+
+        result["cfi"]    = _mi_clip_cfi(_g("CFI"))
+        result["rmsea"]  = _g("RMSEA")
+        result["chi2"]   = _g("chi2")
+        result["df_dof"] = _g("DoF")
+        parsed_mini = parse_lavaan(syntax)
+        result["srmr"] = _compute_srmr(m, df_fit, m.inspect(), parsed_mini)
+
+    except Exception as _e:
+        logger.debug("_mi_fit_constrained (%s) failed: %s", constrain, _e)
+
+    return result
+
+
+def compute_measurement_invariance(
+    df: pd.DataFrame,
+    model_syntax: str,
+    group_col: str,
+    log_fn: Optional[Callable] = None,
+) -> MeasurementInvarianceResult:
+    """
+    Full configural → metric → scalar measurement invariance sequence.
+
+    Parameters
+    ----------
+    df           : Data including the group column.
+    model_syntax : lavaan-style model syntax (=~ / ~ / ~~).
+    group_col    : Column name whose values define groups.
+    log_fn       : Optional logging callback (same signature as in fit_model).
+
+    Returns
+    -------
+    MeasurementInvarianceResult with configural / metric / scalar levels,
+    partial invariance list (if scalar fails), and a plain-English conclusion.
+    """
+    _emit(log_fn, "step", "Measurement invariance: checking groups")
+
+    # ── STEP 1 · Validate groups ──────────────────────────────────────────────
+    groups: list[str] = sorted(
+        str(g) for g in df[group_col].dropna().unique().tolist()
+    )
+    if len(groups) < 2:
+        raise ValueError(
+            f"group_col '{group_col}' must have at least 2 distinct groups; "
+            f"found: {groups}"
+        )
+    _emit(log_fn, "info", f"Groups detected: {groups}")
+
+    parsed   = parse_lavaan(model_syntax)
+    syntax   = build_semopy_syntax(parsed)
+    measurement = parsed.get("measurement", {})
+
+    # Collect per-group data frames
+    group_dfs: dict[str, pd.DataFrame] = {
+        g: df[df[group_col].astype(str) == g].drop(columns=[group_col])
+        for g in groups
+    }
+    group_ns: list[int] = [len(group_dfs[g]) for g in groups]
+
+    # ── STEP 2 · Configural model ─────────────────────────────────────────────
+    _emit(log_fn, "step", "Fitting configural model (free parameters per group)")
+    config_fits = [_mi_fit_group(group_dfs[g], syntax) for g in groups]
+    config_cfi, config_rmsea, config_srmr = _mi_pooled_fit(config_fits, group_ns)
+
+    config_level = MeasurementInvarianceLevel(
+        model   = "configural",
+        cfi     = config_cfi,
+        rmsea   = config_rmsea,
+        srmr    = config_srmr,
+        passed  = True,   # configural always passes by definition
+    )
+    _emit(log_fn, "info",
+          f"Configural: CFI={config_cfi}, RMSEA={config_rmsea}, SRMR={config_srmr}")
+
+    # Stacked data used for constrained models
+    df_stacked = (
+        pd.concat([group_dfs[g] for g in groups], ignore_index=True)
+        .select_dtypes(include=[np.number])
+    )
+
+    # ── STEP 3 · Metric model (constrained loadings) ──────────────────────────
+    _emit(log_fn, "step", "Fitting metric model (loadings constrained equal)")
+    metric_fit = _mi_fit_constrained(df_stacked, parsed, "loadings")
+    metric_cfi    = metric_fit["cfi"]
+    metric_rmsea  = metric_fit["rmsea"]
+    metric_srmr   = metric_fit["srmr"]
+    metric_model  = metric_fit["model"]   # needed for scalar loading estimates
+
+    delta_cfi_metric = (
+        (metric_cfi - config_cfi)
+        if metric_cfi is not None and config_cfi is not None
+        else None
+    )
+    metric_passed = (delta_cfi_metric is not None and delta_cfi_metric > -0.010)
+
+    metric_level = MeasurementInvarianceLevel(
+        model     = "metric",
+        cfi       = metric_cfi,
+        rmsea     = metric_rmsea,
+        srmr      = metric_srmr,
+        delta_cfi = delta_cfi_metric,
+        passed    = metric_passed,
+    )
+    _emit(log_fn, "info",
+          f"Metric: CFI={metric_cfi}, ΔCFI={delta_cfi_metric}, passed={metric_passed}")
+
+    # ── STEP 4 · Scalar model (constrained loadings + intercepts) ────────────
+    _emit(log_fn, "step", "Fitting scalar model (loadings + intercepts constrained)")
+    scalar_fit = _mi_fit_constrained(
+        df_stacked, parsed, "loadings+intercepts",
+        metric_model=metric_model,
+    )
+    scalar_cfi   = scalar_fit["cfi"]
+    scalar_rmsea = scalar_fit["rmsea"]
+    scalar_srmr  = scalar_fit["srmr"]
+
+    delta_cfi_scalar = (
+        (scalar_cfi - metric_cfi)
+        if scalar_cfi is not None and metric_cfi is not None
+        else None
+    )
+    delta_rmsea_scalar = (
+        (scalar_rmsea - metric_rmsea)
+        if scalar_rmsea is not None and metric_rmsea is not None
+        else None
+    )
+    scalar_passed = (
+        delta_cfi_scalar   is not None and delta_cfi_scalar   > -0.010
+        and delta_rmsea_scalar is not None and delta_rmsea_scalar < 0.015
+    )
+
+    scalar_level = MeasurementInvarianceLevel(
+        model        = "scalar",
+        cfi          = scalar_cfi,
+        rmsea        = scalar_rmsea,
+        srmr         = scalar_srmr,
+        delta_cfi    = delta_cfi_scalar,
+        delta_rmsea  = delta_rmsea_scalar,
+        passed       = scalar_passed,
+    )
+    _emit(log_fn, "info",
+          f"Scalar: CFI={scalar_cfi}, ΔCFI={delta_cfi_scalar}, "
+          f"ΔRMSEA={delta_rmsea_scalar}, passed={scalar_passed}")
+
+    # ── STEP 5 · Partial invariance fallback ──────────────────────────────────
+    partial_invariance: Optional[list[str]] = None
+
+    if not scalar_passed:
+        _emit(log_fn, "step",
+              "Scalar invariance failed — attempting partial invariance (freeing 2 intercepts)")
+
+        # Identify items with the largest between-group mean difference as
+        # the most likely sources of intercept non-invariance.
+        all_inds_flat = [
+            ind for inds in measurement.values() for ind in inds
+            if ind in df_stacked.columns
+        ]
+        between_var: dict[str, float] = {}
+        for ind in all_inds_flat:
+            grp_means = [
+                group_dfs[g][ind].mean()
+                for g in groups
+                if ind in group_dfs[g].columns
+            ]
+            if len(grp_means) >= 2:
+                between_var[ind] = float(np.var(grp_means))
+
+        freed_items: list[str] = sorted(
+            between_var, key=lambda k: -between_var[k]
+        )[:2]
+
+        if freed_items:
+            _emit(log_fn, "info",
+                  f"Freeing intercepts for: {freed_items} — re-fitting partial scalar")
+            partial_fit = _mi_fit_constrained(
+                df_stacked, parsed, "loadings+intercepts",
+                metric_model=metric_model,
+                free_intercepts=freed_items,
+            )
+            ps_cfi   = partial_fit["cfi"]
+            ps_rmsea = partial_fit["rmsea"]
+            ps_srmr  = partial_fit["srmr"]
+
+            ps_delta_cfi = (
+                (ps_cfi - metric_cfi)
+                if ps_cfi is not None and metric_cfi is not None
+                else None
+            )
+            ps_delta_rmsea = (
+                (ps_rmsea - metric_rmsea)
+                if ps_rmsea is not None and metric_rmsea is not None
+                else None
+            )
+            partial_passed = (
+                ps_delta_cfi   is not None and ps_delta_cfi   > -0.010
+                and ps_delta_rmsea is not None and ps_delta_rmsea < 0.015
+            )
+
+            if partial_passed:
+                partial_invariance = freed_items
+                scalar_level = MeasurementInvarianceLevel(
+                    model        = "scalar",
+                    cfi          = ps_cfi,
+                    rmsea        = ps_rmsea,
+                    srmr         = ps_srmr,
+                    delta_cfi    = ps_delta_cfi,
+                    delta_rmsea  = ps_delta_rmsea,
+                    passed       = True,
+                )
+                _emit(log_fn, "info",
+                      f"Partial scalar achieved; freed items: {freed_items}")
+            else:
+                _emit(log_fn, "info",
+                      "Partial scalar still failed after freeing intercepts")
+
+    # ── STEP 6 · Conclusion ───────────────────────────────────────────────────
+    if scalar_level.passed and not partial_invariance:
+        conclusion = "Full scalar"
+    elif scalar_level.passed and partial_invariance:
+        conclusion = "Partial scalar"
+    elif metric_passed:
+        conclusion = "Metric only"
+    else:
+        conclusion = "Configural only"
+
+    _emit(log_fn, "ok", f"Measurement invariance conclusion: {conclusion}")
+
+    return MeasurementInvarianceResult(
+        group_col          = group_col,
+        groups             = groups,
+        configural         = config_level,
+        metric             = metric_level,
+        scalar             = scalar_level,
+        partial_invariance = partial_invariance or None,
+        conclusion         = conclusion,
+    )
