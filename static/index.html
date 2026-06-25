@@ -2181,7 +2181,17 @@ button { cursor: pointer; }
       <div class="rns">Advanced</div>
       <div class="rni rni-locked" data-rni="mga"         onclick="repNavClick(this,'mga')">MGA results</div>
       <div class="rni rni-locked" data-rni="moderation"  onclick="repNavClick(this,'moderation')">Moderation</div>
+      <div class="rni rni-locked" data-rni="modmed"      onclick="repNavClick(this,'modmed')">Mod. mediation</div>
       <div class="rni rni-locked" data-rni="ipma"        onclick="repNavClick(this,'ipma')">IPMA chart</div>
+      <div class="rni rni-locked" data-rni="nca"         onclick="repNavClick(this,'nca')">NCA</div>
+      <div class="rni rni-locked" data-rni="fimix"       onclick="repNavClick(this,'fimix')">FIMIX-PLS</div>
+      <div class="rni rni-locked" data-rni="plspos"      onclick="repNavClick(this,'plspos')">PLS-POS</div>
+      <div class="rni rni-locked" data-rni="copula"      onclick="repNavClick(this,'copula')">Gaussian Copula</div>
+      <div class="rni rni-locked" data-rni="ncaesse"     onclick="repNavClick(this,'ncaesse')">NCA-ESSE</div>
+      <div class="rni rni-locked" data-rni="nomological" onclick="repNavClick(this,'nomological')">Nomological</div>
+      <div class="rni rni-locked" data-rni="invariance"  onclick="repNavClick(this,'invariance')">Invariance</div>
+      <div class="rni rni-locked" data-rni="efa"         onclick="repNavClick(this,'efa')">EFA</div>
+      <div class="rni rni-locked" data-rni="cvi"         onclick="repNavClick(this,'cvi')">CVI</div>
       <div class="rns">Export</div>
       <div class="rni"     data-rni="apa"         onclick="repNavClick(this,'apa')">APA tables</div>
       <div class="rni rni-locked" data-rni="docx"        onclick="repNavClick(this,'docx')">Full .docx</div>
@@ -3535,6 +3545,19 @@ function _freezeReportSnapshot(){
     // exact same diagram (positions, colours, edge labels) without a PNG snapshot.
     nodes          : JSON.parse(JSON.stringify(typeof nodes !== 'undefined' ? nodes : [])),
     edges          : JSON.parse(JSON.stringify(typeof edges !== 'undefined' ? edges : [])),
+    // Satellite analyses — populated only when the analysis has been run
+    moderation     : (typeof _moderationResult !== 'undefined') ? _moderationResult : null,
+    ipma           : (typeof _ipmaResult       !== 'undefined') ? _ipmaResult       : null,
+    nca            : (typeof _ncaResult        !== 'undefined') ? _ncaResult        : null,
+    fimix          : (typeof _fimixResult      !== 'undefined') ? _fimixResult      : null,
+    plspos         : (typeof _plsposResult     !== 'undefined') ? _plsposResult     : null,
+    nca_esse       : (typeof _ncaesseResult    !== 'undefined') ? _ncaesseResult    : null,
+    copula         : (typeof _copulaResult     !== 'undefined') ? _copulaResult     : null,
+    nomological    : (typeof _nomologicalResult  !== 'undefined') ? _nomologicalResult  : null,
+    invariance     : (typeof _invarianceResult   !== 'undefined') ? _invarianceResult   : null,
+    efa            : (typeof _efaResult          !== 'undefined') ? _efaResult          : null,
+    cvi            : (typeof _cviResult          !== 'undefined') ? _cviResult          : null,
+    mod_mediation  : (typeof _modMediationResult !== 'undefined') ? _modMediationResult : null,
   };
 }
 
@@ -6105,14 +6128,28 @@ function buildReport(){
   if(typeof _mgaResult !== 'undefined' && _mgaResult) {
     document.querySelectorAll('#rep-nav .rni[data-rni="mga"]').forEach(el => el.classList.remove('rni-locked'));
   }
-  // Moderation: unlock if moderation results exist
-  if(typeof _modResults !== 'undefined' && _modResults) {
-    document.querySelectorAll('#rep-nav .rni[data-rni="moderation"]').forEach(el => el.classList.remove('rni-locked'));
-  }
-  // IPMA: unlock if results contain IPMA data
-  if(results && results.ipma) {
-    document.querySelectorAll('#rep-nav .rni[data-rni="ipma"]').forEach(el => el.classList.remove('rni-locked'));
-  }
+  // Satellite analyses: unlock each nav item iff its live result var is set.
+  // (Each runXxx() also unlocks its own item directly the moment it
+  // completes — this block is the self-heal path for snapshot/JSON loads.)
+  const _satelliteUnlocks = [
+    ['moderation',  typeof _moderationResult  !== 'undefined' && _moderationResult],
+    ['modmed',      typeof _modMediationResult !== 'undefined' && _modMediationResult],
+    ['ipma',        typeof _ipmaResult        !== 'undefined' && _ipmaResult],
+    ['nca',         typeof _ncaResult         !== 'undefined' && _ncaResult],
+    ['fimix',       typeof _fimixResult       !== 'undefined' && _fimixResult],
+    ['plspos',      typeof _plsposResult      !== 'undefined' && _plsposResult],
+    ['copula',      typeof _copulaResult      !== 'undefined' && _copulaResult],
+    ['ncaesse',     typeof _ncaesseResult     !== 'undefined' && _ncaesseResult],
+    ['nomological', typeof _nomologicalResult !== 'undefined' && _nomologicalResult],
+    ['invariance',  typeof _invarianceResult  !== 'undefined' && _invarianceResult],
+    ['efa',         typeof _efaResult         !== 'undefined' && _efaResult],
+    ['cvi',         typeof _cviResult         !== 'undefined' && _cviResult],
+  ];
+  _satelliteUnlocks.forEach(([key, hasData]) => {
+    if (hasData) {
+      document.querySelectorAll(`#rep-nav .rni[data-rni="${key}"]`).forEach(el => el.classList.remove('rni-locked'));
+    }
+  });
   // Everything read from the frozen snapshot — never from live DOM —
   // so changing settings after a run cannot alter the report.
   const snap = _reportSnapshot;
@@ -6430,7 +6467,349 @@ function buildReport(){
       </div>`;
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  //  Satellite analysis report sections (Moderation, IPMA, NCA, FIMIX,
+  //  PLS-POS, Copula, NCA-ESSE, Nomological, Invariance, EFA, CVI,
+  //  Mod. Mediation) — each reads its live module-level result var so the
+  //  Report tab shows every analysis type a user might have run, not just
+  //  the core SEM fit + MGA.
+  // ════════════════════════════════════════════════════════════════════════
+  const _fmtR = (v, dp = 3) => v != null ? Number(v).toFixed(dp) : '\u2014';
+  const _sigPill = ok => `<span class="${ok ? 'spill' : 'npill'}">${ok ? '\u2713' : '\u2014'}</span>`;
 
+  // ── Moderation ─────────────────────────────────────────────────────────
+  let moderationReportHtml = '';
+  if (typeof _moderationResult !== 'undefined' && _moderationResult) {
+    const m = _moderationResult;
+    const terms = m.moderation_terms || [];
+    let body = `<div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+      Algorithm: ${m.algorithm || '\u2014'} &nbsp;\u00b7&nbsp; Bootstrap: ${m.bootstrap_n ?? '\u2014'} &nbsp;\u00b7&nbsp; N = ${m.n_obs ?? '\u2014'}
+    </div>`;
+    terms.forEach(t => {
+      body += `<div style="margin-bottom:12px">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+          ${esc(t.iv)} \u00d7 ${esc(t.moderator)} \u2192 ${esc(t.outcome)}
+        </div>
+        <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+          <th>\u03b2 IV</th><th>\u03b2 Mod</th><th>\u03b2 Int</th><th>\u0394R\u00b2</th><th>f\u00b2</th><th>Sig</th>
+        </tr></thead><tbody><tr>
+          <td style="text-align:right">${_fmtR(t.beta_iv)}</td>
+          <td style="text-align:right">${_fmtR(t.beta_moderator)}</td>
+          <td style="text-align:right;font-weight:600;color:var(--accent-text)">${_fmtR(t.beta_interaction)}</td>
+          <td style="text-align:right">${_fmtR(t.delta_r2)}</td>
+          <td style="text-align:right">${_fmtR(t.f2_interaction)}</td>
+          <td style="text-align:center">${_sigPill(t.significant)}</td>
+        </tr></tbody></table></div>
+        ${(t.simple_slopes||[]).length ? `<div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin:8px 0 4px">Simple slopes</div>
+        <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+          <th>Level</th><th>Mod. value</th><th>Slope</th><th>CI lo</th><th>CI hi</th><th>Sig</th>
+        </tr></thead><tbody>
+          ${t.simple_slopes.map(s => `<tr>
+            <td>${esc(s.moderator_level)}</td>
+            <td style="text-align:right">${_fmtR(s.moderator_value)}</td>
+            <td style="text-align:right">${_fmtR(s.slope)}</td>
+            <td style="text-align:right">${s.ci_lower_95!=null?_fmtR(s.ci_lower_95):'\u2014'}</td>
+            <td style="text-align:right">${s.ci_upper_95!=null?_fmtR(s.ci_upper_95):'\u2014'}</td>
+            <td style="text-align:center">${_sigPill(s.significant)}</td>
+          </tr>`).join('')}
+        </tbody></table></div>` : ''}
+      </div>`;
+    });
+    if (m.warnings?.length) body += `<div class="warn-box">${m.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>`;
+    moderationReportHtml = `<div class="rpt-section" id="rpt-moderation-section">
+      <div class="rpt-section-title">Moderation Analysis</div>${body}</div>`;
+  }
+
+  // ── IPMA ───────────────────────────────────────────────────────────────
+  let ipmaReportHtml = '';
+  if (typeof _ipmaResult !== 'undefined' && _ipmaResult) {
+    const d = _ipmaResult;
+    const entries = d.entries || [];
+    const rows = entries.map(e => `<tr>
+      <td style="color:var(--accent-text)">${esc(e.lv)}</td>
+      <td style="text-align:right">${_fmtR(e.importance)}</td>
+      <td style="text-align:right">${_fmtR(e.performance, 1)}</td>
+    </tr>`).join('');
+    ipmaReportHtml = `<div class="rpt-section" id="rpt-ipma-section">
+      <div class="rpt-section-title">Importance-Performance Map Analysis (IPMA)</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Target: ${esc(d.target_lv||'\u2014')} &nbsp;\u00b7&nbsp; Scale: [${d.scale_min ?? '\u2014'}, ${d.scale_max ?? '\u2014'}]
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr><th>Predictor</th><th>Importance</th><th>Performance</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── NCA ────────────────────────────────────────────────────────────────
+  let ncaReportHtml = '';
+  if (typeof _ncaResult !== 'undefined' && _ncaResult) {
+    const d = _ncaResult;
+    const entries = d.entries || [];
+    const rows = entries.map(e => `<tr>
+      <td style="color:var(--accent-text)">${esc(e.iv)}</td>
+      <td>${esc(e.dv)}</td>
+      <td style="text-align:right">${e.n_obs ?? '\u2014'}</td>
+      <td style="text-align:right">${_fmtR(e.ce_fdh_d)}</td>
+      <td>${e.ce_fdh_label || '\u2014'}</td>
+      <td style="text-align:right">${_fmtR(e.cr_fdh_d)}</td>
+      <td>${e.cr_fdh_label || '\u2014'}</td>
+      <td style="text-align:center">${_sigPill(e.significant)}</td>
+    </tr>`).join('');
+    ncaReportHtml = `<div class="rpt-section" id="rpt-nca-section">
+      <div class="rpt-section-title">Necessary Condition Analysis (NCA)</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Permutations: ${d.n_permutations ?? '\u2014'}
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+        <th>IV</th><th>DV</th><th>N</th><th>CE-FDH d</th><th>Size</th><th>CR-FDH d</th><th>Size</th><th>Sig</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── FIMIX-PLS ──────────────────────────────────────────────────────────
+  let fimixReportHtml = '';
+  if (typeof _fimixResult !== 'undefined' && _fimixResult) {
+    const d = _fimixResult;
+    const sols = d.solutions || [];
+    const rows = sols.map(s => `<tr style="${s.k===d.recommended_k?'background:var(--glass)':''}">
+      <td style="text-align:center;font-weight:${s.k===d.recommended_k?'600':'400'}">${s.k}${s.k===d.recommended_k?' \u2605':''}</td>
+      <td style="text-align:right">${_fmtR(s.log_likelihood,2)}</td>
+      <td style="text-align:right">${_fmtR(s.aic,2)}</td>
+      <td style="text-align:right">${_fmtR(s.bic,2)}</td>
+      <td style="text-align:right">${_fmtR(s.caic,2)}</td>
+      <td style="text-align:right">${_fmtR(s.relative_entropy)}</td>
+    </tr>`).join('');
+    fimixReportHtml = `<div class="rpt-section" id="rpt-fimix-section">
+      <div class="rpt-section-title">FIMIX-PLS Segmentation</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Recommended K = ${d.recommended_k ?? '\u2014'} &nbsp;\u00b7&nbsp; N = ${d.n_obs ?? '\u2014'}
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+        <th>K</th><th>Log-L</th><th>AIC</th><th>BIC</th><th>CAIC</th><th>Rel. entropy</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── PLS-POS ────────────────────────────────────────────────────────────
+  let plsposReportHtml = '';
+  if (typeof _plsposResult !== 'undefined' && _plsposResult) {
+    const d = _plsposResult;
+    const segs = d.segments || [];
+    const rows = segs.map(s => `<tr>
+      <td style="text-align:center">${s.segment_id}</td>
+      <td style="text-align:right">${s.size}</td>
+      <td style="text-align:right">${_fmtR(s.stability)}</td>
+      <td style="font-family:var(--mono);font-size:10px">${Object.entries(s.r_squared||{}).map(([k,v])=>`${k}: ${_fmtR(v)}`).join(', ') || '\u2014'}</td>
+    </tr>`).join('');
+    plsposReportHtml = `<div class="rpt-section" id="rpt-plspos-section">
+      <div class="rpt-section-title">PLS-POS Segmentation</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        K = ${d.k ?? '\u2014'} &nbsp;\u00b7&nbsp; N = ${d.n_obs ?? '\u2014'}
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+        <th>Segment</th><th>Size</th><th>Stability</th><th>R\u00b2 (by equation)</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── Gaussian Copula ────────────────────────────────────────────────────
+  let copulaReportHtml = '';
+  if (typeof _copulaResult !== 'undefined' && _copulaResult) {
+    const cop = _copulaResult.copula || _copulaResult;
+    const entries = cop.entries || [];
+    let body = '';
+    entries.forEach(e => {
+      const outcomes = [...new Set([...Object.keys(e.original_paths||{}), ...Object.keys(e.corrected_paths||{})])];
+      body += `<div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:600;color:var(--t1);margin-bottom:4px">Endogenous: ${esc(e.variable)}</div>
+        <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+          <th>Normality stat</th><th>Normality p</th><th>Copula coef.</th><th>\u0394R\u00b2</th><th>f\u00b2</th><th>Sig</th>
+        </tr></thead><tbody><tr>
+          <td style="text-align:right">${_fmtR(e.normality_stat,4)}</td>
+          <td style="text-align:right">${_fmtR(e.normality_p,4)}</td>
+          <td style="text-align:right;color:var(--accent-text)">${e.copula_coef!=null?_fmtR(e.copula_coef,4):'\u2014'}</td>
+          <td style="text-align:right">${e.delta_r2!=null?_fmtR(e.delta_r2,4):'\u2014'}</td>
+          <td style="text-align:right">${e.f2_copula!=null?_fmtR(e.f2_copula,4):'\u2014'}</td>
+          <td style="text-align:center">${_sigPill(e.copula_significant)}</td>
+        </tr></tbody></table></div>
+        ${outcomes.length ? `<div style="overflow-x:auto;margin-top:6px"><table class="gtable"><thead><tr>
+          <th>Outcome</th><th>Original \u03b2</th><th>Corrected \u03b2</th>
+        </tr></thead><tbody>
+          ${outcomes.map(o=>`<tr><td>${esc(o)}</td>
+            <td style="text-align:right">${_fmtR((e.original_paths||{})[o],4)}</td>
+            <td style="text-align:right;color:var(--accent-text)">${_fmtR((e.corrected_paths||{})[o],4)}</td>
+          </tr>`).join('')}
+        </tbody></table></div>` : ''}
+      </div>`;
+    });
+    if (!entries.length) body = `<div class="rpt-no-data">${esc(_copulaResult.copula_warning || 'No copula entries.')}</div>`;
+    copulaReportHtml = `<div class="rpt-section" id="rpt-copula-section">
+      <div class="rpt-section-title">Gaussian Copula Robustness Check</div>${body}</div>`;
+  }
+
+  // ── NCA-ESSE ───────────────────────────────────────────────────────────
+  let ncaesseReportHtml = '';
+  if (typeof _ncaesseResult !== 'undefined' && _ncaesseResult) {
+    const d = _ncaesseResult;
+    const entries = d.entries || [];
+    const rows = entries.map(e => `<tr>
+      <td style="color:var(--accent-text)">${esc(e.iv)}</td>
+      <td>${esc(e.dv)}</td>
+      <td style="text-align:right">${e.n_obs ?? '\u2014'}</td>
+      <td style="text-align:right">${(e.recommended_threshold*100).toFixed(1)}%</td>
+      <td style="text-align:right">${_fmtR(e.recommended_effect_size)}</td>
+      <td>${e.recommended_label || '\u2014'}</td>
+    </tr>`).join('');
+    ncaesseReportHtml = `<div class="rpt-section" id="rpt-ncaesse-section">
+      <div class="rpt-section-title">NCA Effect-Size Sensitivity Extension (NCA-ESSE)</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Benchmark: ${d.benchmark || '\u2014'} &nbsp;\u00b7&nbsp; Permutations: ${d.n_permutations ?? '\u2014'} &nbsp;\u00b7&nbsp; Benchmark reps: ${d.n_benchmark_reps ?? '\u2014'}
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+        <th>IV</th><th>DV</th><th>N</th><th>Rec. threshold</th><th>d</th><th>Label</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── Nomological validity ───────────────────────────────────────────────
+  let nomologicalReportHtml = '';
+  if (typeof _nomologicalResult !== 'undefined' && _nomologicalResult) {
+    const raw = _nomologicalResult;
+    const entries = Array.isArray(raw) ? raw : (raw.entries || []);
+    const rows = entries.map(e => `<tr>
+      <td style="color:var(--accent-text)">${esc(e.construct)}</td>
+      <td style="text-align:right">${_fmtR(e.r_squared)}</td>
+      <td style="text-align:right">${_fmtR(e.benchmark)}</td>
+      <td><span class="fit-chip ${e.passed?'fc-good':'fc-bad'}">${esc(e.interpretation||(e.passed?'Pass':'Fail'))}</span></td>
+    </tr>`).join('');
+    nomologicalReportHtml = `<div class="rpt-section" id="rpt-nomological-section">
+      <div class="rpt-section-title">Nomological Validity</div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr><th>Construct</th><th>R\u00b2</th><th>Benchmark</th><th>Verdict</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    </div>`;
+  }
+
+  // ── Measurement Invariance (MICOM-style configural/metric/scalar) ─────
+  let invarianceReportHtml = '';
+  if (typeof _invarianceResult !== 'undefined' && _invarianceResult) {
+    const d = _invarianceResult;
+    const levels = ['configural','metric','scalar'];
+    const rows = levels.map(lvl => {
+      const m = d[lvl] || {};
+      return `<tr>
+        <td style="text-transform:capitalize">${lvl}</td>
+        <td style="text-align:right">${_fmtR(m.cfi)}</td>
+        <td style="text-align:right">${_fmtR(m.rmsea)}</td>
+        <td style="text-align:right">${m.delta_cfi!=null?_fmtR(m.delta_cfi):'\u2014'}</td>
+        <td><span class="fit-chip ${m.passed?'fc-good':'fc-bad'}">${m.passed?'Pass':'Fail'}</span></td>
+      </tr>`;
+    }).join('');
+    invarianceReportHtml = `<div class="rpt-section" id="rpt-invariance-section">
+      <div class="rpt-section-title">Measurement Invariance</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Groups: ${esc((d.groups||[]).join(', '))} &nbsp;\u00b7&nbsp; Conclusion: ${esc(d.conclusion||'\u2014')}
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr><th>Level</th><th>CFI</th><th>RMSEA</th><th>\u0394CFI</th><th>Pass</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── EFA ────────────────────────────────────────────────────────────────
+  let efaReportHtml = '';
+  if (typeof _efaResult !== 'undefined' && _efaResult) {
+    const d = _efaResult;
+    const rows = (d.loadings||[]).map(l => `<tr>
+      <td style="color:var(--accent-text)">${esc(l.item)}</td>
+      <td style="text-align:right">F${l.factor}</td>
+      <td style="text-align:right">${_fmtR(l.loading,4)}</td>
+    </tr>`).join('');
+    efaReportHtml = `<div class="rpt-section" id="rpt-efa-section">
+      <div class="rpt-section-title">Exploratory Factor Analysis (EFA)</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        KMO = ${_fmtR(d.kmo,4)} &nbsp;\u00b7&nbsp; Bartlett p = ${_fmtR(d.bartlett_p,4)} &nbsp;\u00b7&nbsp;
+        Factors = ${d.n_factors ?? '\u2014'} &nbsp;\u00b7&nbsp; Cumulative var. = ${d.cumulative_variance!=null?(d.cumulative_variance*100).toFixed(1)+'%':'\u2014'}
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr><th>Item</th><th>Factor</th><th>Loading</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      ${(d.cross_loadings||[]).length ? `<div class="warn-box" style="margin-top:8px"><b>Cross-loadings:</b><br>${
+        d.cross_loadings.map(c=>`${esc(c.item)}: F${c.primary_factor}\u2192F${c.secondary_factor} (${_fmtR(c.secondary_loading,4)})`).join('<br>')}</div>` : ''}
+      ${d.warnings?.length ? `<div class="warn-box" style="margin-top:8px">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>` : ''}
+    </div>`;
+  }
+
+  // ── CVI ────────────────────────────────────────────────────────────────
+  let cviReportHtml = '';
+  if (typeof _cviResult !== 'undefined' && _cviResult) {
+    const d = _cviResult;
+    const icvi = d.item_cvi || {};
+    const rows = Object.entries(icvi).map(([item,v]) => `<tr>
+      <td style="color:var(--accent-text)">${esc(item)}</td>
+      <td style="text-align:right;color:${v>=0.78?'var(--green-text)':'var(--red)'}">${_fmtR(v,4)}</td>
+      <td style="text-align:center">${_sigPill(v>=0.78)}</td>
+    </tr>`).join('');
+    cviReportHtml = `<div class="rpt-section" id="rpt-cvi-section">
+      <div class="rpt-section-title">Content Validity Index (CVI)</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Experts: ${d.n_experts ?? '\u2014'} &nbsp;\u00b7&nbsp; Items: ${d.n_items ?? '\u2014'} &nbsp;\u00b7&nbsp;
+        S-CVI/Ave: ${_fmtR(d.s_cvi_ave,4)} &nbsp;\u00b7&nbsp; S-CVI/UA: ${_fmtR(d.s_cvi_ua,4)} &nbsp;\u00b7&nbsp; \u03ba* = ${_fmtR(d.kappa_star,4)}
+        &nbsp;\u00b7&nbsp; <span class="fit-chip ${d.interpretation==='Excellent'?'fc-good':d.interpretation==='Acceptable'?'fc-ok':'fc-bad'}">${esc(d.interpretation||'\u2014')}</span>
+      </div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr><th>Item</th><th>I-CVI</th><th>\u2265 0.78</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    </div>`;
+  }
+
+  // ── Moderated Mediation ────────────────────────────────────────────────
+  let modMediationReportHtml = '';
+  if (typeof _modMediationResult !== 'undefined' && _modMediationResult) {
+    const d = _modMediationResult;
+    const paths = d.paths || [];
+    let body = '';
+    paths.forEach(p => {
+      body += `<div style="margin-bottom:12px">
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+          ${esc(p.x)} \u2192 ${esc(p.m)} \u2192 ${esc(p.y)} &nbsp;(moderator: ${esc(p.w)})
+        </div>
+        <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+          <th>a</th><th>b</th><th>c\u2032</th><th>a\u00d7\u03b8</th><th>b\u00d7\u03b8</th><th>Index of MM</th><th>CI lo</th><th>CI hi</th><th>Sig</th>
+        </tr></thead><tbody><tr>
+          <td style="text-align:right">${_fmtR(p.a_path)}</td>
+          <td style="text-align:right">${_fmtR(p.b_path)}</td>
+          <td style="text-align:right">${_fmtR(p.c_prime)}</td>
+          <td style="text-align:right">${_fmtR(p.a3_interaction)}</td>
+          <td style="text-align:right">${_fmtR(p.b3_interaction)}</td>
+          <td style="text-align:right;font-weight:600;color:var(--accent-text)">${_fmtR(p.imm)}</td>
+          <td style="text-align:right">${p.imm_ci_lower_95!=null?_fmtR(p.imm_ci_lower_95):'\u2014'}</td>
+          <td style="text-align:right">${p.imm_ci_upper_95!=null?_fmtR(p.imm_ci_upper_95):'\u2014'}</td>
+          <td style="text-align:center">${_sigPill(p.imm_significant)}</td>
+        </tr></tbody></table></div>
+        ${(p.conditional_effects||[]).length ? `<div style="overflow-x:auto;margin-top:6px"><table class="gtable"><thead><tr>
+          <th>Level</th><th>Mod. value</th><th>Indirect effect</th><th>CI lo</th><th>CI hi</th><th>Sig</th>
+        </tr></thead><tbody>
+          ${p.conditional_effects.map(c=>`<tr>
+            <td>${esc(c.moderator_level)}</td>
+            <td style="text-align:right">${_fmtR(c.moderator_value)}</td>
+            <td style="text-align:right">${_fmtR(c.indirect_effect)}</td>
+            <td style="text-align:right">${c.ci_lower_95!=null?_fmtR(c.ci_lower_95):'\u2014'}</td>
+            <td style="text-align:right">${c.ci_upper_95!=null?_fmtR(c.ci_upper_95):'\u2014'}</td>
+            <td style="text-align:center">${_sigPill(c.significant)}</td>
+          </tr>`).join('')}
+        </tbody></table></div>` : ''}
+      </div>`;
+    });
+    if (d.warnings?.length) body += `<div class="warn-box">${d.warnings.map(w=>`\u26a0 ${w}`).join('<br>')}</div>`;
+    modMediationReportHtml = `<div class="rpt-section" id="rpt-modmed-section">
+      <div class="rpt-section-title">Moderated Mediation</div>${body}</div>`;
+  }
+
+
+  
   const note = (document.getElementById('rpt-note')?.value||'').trim();
   const noteHtml = note ? `<div class="rpt-section"><div class="rpt-section-title">Analyst Notes</div><div class="rpt-user-note">${note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>` : '';
 
@@ -6530,6 +6909,18 @@ function buildReport(){
     ${results.bootstrap?`<div class="rpt-section"><div class="rpt-section-title">Bootstrap Results</div>${bsHtml}</div>`:''}
 
     ${mgaReportHtml}
+    ${moderationReportHtml}
+    ${ipmaReportHtml}
+    ${ncaReportHtml}
+    ${fimixReportHtml}
+    ${plsposReportHtml}
+    ${copulaReportHtml}
+    ${ncaesseReportHtml}
+    ${nomologicalReportHtml}
+    ${invarianceReportHtml}
+    ${efaReportHtml}
+    ${cviReportHtml}
+    ${modMediationReportHtml}
 
     <div id="rpt-note-section">${noteHtml}</div>
 
@@ -6614,8 +7005,18 @@ const _repNavMap = {
   measurement: 'convergent',
   structural:  'structural paths',
   mga:         'multi-group analysis',
-  moderation:  null,
-  ipma:        null,
+  moderation:  'moderation analysis',
+  modmed:      'moderated mediation',
+  ipma:        'importance-performance',
+  nca:         'necessary condition analysis',
+  fimix:       'fimix-pls segmentation',
+  plspos:      'pls-pos segmentation',
+  copula:      'gaussian copula',
+  ncaesse:     'nca effect-size sensitivity',
+  nomological: 'nomological validity',
+  invariance:  'measurement invariance',
+  efa:         'exploratory factor analysis',
+  cvi:         'content validity index',
   apa:         'parameter',
   docx:        null,
   history:     'run history',
@@ -6822,9 +7223,21 @@ async function downloadReport(fmt){
       const payload = {
         snap:        _reportSnapshot,
         results:     results,
-        mga:         (typeof _mgaResult    !== 'undefined') ? _mgaResult    : null,
-        htmt:        (typeof htmtData      !== 'undefined') ? htmtData      : null,
-        predictive:  (typeof predictiveData!== 'undefined') ? predictiveData: null,
+        mga:         (typeof _mgaResult         !== 'undefined') ? _mgaResult         : null,
+        htmt:        (typeof htmtData           !== 'undefined') ? htmtData           : null,
+        predictive:  (typeof predictiveData     !== 'undefined') ? predictiveData     : null,
+        moderation:  (typeof _moderationResult  !== 'undefined') ? _moderationResult  : null,
+        ipma:        (typeof _ipmaResult        !== 'undefined') ? _ipmaResult        : null,
+        nca:         (typeof _ncaResult         !== 'undefined') ? _ncaResult         : null,
+        fimix:       (typeof _fimixResult       !== 'undefined') ? _fimixResult       : null,
+        plspos:      (typeof _plsposResult      !== 'undefined') ? _plsposResult      : null,
+        nca_esse:    (typeof _ncaesseResult     !== 'undefined') ? _ncaesseResult     : null,
+        copula:      (typeof _copulaResult      !== 'undefined') ? _copulaResult      : null,
+        nomological:   (typeof _nomologicalResult  !== 'undefined') ? _nomologicalResult  : null,
+        invariance:    (typeof _invarianceResult   !== 'undefined') ? _invarianceResult   : null,
+        efa:           (typeof _efaResult          !== 'undefined') ? _efaResult          : null,
+        cvi:           (typeof _cviResult          !== 'undefined') ? _cviResult          : null,
+        mod_mediation: (typeof _modMediationResult !== 'undefined') ? _modMediationResult : null,
         diagram_png: diagramPng,
         analyst:     analyst,
         note:        note,
@@ -7314,6 +7727,20 @@ function _dlDataUrl(dataUrl, filename){
 let _hocFile   = null;
 let _hocResult = null;   // stored so Report tab can detect a completed HOC run
 
+// ── Satellite result stores (mirror pattern of _mgaResult / _hocResult) ──
+let _moderationResult = null;
+let _ipmaResult       = null;
+let _ncaResult        = null;
+let _fimixResult      = null;
+let _plsposResult     = null;
+let _ncaesseResult    = null;
+let _copulaResult     = null;
+let _nomologicalResult  = null;
+let _invarianceResult   = null;
+let _efaResult          = null;
+let _cviResult          = null;
+let _modMediationResult = null;
+
 function _hocSetRunnable(ok) {
   const btn = document.getElementById('hoc-run-btn');
   if (!btn) return;
@@ -7507,6 +7934,7 @@ async function runModeration() {
     const r    = await fetch('/moderation', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _moderationResult = data;
     _okRunRecord(data);
     _freezeReportSnapshot();
     _renderModerationResults(data);
@@ -7533,7 +7961,10 @@ function _renderModerationResults(data) {
   const el = document.getElementById('mod-results');
   el.style.display = 'flex';
   const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
-  const params = data.parameters || data.moderation || [];
+  // ModerationResult schema: moderation_terms (List[ModerationTerm]) carries
+  // the actual interaction stats (β_interaction, ΔR², f², simple slopes).
+  // `parameters` is the full underlying model's path list (context only).
+  const terms = data.moderation_terms || [];
 
   let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
     Algorithm: <span style="color:var(--t1)">${data.algorithm || '—'}</span>
@@ -7541,35 +7972,68 @@ function _renderModerationResults(data) {
     &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
   </div>`;
 
+  if (terms.length) {
+    terms.forEach(t => {
+      const sig = !!t.significant;
+      html += `
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+          ${esc(t.iv)} × ${esc(t.moderator)} → ${esc(t.outcome)}
+        </div>
+        <div style="overflow-x:auto"><table class="gtable" style="margin-bottom:10px"><thead>
+          <tr><th>β IV</th><th>β Moderator</th><th>β Interaction</th><th>CI 95% lo</th><th>CI 95% hi</th><th>ΔR²</th><th>f² (int.)</th><th>Sig</th></tr>
+        </thead><tbody>
+          <tr>
+            <td style="text-align:right">${_fmt(t.beta_iv)}</td>
+            <td style="text-align:right">${_fmt(t.beta_moderator)}</td>
+            <td style="text-align:right;font-weight:600;color:var(--accent-text)">${_fmt(t.beta_interaction)}</td>
+            <td style="text-align:right;color:var(--t2)">${t.ci_lower_95 != null ? _fmt(t.ci_lower_95) : '—'}</td>
+            <td style="text-align:right;color:var(--t2)">${t.ci_upper_95 != null ? _fmt(t.ci_upper_95) : '—'}</td>
+            <td style="text-align:right">${_fmt(t.delta_r2)}</td>
+            <td style="text-align:right">${_fmt(t.f2_interaction)}</td>
+            <td style="text-align:center"><span class="${sig ? 'spill' : 'npill'}">${sig ? '✓' : '—'}</span></td>
+          </tr>
+        </tbody></table></div>`;
+
+      if (t.simple_slopes?.length) {
+        html += `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin:10px 0 6px">Simple slopes</div>
+        <div style="overflow-x:auto"><table class="gtable"><thead>
+          <tr><th>Level</th><th>Moderator value</th><th>Slope</th><th>CI lo</th><th>CI hi</th><th>Sig</th></tr>
+        </thead><tbody>
+          ${t.simple_slopes.map(s => `<tr>
+            <td style="color:var(--t1)">${esc(s.moderator_level)}</td>
+            <td style="text-align:right;color:var(--t2)">${_fmt(s.moderator_value)}</td>
+            <td style="text-align:right">${_fmt(s.slope)}</td>
+            <td style="text-align:right;color:var(--t2)">${s.ci_lower_95 != null ? _fmt(s.ci_lower_95) : '—'}</td>
+            <td style="text-align:right;color:var(--t2)">${s.ci_upper_95 != null ? _fmt(s.ci_upper_95) : '—'}</td>
+            <td style="text-align:center"><span class="${s.significant ? 'spill' : 'npill'}">${s.significant ? '✓' : '—'}</span></td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+      }
+      html += `</div>`;
+    });
+  } else {
+    html += '<div style="color:var(--t3);font-size:11px;padding:8px">No interaction terms found.</div>';
+  }
+
+  // Full underlying model parameters — context only, collapsed below the
+  // interaction-specific cards above.
+  const params = data.parameters || [];
   if (params.length) {
     const rows = params.map(p => `<tr>
-      <td style="color:var(--accent-text)">${esc(p.lhs || p.path || '')}</td>
-      <td style="color:var(--t1)">${esc(p.rhs || p.moderator || '')}</td>
-      <td style="color:var(--t0);text-align:right">${_fmt(p.estimate ?? p.beta)}</td>
-      <td style="color:var(--t2);text-align:right">${p.ci_low  != null ? _fmt(p.ci_low)  : '—'}</td>
-      <td style="color:var(--t2);text-align:right">${p.ci_high != null ? _fmt(p.ci_high) : '—'}</td>
+      <td style="color:var(--accent-text)">${esc(p.lhs)}</td>
+      <td style="color:var(--purple-text);text-align:center">${esc(p.op)}</td>
+      <td style="color:var(--t1)">${esc(p.rhs)}</td>
+      <td style="text-align:right;font-weight:500">${_fmt(p.estimate)}</td>
+      <td style="color:var(--t2);text-align:right">${p.ci_lower != null ? _fmt(p.ci_lower) : '—'}</td>
+      <td style="color:var(--t2);text-align:right">${p.ci_upper != null ? _fmt(p.ci_upper) : '—'}</td>
       <td style="color:var(--t2);text-align:right">${p.p_value != null ? _fmt(p.p_value) : '—'}</td>
       <td style="text-align:center"><span class="${p.significant ? 'spill' : 'npill'}">${p.significant ? '✓' : '—'}</span></td>
     </tr>`).join('');
-    html += `<div style="overflow-x:auto;margin-top:8px">
-      <table class="gtable">
-        <thead><tr><th>Path</th><th>Moderator</th><th>β</th><th>CI low</th><th>CI high</th><th>p</th><th>Sig</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-  }
-
-  if (data.simple_slopes?.length) {
-    const sRows = data.simple_slopes.map(s => `<tr>
-      <td style="color:var(--t1)">${s.level || ''}</td>
-      <td style="color:var(--t0);text-align:right">${_fmt(s.slope)}</td>
-      <td style="color:var(--t2);text-align:right">${_fmt(s.se)}</td>
-      <td style="color:var(--t2);text-align:right">${s.p_value != null ? _fmt(s.p_value) : '—'}</td>
-    </tr>`).join('');
-    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin:14px 0 6px">Simple slopes</div>
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin:14px 0 6px">Full model parameters</div>
       <div style="overflow-x:auto"><table class="gtable">
-        <thead><tr><th>Level</th><th>Slope</th><th>SE</th><th>p</th></tr></thead>
-        <tbody>${sRows}</tbody>
+        <thead><tr><th>LHS</th><th>Op</th><th>RHS</th><th>Est.</th><th>CI lo</th><th>CI hi</th><th>p</th><th>Sig</th></tr></thead>
+        <tbody>${rows}</tbody>
       </table></div>`;
   }
 
@@ -7618,6 +8082,7 @@ async function runIPMA() {
     const r    = await fetch('/ipma', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _ipmaResult = data;
     _okRunRecord(data);
     _freezeReportSnapshot();
     _renderIPMAResults(data);
@@ -7644,18 +8109,21 @@ function _renderIPMAResults(data) {
   const el = document.getElementById('ipma-results');
   el.style.display = 'flex';
   const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
-  const items = data.ipma || data.constructs || [];
+  // IPMAResult schema: entries (List[IPMAEntry]), target_lv, scale_min, scale_max, algorithm, warnings
+  const items = data.entries || [];
 
   let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
     Target LV: <span style="color:var(--accent-text)">${data.target_lv || '—'}</span>
-    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+    &nbsp;·&nbsp; Scale: <span style="color:var(--t1)">${data.scale_min ?? '—'}–${data.scale_max ?? '—'}</span>
+    &nbsp;·&nbsp; Algorithm: <span style="color:var(--t1)">${data.algorithm || '—'}</span>
   </div>`;
 
   if (items.length) {
+    // IPMAEntry schema: lv, importance, performance
     const rows = items.map(c => `<tr>
-      <td style="color:var(--accent-text)">${c.construct || c.name || ''}</td>
-      <td style="color:var(--t0);text-align:right">${_fmt(c.importance ?? c.total_effect)}</td>
-      <td style="color:var(--t0);text-align:right">${_fmt(c.performance ?? c.perf_score)}</td>
+      <td style="color:var(--accent-text)">${c.lv || ''}</td>
+      <td style="color:var(--t0);text-align:right">${_fmt(c.importance)}</td>
+      <td style="color:var(--t0);text-align:right">${_fmt(c.performance)}</td>
     </tr>`).join('');
     html += `<div style="overflow-x:auto;margin-top:8px">
       <table class="gtable">
@@ -7663,6 +8131,8 @@ function _renderIPMAResults(data) {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+  } else {
+    html += '<div style="color:var(--t3);font-size:11px;padding:8px">No predictor constructs found.</div>';
   }
 
   if (data.warnings?.length) {
@@ -7706,6 +8176,8 @@ async function runModMediation() {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
     _okRunRecord(data);
+    _modMediationResult = data;
+    _freezeReportSnapshot();
     _renderModMediationResults(data);
   } catch(err) {
     _errRunRecord(err.message);
@@ -7853,6 +8325,7 @@ async function runNCA() {
     const r    = await fetch('/nca', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    _ncaResult = data;
     _okRunRecord(data);
     _freezeReportSnapshot();
     _renderNCAResults(data);
@@ -7877,33 +8350,43 @@ function _renderNCAResults(data) {
   document.getElementById('nca-spinner').style.display = 'none';
   const el = document.getElementById('nca-results');
   el.style.display = 'flex';
-  const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
-  const paths = data.paths || data.nca || [];
+  const _fmt  = v => v != null ? Number(v).toFixed(3) : '—';
+  const _fmtP = v => v != null ? Number(v).toFixed(4) : '—';
+  // NCAResult schema: entries (List[NCAEntry]), n_permutations, warnings
+  const entries = data.entries || [];
 
   let html = `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
-    Permutations: <span style="color:var(--t1)">${data.permutations ?? '—'}</span>
-    &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
+    Permutations: <span style="color:var(--t1)">${data.n_permutations ?? '—'}</span>
   </div>`;
 
-  if (paths.length) {
-    const rows = paths.map(p => {
-      const d = p.effect_size ?? p.d ?? null;
-      const dLbl = d == null ? '—' : d < 0.1 ? 'negligible' : d < 0.3 ? 'small' : d < 0.5 ? 'medium' : 'large';
-      return `<tr>
-        <td style="color:var(--accent-text)">${p.x || p.iv || ''}</td>
-        <td style="color:var(--t1)">${p.y || p.dv || ''}</td>
-        <td style="color:var(--t0);text-align:right">${_fmt(p.d_cefdh ?? p.d)}</td>
-        <td style="color:var(--t0);text-align:right">${_fmt(p.d_crfdh ?? p.d_cr)}</td>
-        <td style="color:var(--t2);text-align:right">${p.p_value != null ? _fmt(p.p_value) : '—'}</td>
-        <td style="color:var(--t2)">${dLbl}</td>
-      </tr>`;
-    }).join('');
+  if (entries.length) {
+    // NCAEntry schema: iv, dv, n_obs, ce_fdh_d/ce_fdh_label/ce_fdh_p,
+    // cr_fdh_d/cr_fdh_label/cr_fdh_p, significant
+    const rows = entries.map(e => `<tr>
+      <td style="color:var(--accent-text)">${esc(e.iv)}</td>
+      <td style="color:var(--t1)">${esc(e.dv)}</td>
+      <td style="text-align:right;color:var(--t2)">${e.n_obs ?? '—'}</td>
+      <td style="text-align:right;color:var(--t0)">${_fmt(e.ce_fdh_d)}</td>
+      <td style="color:var(--t2)">${e.ce_fdh_label || '—'}</td>
+      <td style="text-align:right;color:var(--t2)">${e.ce_fdh_p != null ? _fmtP(e.ce_fdh_p) : '—'}</td>
+      <td style="text-align:right;color:var(--t0)">${_fmt(e.cr_fdh_d)}</td>
+      <td style="color:var(--t2)">${e.cr_fdh_label || '—'}</td>
+      <td style="text-align:right;color:var(--t2)">${e.cr_fdh_p != null ? _fmtP(e.cr_fdh_p) : '—'}</td>
+      <td style="text-align:center"><span class="${e.significant ? 'spill' : 'npill'}">${e.significant ? '✓' : '—'}</span></td>
+    </tr>`).join('');
     html += `<div style="overflow-x:auto;margin-top:8px">
       <table class="gtable">
-        <thead><tr><th>IV</th><th>DV</th><th>d CE-FDH</th><th>d CR-FDH</th><th>p</th><th>Size</th></tr></thead>
+        <thead><tr>
+          <th>IV</th><th>DV</th><th>N</th>
+          <th>CE-FDH d</th><th>CE-FDH size</th><th>CE-FDH p</th>
+          <th>CR-FDH d</th><th>CR-FDH size</th><th>CR-FDH p</th>
+          <th>Sig</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+  } else {
+    html += '<div style="color:var(--t3);font-size:11px;padding:8px">No IV→DV pairs found.</div>';
   }
 
   if (data.warnings?.length) {
@@ -7911,6 +8394,7 @@ function _renderNCAResults(data) {
   }
   el.innerHTML = html;
 }
+
 // ── end v0.7 Advanced analysis tabs ────────────────────────────────────────
 
 // ════════════════════════════════════════════════════════
@@ -7947,7 +8431,7 @@ async function runFIMIX() {
     const r = await fetch('/fimix', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderFIMIXResults(data);
+    _fimixResult = data; _okRunRecord(data); _freezeReportSnapshot(); _renderFIMIXResults(data);
   } catch(err) { _errRunRecord(err.message); _fimixShowError('FIMIX error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -7971,18 +8455,53 @@ function _renderFIMIXResults(data) {
   if (sols.length) {
     const rows = sols.map(s => {
       const hi = s.k === rec;
+      // FIMIXSegment: segment_id, size, proportion, path_coefficients (Dict), r_squared (Dict)
+      const segDesc = s.segments?.map(sg =>
+        `S${sg.segment_id}: ${sg.size} obs (π=${_fmt(sg.proportion)})`
+      ).join(', ') ?? '—';
       return `<tr style="${hi ? 'background:var(--accent-soft)' : ''}">
-        <td style="color:var(--accent-text)">${s.k}</td>
+        <td style="color:var(--accent-text)">${s.k}${hi ? ' ★' : ''}</td>
         <td style="color:var(--t0);text-align:right">${_fmt(s.aic)}</td>
         <td style="color:var(--t0);text-align:right">${_fmt(s.bic)}</td>
         <td style="color:var(--t0);text-align:right">${_fmt(s.caic)}</td>
         <td style="color:var(--t0);text-align:right">${_fmt(s.relative_entropy)}</td>
-        <td>${s.segments?.map(sg=>`${sg.label??'S'+sg.segment_id}: ${sg.size} obs`).join(', ')??'—'}</td>
+        <td style="font-size:10px">${segDesc}</td>
       </tr>`;
     }).join('');
     html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
       <thead><tr><th>K</th><th>AIC</th><th>BIC</th><th>CAIC ★</th><th>Rel. Entropy</th><th>Segments</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
+  }
+  // ── Segment-level path coefficients for the recommended K ─────────────────
+  const recSol = sols.find(s => s.k === rec);
+  if (recSol?.segments?.length) {
+    html += `<div style="font-size:10px;font-weight:600;color:var(--t1);margin-top:14px;margin-bottom:4px">
+      Path coefficients &amp; R² — K = ${rec}</div>`;
+    // Collect all path names across segments for aligned columns
+    const allPaths = [...new Set(recSol.segments.flatMap(sg => Object.keys(sg.path_coefficients || {})))];
+    const allDVs   = [...new Set(recSol.segments.flatMap(sg => Object.keys(sg.r_squared || {})))];
+    if (allPaths.length) {
+      const segHeaders = recSol.segments.map(sg =>
+        `<th>S${sg.segment_id}<br><span style="font-weight:400;font-size:9px">${sg.size} obs</span></th>`
+      ).join('');
+      const pathRows = allPaths.map(path => {
+        const cells = recSol.segments.map(sg => {
+          const v = (sg.path_coefficients || {})[path];
+          return `<td style="text-align:right;color:var(--t0)">${v != null ? Number(v).toFixed(3) : '—'}</td>`;
+        }).join('');
+        return `<tr><td style="color:var(--accent-text)">${path}</td>${cells}</tr>`;
+      }).join('');
+      const r2Rows = allDVs.map(dv => {
+        const cells = recSol.segments.map(sg => {
+          const v = (sg.r_squared || {})[dv];
+          return `<td style="text-align:right;color:var(--t0)">${v != null ? Number(v).toFixed(3) : '—'}</td>`;
+        }).join('');
+        return `<tr><td style="color:var(--t2)">R²(${dv})</td>${cells}</tr>`;
+      }).join('');
+      html += `<div style="overflow-x:auto"><table class="gtable">
+        <thead><tr><th>Path / Metric</th>${segHeaders}</tr></thead>
+        <tbody>${pathRows}${r2Rows}</tbody></table></div>`;
+    }
   }
   if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
   el.innerHTML = html;
@@ -8022,7 +8541,7 @@ async function runPLSPOS() {
     const r = await fetch('/plspos', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderPLSPOSResults(data);
+    _plsposResult = data; _okRunRecord(data); _freezeReportSnapshot(); _renderPLSPOSResults(data);
   } catch(err) { _errRunRecord(err.message); _plsposShowError('PLS-POS error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -8043,15 +8562,36 @@ function _renderPLSPOSResults(data) {
     &nbsp;·&nbsp; N = <span style="color:var(--t1)">${data.n_obs ?? '—'}</span>
   </div>`;
   if (segs.length) {
-    const rows = segs.map(s => `<tr>
-      <td style="color:var(--accent-text)">${s.segment_id ?? '—'}</td>
-      <td style="text-align:right">${s.size ?? '—'}</td>
-      <td style="text-align:right">${_fmt(s.stability)}</td>
-      <td>${(s.path_coefficients||[]).map(p=>`${p.path||p.rhs+'→'+p.lhs}: ${_fmt(p.estimate)}`).join(', ')||'—'}</td>
-    </tr>`).join('');
+    // PLSPOSSegment: segment_id, size, path_coefficients (Dict[str,float] "lhs~rhs":coef),
+    //                r_squared (Dict[str,float]), stability
+    const rows = segs.map(s => {
+      // path_coefficients is a dict {"Y~X": 0.45, ...} — use Object.entries
+      const pathStr = Object.entries(s.path_coefficients || {})
+        .map(([k, v]) => `${k}: ${_fmt(v)}`).join(', ') || '—';
+      const r2Str = Object.entries(s.r_squared || {})
+        .map(([k, v]) => `${k}: ${_fmt(v)}`).join(', ') || '—';
+      return `<tr>
+        <td style="color:var(--accent-text)">${s.segment_id ?? '—'}</td>
+        <td style="text-align:right">${s.size ?? '—'}</td>
+        <td style="text-align:right">${_fmt(s.stability)}</td>
+        <td style="font-size:10px">${pathStr}</td>
+        <td style="font-size:10px">${r2Str}</td>
+      </tr>`;
+    }).join('');
     html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
-      <thead><tr><th>Segment</th><th>N</th><th>Stability</th><th>Path coefficients</th></tr></thead>
+      <thead><tr><th>Segment</th><th>N</th><th>Stability</th><th>Path coefficients</th><th>R²</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
+  }
+  if (data.fimix_comparison) {
+    const fc = data.fimix_comparison;
+    const fcRows = Object.entries(fc).map(([path, vals]) => {
+      const vStr = Object.entries(vals||{}).map(([seg, v]) => `S${seg}: ${_fmt(v)}`).join(', ');
+      return `<tr><td style="color:var(--accent-text)">${path}</td><td style="font-size:10px">${vStr}</td></tr>`;
+    }).join('');
+    if (fcRows) html += `<div style="font-size:10px;font-weight:600;color:var(--t1);margin-top:12px;margin-bottom:4px">FIMIX vs PLS-POS comparison</div>
+      <div style="overflow-x:auto"><table class="gtable">
+      <thead><tr><th>Path</th><th>Segment values</th></tr></thead>
+      <tbody>${fcRows}</tbody></table></div>`;
   }
   if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
   el.innerHTML = html;
@@ -8092,7 +8632,7 @@ async function runCopula() {
     const r = await fetch('/robustness', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderCopulaResults(data);
+    _copulaResult = data; _okRunRecord(data); _freezeReportSnapshot(); _renderCopulaResults(data);
   } catch(err) { _errRunRecord(err.message); _copulaShowError('Copula error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -8107,28 +8647,63 @@ function _renderCopulaResults(data) {
   document.getElementById('copula-spinner').style.display = 'none';
   const el = document.getElementById('copula-results'); el.style.display = 'flex';
   const _fmt = v => v != null ? Number(v).toFixed(4) : '—';
+  // RobustnessChecks.copula -> GaussianCopulaResult{entries, algorithm, n_obs,
+  // bootstrap_n, warnings}. RobustnessChecks.copula_warning is a SIBLING of
+  // .copula (set when the copula check couldn't run at all).
   const cop = data.copula || {};
   const entries = cop.entries || [];
   let html = '';
+  if (cop.algorithm || cop.n_obs != null) {
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+      Algorithm: <span style="color:var(--t1)">${cop.algorithm || '—'}</span>
+      &nbsp;·&nbsp; Bootstrap: <span style="color:var(--t1)">${cop.bootstrap_n ?? '—'}</span>
+      &nbsp;·&nbsp; N = <span style="color:var(--t1)">${cop.n_obs ?? '—'}</span>
+    </div>`;
+  }
   if (entries.length) {
     entries.forEach(e => {
-      const paths = e.corrected_paths || [];
-      const rows = paths.map(p => `<tr>
-        <td style="color:var(--accent-text)">${p.path||p.lhs+'←'+p.rhs}</td>
-        <td style="text-align:right;color:var(--t0)">${_fmt(p.original_estimate)}</td>
-        <td style="text-align:right;color:var(--accent-text)">${_fmt(p.corrected_estimate)}</td>
-        <td style="text-align:right">${_fmt(p.copula_term)}</td>
-        <td style="text-align:right">${p.significant ? '✓' : '—'}</td>
-      </tr>`).join('');
-      html += `<div style="font-size:10px;font-weight:600;color:var(--t1);margin-bottom:4px">Endogenous: ${e.endogenous||'—'}</div>
-        <div style="overflow-x:auto;margin-bottom:12px"><table class="gtable">
-        <thead><tr><th>Path</th><th>Original β</th><th>Corrected β</th><th>Copula term</th><th>Sig.</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>`;
+      const sig = !!e.copula_significant;
+      html += `<div style="font-size:10px;font-weight:600;color:var(--t1);margin-bottom:4px">Endogenous: ${esc(e.variable)}</div>
+        <div style="overflow-x:auto;margin-bottom:8px"><table class="gtable"><thead>
+          <tr><th>Normality stat</th><th>Normality p</th><th>Copula coef.</th><th>CI 95% lo</th><th>CI 95% hi</th><th>ΔR²</th><th>f²</th><th>Sig</th></tr>
+        </thead><tbody>
+          <tr>
+            <td style="text-align:right">${_fmt(e.normality_stat)}</td>
+            <td style="text-align:right">${_fmt(e.normality_p)}</td>
+            <td style="text-align:right;color:var(--accent-text)">${e.copula_coef != null ? _fmt(e.copula_coef) : '—'}</td>
+            <td style="text-align:right;color:var(--t2)">${e.copula_ci_lower_95 != null ? _fmt(e.copula_ci_lower_95) : '—'}</td>
+            <td style="text-align:right;color:var(--t2)">${e.copula_ci_upper_95 != null ? _fmt(e.copula_ci_upper_95) : '—'}</td>
+            <td style="text-align:right">${e.delta_r2 != null ? _fmt(e.delta_r2) : '—'}</td>
+            <td style="text-align:right">${e.f2_copula != null ? _fmt(e.f2_copula) : '—'}</td>
+            <td style="text-align:center"><span class="${sig ? 'spill' : 'npill'}">${sig ? '✓' : '—'}</span></td>
+          </tr>
+        </tbody></table></div>`;
+
+      // corrected_paths / original_paths are Dict[outcome -> beta], not arrays
+      const outcomes = [...new Set([
+        ...Object.keys(e.original_paths || {}),
+        ...Object.keys(e.corrected_paths || {}),
+      ])];
+      if (outcomes.length) {
+        const rows = outcomes.map(o => `<tr>
+          <td style="color:var(--t1)">${esc(o)}</td>
+          <td style="text-align:right;color:var(--t0)">${_fmt((e.original_paths||{})[o])}</td>
+          <td style="text-align:right;color:var(--accent-text)">${_fmt((e.corrected_paths||{})[o])}</td>
+        </tr>`).join('');
+        html += `<div style="overflow-x:auto;margin-bottom:14px"><table class="gtable">
+          <thead><tr><th>Outcome</th><th>Original β</th><th>Corrected β</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`;
+      }
     });
   } else {
-    html = '<div style="color:var(--t3);font-size:11px;padding:8px">No copula entries returned.</div>';
+    html += '<div style="color:var(--t3);font-size:11px;padding:8px">No copula entries returned.</div>';
   }
-  if (data.warnings?.length) html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  if (data.copula_warning) {
+    html += `<div class="warn-box" style="margin-top:8px">⚠ ${esc(data.copula_warning)}</div>`;
+  }
+  if (cop.warnings?.length) {
+    html += `<div class="warn-box" style="margin-top:8px">${cop.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  }
   el.innerHTML = html;
 }
 
@@ -8166,7 +8741,7 @@ async function runNCAESSE() {
     const r = await fetch('/nca-esse', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderNCAESSEResults(data);
+    _ncaesseResult = data; _okRunRecord(data); _freezeReportSnapshot(); _renderNCAESSEResults(data);
   } catch(err) { _errRunRecord(err.message); _ncaesseShowError('NCA-ESSE error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -8233,7 +8808,7 @@ async function runNomological() {
     const r = await fetch('/nomological', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderNomologicalResults(data);
+    _okRunRecord(data); _nomologicalResult = data; _freezeReportSnapshot(); _renderNomologicalResults(data);
   } catch(err) { _errRunRecord(err.message); _nomologicalShowError('Nomological error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -8248,8 +8823,14 @@ function _renderNomologicalResults(data) {
   document.getElementById('nomological-spinner').style.display = 'none';
   const el = document.getElementById('nomological-results'); el.style.display = 'flex';
   const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
+  // NomologicalResult may return {entries: [...], benchmark: str, warnings: [...]}
+  // or plain list for backward compat
   const entries = Array.isArray(data) ? data : (data.entries || []);
   let html = '';
+  if (data.benchmark) {
+    html += `<div style="font-size:9px;letter-spacing:2px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:6px">
+      Benchmark: <span style="color:var(--t1)">${data.benchmark}</span></div>`;
+  }
   if (entries.length) {
     const rows = entries.map(e => {
       const cls = e.passed ? 'fc-good' : 'fc-bad';
@@ -8260,9 +8841,12 @@ function _renderNomologicalResults(data) {
         <td><span class="fit-chip ${cls}">${e.interpretation}</span></td>
       </tr>`;
     }).join('');
-    html = `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
+    html += `<div style="overflow-x:auto;margin-top:8px"><table class="gtable">
       <thead><tr><th>Construct</th><th>R²</th><th>Benchmark</th><th>Verdict</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
+  }
+  if (!Array.isArray(data) && data.warnings?.length) {
+    html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
   }
   el.innerHTML = html || '<div style="color:var(--t3);padding:8px">No endogenous constructs found.</div>';
 }
@@ -8300,7 +8884,7 @@ async function runInvariance() {
     const r = await fetch('/invariance', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderInvarianceResults(data);
+    _okRunRecord(data); _invarianceResult = data; _freezeReportSnapshot(); _renderInvarianceResults(data);
   } catch(err) { _errRunRecord(err.message); _invShowError('Invariance error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -8368,7 +8952,7 @@ async function runEFA() {
     const r = await fetch('/efa', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderEFAResults(data);
+    _okRunRecord(data); _efaResult = data; _freezeReportSnapshot(); _renderEFAResults(data);
   } catch(err) { _errRunRecord(err.message); _efaShowError('EFA error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }
@@ -8436,7 +9020,7 @@ async function runCVI() {
     const r = await fetch('/cvi', { method: 'POST', body: fd });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
-    _okRunRecord(data); _freezeReportSnapshot(); _renderCVIResults(data);
+    _okRunRecord(data); _cviResult = data; _freezeReportSnapshot(); _renderCVIResults(data);
   } catch(err) { _errRunRecord(err.message); _cviShowError('CVI error: ' + err.message); }
   finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; } }
 }

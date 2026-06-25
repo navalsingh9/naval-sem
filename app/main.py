@@ -987,50 +987,96 @@ async def export_pdf(payload: dict):
 
     Returns a binary PDF file download.
     Requires:  pip install reportlab
+
+    Top-level try/except: every code path below this point used to have its
+    own defensive try/except, but the response-construction tail (run_id
+    validation, filename formatting, StreamingResponse) had none — any
+    exception there escaped FastAPI entirely and surfaced to the client as
+    Starlette's generic, detail-free "Internal Server Error" plain-text
+    page (no JSON, no traceback, undiagnosable from the client side). This
+    outer guard ensures *every* failure mode returns an HTTPException with
+    real diagnostic detail instead.
     """
     try:
-        from app.export_pdf import generate_pdf
-    except ImportError:
-        # Try relative import (running from repo root without package install)
         try:
-            import importlib.util, pathlib
-            spec = importlib.util.spec_from_file_location(
-                "export_pdf",
-                pathlib.Path(__file__).parent / "export_pdf.py",
+            from app.export_pdf import generate_pdf
+        except Exception:
+            # Catches ImportError *and* anything export_pdf.py's module-level
+            # code might raise on import (font/constant setup, etc.) — a bare
+            # `except ImportError` here means any other exception type escapes
+            # this function entirely and becomes FastAPI's generic, detail-free
+            # 500 page, which is undiagnosable from the client side.
+            try:
+                import importlib.util, pathlib
+                spec = importlib.util.spec_from_file_location(
+                    "export_pdf",
+                    pathlib.Path(__file__).parent / "export_pdf.py",
+                )
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                generate_pdf = mod.generate_pdf
+            except Exception as ie:
+                logger.error("export_pdf import failed: %s", ie, exc_info=True)
+                raise HTTPException(
+                    500,
+                    f"export_pdf module failed to load: {ie!r}. "
+                    "Check server logs for the full traceback; if reportlab "
+                    "is missing, install it with: pip install reportlab"
+                ) from ie
+
+        try:
+            pdf_bytes = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: generate_pdf(payload)
             )
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            generate_pdf = mod.generate_pdf
-        except Exception as ie:
-            raise HTTPException(
-                500,
-                "ReportLab not available. Install it with: "
-                "pip install reportlab --break-system-packages"
-            ) from ie
+        except Exception as e:
+            # exc_info=True can itself raise on some Windows console code pages
+            # if the formatted message contains non-ASCII characters — never let
+            # a logging failure mask the real error with an unhandled exception.
+            try:
+                logger.error("PDF generation error: %r", e, exc_info=True)
+            except Exception:
+                logger.error("PDF generation error (unprintable): %s", type(e).__name__)
+            # Build the HTTPException detail defensively too — str(e) can
+            # itself contain non-ASCII content that the same Windows console
+            # encoding issue would choke on when uvicorn's access logger
+            # later tries to print the response; ASCII-escape it so the
+            # error is always at least visible, even if not pretty.
+            try:
+                detail = f"PDF generation failed: {e!r}"
+            except Exception:
+                detail = f"PDF generation failed: {type(e).__name__} (unprintable message)"
+            raise HTTPException(500, detail.encode("ascii", "backslashreplace").decode("ascii"))
 
-    try:
-        pdf_bytes = await asyncio.get_running_loop().run_in_executor(
-            None, lambda: generate_pdf(payload)
+        snap     = payload.get("snap") or {}
+        run_id   = (snap.get("runId") or "report")[:36]
+        try:
+            _validate_run_id(run_id)
+        except HTTPException:
+            run_id = "report"
+        safe_fname = _re.sub(r'[^a-zA-Z0-9\-]', '', run_id)[:8]
+        ts_stamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"naval_sem_report_{safe_fname}_{ts_stamp}.pdf"
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-    except Exception as e:
-        logger.error("PDF generation error: %s", e, exc_info=True)
-        raise HTTPException(500, f"PDF generation failed: {e}")
-
-    snap     = payload.get("snap") or {}
-    run_id   = (snap.get("runId") or "report")[:36]
-    try:
-        _validate_run_id(run_id)
     except HTTPException:
-        run_id = "report"
-    safe_fname = _re.sub(r'[^a-zA-Z0-9\-]', '', run_id)[:8]
-    ts_stamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"naval_sem_report_{safe_fname}_{ts_stamp}.pdf"
-
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+        raise
+    except Exception as exc:
+        # Final safety net: anything that reaches here would otherwise have
+        # escaped as Starlette's generic "Internal Server Error" plain-text
+        # page with zero diagnostic value. Always return real detail instead.
+        try:
+            logger.error("Unhandled /export/pdf failure: %r", exc, exc_info=True)
+        except Exception:
+            logger.error("Unhandled /export/pdf failure (unprintable): %s", type(exc).__name__)
+        try:
+            detail = f"/export/pdf failed unexpectedly: {type(exc).__name__}: {exc!r}"
+        except Exception:
+            detail = f"/export/pdf failed unexpectedly: {type(exc).__name__} (unprintable message)"
+        raise HTTPException(500, detail.encode("ascii", "backslashreplace").decode("ascii"))
 
 
 # ── v0.6: Multi-Group Analysis ─────────────────────────────────────────────────
@@ -1855,9 +1901,45 @@ async def mod_mediation_analysis(
 async def run_nomological(
     file: UploadFile = File(...),
     model_syntax: str = Form(...),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
 ):
-    df = pd.read_csv(file.file)
-    return compute_nomological_validity(df, model_syntax)
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"Nomological: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /nomological: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file.")
+
+        if missing == "listwise":
+            df = df.dropna()
+            log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: compute_nomological_validity(df, model_syntax),
+            )
+        except ValueError as exc:
+            log("error", f"Nomological failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "Nomological unexpected error — see server logs")
+            logger.error("Unexpected error in /nomological: %s", exc, exc_info=True)
+            raise HTTPException(500, "Nomological validity analysis failed.")
+
+        log("ok", f"Nomological complete — {len(result)} construct(s)")
+        return result
 
 
 # ── v0.9: Measurement Invariance ───────────────────────────────────────────────
@@ -1867,6 +1949,8 @@ async def run_invariance(
     file: UploadFile = File(...),
     model_syntax: str = Form(...),
     group_col: str = Form(...),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
 ):
     """
     Full measurement invariance sequence: configural → metric → scalar.
@@ -1876,6 +1960,8 @@ async def run_invariance(
     file         : CSV upload containing all variables + the group column.
     model_syntax : lavaan-style model syntax (=~ / ~ / ~~).
     group_col    : Column name whose values define groups (≥ 2 distinct values).
+    missing      : ``listwise`` (default) | ``mean``.
+    run_id       : Optional SSE tracking ID — logs available at /logs/{run_id}.
 
     Returns
     -------
@@ -1883,18 +1969,42 @@ async def run_invariance(
     partial invariance items (if scalar partially holds), and a plain-English
     conclusion: "Full scalar" / "Partial scalar" / "Metric only" / "Configural only".
     """
-    try:
-        df = pd.read_csv(file.file)
-    except Exception as exc:
-        raise HTTPException(422, f"Could not parse uploaded file: {exc}")
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"Invariance: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /invariance: %s", exc, exc_info=True)
+            raise HTTPException(422, f"Could not parse uploaded file: {exc}")
 
-    try:
-        return compute_measurement_invariance(df, model_syntax, group_col)
-    except ValueError as exc:
-        raise HTTPException(422, str(exc))
-    except Exception as exc:
-        logger.error("Unexpected error in /invariance: %s", exc, exc_info=True)
-        raise HTTPException(500, "Measurement invariance analysis failed. Check server logs.")
+        if missing == "listwise":
+            df = df.dropna()
+            log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: compute_measurement_invariance(df, model_syntax, group_col),
+            )
+        except ValueError as exc:
+            log("error", f"Invariance failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "Invariance unexpected error — see server logs")
+            logger.error("Unexpected error in /invariance: %s", exc, exc_info=True)
+            raise HTTPException(500, "Measurement invariance analysis failed. Check server logs.")
+
+        log("ok", f"Invariance complete — conclusion: {result.conclusion}")
+        return result
 
 
 # ── v0.9: EFA (Exploratory Factor Analysis) ────────────────────────────────────
@@ -1904,6 +2014,8 @@ async def run_efa(
     file: UploadFile = File(...),
     n_factors: Optional[int] = Form(None),
     rotation: str = Form("varimax"),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
 ):
     """
     Exploratory Factor Analysis with KMO, Bartlett's test, and varimax/oblimin rotation.
@@ -1913,14 +2025,49 @@ async def run_efa(
     file      : CSV file — rows = respondents, columns = items (numeric).
     n_factors : Number of factors to extract; if omitted, Kaiser criterion (λ > 1) is used.
     rotation  : Rotation method passed to sklearn FactorAnalysis (default ``varimax``).
+    missing   : ``listwise`` (default) | ``mean``.
+    run_id    : Optional SSE tracking ID — logs available at /logs/{run_id}.
 
     Returns
     -------
     ScaleDevelopmentResult — KMO, Bartlett χ², eigenvalues, variance explained,
     factor loadings, cross-loadings, and warnings.
     """
-    df = pd.read_csv(file.file)
-    return compute_efa(df, n_factors=n_factors, rotation=rotation)
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"EFA: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /efa: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file.")
+
+        if missing == "listwise":
+            df = df.dropna()
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: compute_efa(df, n_factors=n_factors, rotation=rotation, log_fn=log),
+            )
+        except ValueError as exc:
+            log("error", f"EFA failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "EFA unexpected error — see server logs")
+            logger.error("Unexpected error in /efa: %s", exc, exc_info=True)
+            raise HTTPException(500, "EFA analysis failed. Check server logs.")
+
+        log("ok", f"EFA complete — {result.n_factors} factor(s), KMO={result.kmo}")
+        return result
 
 
 # ── v0.9: CVI (Content Validity Index) ────────────────────────────────────────
@@ -1929,6 +2076,7 @@ async def run_efa(
 async def run_cvi(
     file: UploadFile = File(...),
     n_experts: int = Form(...),
+    run_id: str = Form(None),
 ):
     """
     Content Validity Index from an expert ratings matrix.
@@ -1937,11 +2085,40 @@ async def run_cvi(
     -----------
     file      : CSV file — rows = experts, columns = items, values = 1–4 Likert ratings.
     n_experts : Number of experts (rows) used for I-CVI proportion denominators.
+    run_id    : Optional SSE tracking ID — logs available at /logs/{run_id}.
 
     Returns
     -------
     CVIResult — I-CVI per item, S-CVI/Ave, S-CVI/UA, modified kappa (κ*),
     and an interpretation (Excellent / Acceptable / Poor).
     """
-    df = pd.read_csv(file.file)
-    return compute_cvi(df, n_experts=n_experts)
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"CVI: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /cvi: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file.")
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: compute_cvi(df, n_experts=n_experts),
+            )
+        except ValueError as exc:
+            log("error", f"CVI failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "CVI unexpected error — see server logs")
+            logger.error("Unexpected error in /cvi: %s", exc, exc_info=True)
+            raise HTTPException(500, "CVI analysis failed. Check server logs.")
+
+        log("ok", f"CVI complete — {result.n_items} item(s), interpretation: {result.interpretation}")
+        return result

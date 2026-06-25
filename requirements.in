@@ -1,24 +1,19 @@
-# NAVAL-SEM — full dependency list (offline-packaged via PyInstaller)
-
-# Web framework
-fastapi>=0.136.1
-uvicorn[standard]>=0.47.0
-python-multipart>=0.0.29
-pydantic>=2.13.4
-
-# Statistical core
-semopy>=2.3.11
-pandas>=3.0.3
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+pandas>=2.0.0
 numpy>=1.26.0
 scipy>=1.12.0
-
-# File format support
-openpyxl>=3.1.5
-xlrd>=2.0.1
-pyreadstat>=1.3.5
-reportlab>=4.2.0
-# Native desktop window
-pywebview>=6.2.1
-
-# Build / packaging tools (install in dev env, not bundled)
-pyinstaller>=6.20.0
+pydantic>=2.0.0
+scikit-learn>=1.3.0
+pingouin>=0.5.4
+factor_analyzer>=0.4.1
+# semopy is a hard dependency of fit_model() in engine.py even on the PLS
+# path (presence-checked at the top of the function before branching on
+# algorithm) — without it every /run, /bootstrap, /mga, /moderation, /ipma,
+# /nca, /nca-esse, /mod-mediation call 500s regardless of chosen algorithm.
+semopy>=2.3.0
+# reportlab powers /export/pdf (app/export_pdf.py). The endpoint already
+# degrades gracefully with an actionable error if this is missing, but it
+# should be declared so a standard install doesn't need a follow-up step.
+reportlab>=4.0.0
