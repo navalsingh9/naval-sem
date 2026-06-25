@@ -64,6 +64,7 @@ _FONTS_REGISTERED = False
 
 _UNICODE_ASCII = {
     "✓": "OK",  "✗": "--",  "α": "alpha",  "β": "beta",  "Δ": "D",
+    "κ": "kappa",
     "χ²": "chi2",  "√": "sqrt",  "·": ".",  "\u2013": "-",  "\u2019": "'",
     "≥": ">=",  "≤": "<=",  "→": "->",
 }
@@ -983,6 +984,569 @@ def _build_diagram_section(diagram_png_b64: str, st: dict) -> list:
 #  Footer / header on every page
 # ═════════════════════════════════════════════════════════════════════════════
 
+# ════════════════════════════════════════════════════════════════════════════════
+#  Satellite section builders
+# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═
+
+def _build_nca_section(nca: dict, st: dict) -> list:
+    """Necessary Condition Analysis: per-pair CE-FDH / CR-FDH ceiling-line effect sizes."""
+    if not nca:
+        return []
+    entries = nca.get("entries") or []
+    if not entries:
+        return []
+
+    flowables = _section_header("Necessary Condition Analysis (NCA)", st)
+    if nca.get("n_permutations") is not None:
+        flowables.append(Paragraph(
+            f"Permutations: <b>{_xml_escape(str(nca.get('n_permutations')))}</b>",
+            st["Small"]))
+        flowables.append(Spacer(1, 3))
+
+    # NCAEntry schema: iv, dv, n_obs, ce_fdh_d/ce_fdh_label/ce_fdh_p,
+    # cr_fdh_d/cr_fdh_label/cr_fdh_slope/cr_fdh_intercept/cr_fdh_p, significant
+    header = [_p(h, st["TH"]) for h in
+               ["IV", "DV", "N", "CE-FDH d", "Size", "CE-FDH p",
+                "CR-FDH d", "Size", "CR-FDH p", "Sig."]]
+    rows = [header]
+    for entry in entries:
+        iv = _first_present(entry, "iv", "predictor") or "?"
+        dv = _first_present(entry, "dv", "outcome") or "?"
+        rows.append([
+            _p(iv, st["TCL"]),
+            _p(dv, st["TCL"]),
+            _p(str(entry.get("n_obs", "—")),          st["TC"]),
+            _p(_fmt(entry.get("ce_fdh_d"), 3),        st["TCMono"]),
+            _p(entry.get("ce_fdh_label", "—"),        st["TC"]),
+            _p(_fmt_p(entry.get("ce_fdh_p")),         st["TC"]),
+            _p(_fmt(entry.get("cr_fdh_d"), 3),        st["TCMono"]),
+            _p(entry.get("cr_fdh_label", "—"),        st["TC"]),
+            _p(_fmt_p(entry.get("cr_fdh_p")),         st["TC"]),
+            _p(_check(entry.get("significant")),      st["TC"]),
+        ])
+    if len(rows) > 1:
+        cw = [_CW*0.11, _CW*0.11, _CW*0.07, _CW*0.10, _CW*0.11, _CW*0.10,
+              _CW*0.10, _CW*0.11, _CW*0.10, _CW*0.09]
+        tbl = Table(rows, colWidths=cw, repeatRows=1)
+        tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (1, -1), "LEFT")]))
+        flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_ipma_section(ipma: dict, st: dict) -> list:
+    """Importance-Performance Map Analysis: predictor importance vs. performance."""
+    if not ipma:
+        return []
+    entries = ipma.get("entries") or []
+    if not entries:
+        return []
+
+    target = ipma.get("target_lv") or "—"
+    flowables = _section_header("Importance-Performance Map Analysis (IPMA)", st)
+    flowables.append(Paragraph(
+        f"Target construct: <b>{_xml_escape(target)}</b>", st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    header = [_p(h, st["TH"]) for h in ["Predictor", "Importance", "Performance"]]
+    rows = [header]
+    for e in entries:
+        lv = _first_present(e, "lv", "predictor") or "—"
+        rows.append([
+            _p(lv,                           st["TCL"]),
+            _p(_fmt(e.get("importance"), 3),  st["TCMono"]),
+            _p(_fmt(e.get("performance"), 1), st["TCMono"]),
+        ])
+    cw = [_CW*0.40, _CW*0.30, _CW*0.30]
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+    flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_fimix_section(fimix: dict, st: dict) -> list:
+    """FIMIX-PLS finite-mixture segmentation: candidate K solutions."""
+    if not fimix:
+        return []
+    solutions = fimix.get("solutions") or []
+    if not solutions:
+        return []
+
+    rec_k = fimix.get("recommended_k")
+    flowables = _section_header("FIMIX-PLS Segmentation", st)
+    if rec_k is not None:
+        flowables.append(Paragraph(
+            f"Recommended number of segments: <b>K = {_xml_escape(str(rec_k))}</b>",
+            st["Small"]))
+        flowables.append(Spacer(1, 3))
+
+    header = [_p(h, st["TH"]) for h in
+               ["K", "Log-likelihood", "AIC", "BIC", "CAIC", "Rel. entropy"]]
+    rows = [header]
+    for sol in solutions:
+        k = sol.get("k", "—")
+        row_i = len(rows)
+        rows.append([
+            _p(str(k),                              st["TC"]),
+            _p(_fmt(sol.get("log_likelihood"), 2),  st["TCMono"]),
+            _p(_fmt(sol.get("aic"), 2),             st["TCMono"]),
+            _p(_fmt(sol.get("bic"), 2),             st["TCMono"]),
+            _p(_fmt(sol.get("caic"), 2),            st["TCMono"]),
+            _p(_fmt(sol.get("relative_entropy"), 3), st["TCMono"]),
+        ])
+
+    cw = [_CW*0.10, _CW*0.22, _CW*0.17, _CW*0.17, _CW*0.17, _CW*0.17]
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    extra_cmds = []
+    if rec_k is not None:
+        for i, sol in enumerate(solutions, start=1):
+            if str(sol.get("k", "")) == str(rec_k):
+                extra_cmds.append(("BACKGROUND", (0, i), (-1, i), _BG_SOFT))
+                extra_cmds.append(("FONTNAME", (0, i), (-1, i), "Helvetica-Bold"))
+    tbl.setStyle(_apply_ts(_BASE_TS, extra_cmds))
+    flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_moderation_section(mod: dict, st: dict) -> list:
+    """Moderation analysis: interaction terms, simple-slope significance."""
+    if not mod:
+        return []
+    terms = mod.get("moderation_terms") or []
+    if not terms:
+        return []
+
+    flowables = _section_header("Moderation Analysis", st)
+
+    for term in terms:
+        iv  = _first_present(term, "iv", "predictor") or "?"
+        mv  = _first_present(term, "moderator") or "?"
+        dv  = _first_present(term, "outcome", "dv") or "?"
+        flowables.append(Paragraph(
+            _safe_text(f"{_xml_escape(iv)} × {_xml_escape(mv)} → {_xml_escape(dv)}"),
+            st["ColHeader"]))
+
+        header = [_p(_safe_text(h), st["TH"]) for h in
+                   ["β IV", "β Moderator", "β Interaction",
+                    "ΔR²", "f² (interaction)", "Sig."]]
+        sig = term.get("significant")
+        rows = [
+            header,
+            [
+                _p(_fmt(term.get("beta_iv"), 3),          st["TCMono"]),
+                _p(_fmt(term.get("beta_moderator"), 3),    st["TCMono"]),
+                _p(_fmt(term.get("beta_interaction"), 3),  st["TCMono"]),
+                _p(_fmt(term.get("delta_r2"), 3),          st["TCMono"]),
+                _p(_fmt(term.get("f2_interaction"), 3),    st["TCMono"]),
+                _p(_check(sig),                            st["TC"]),
+            ],
+        ]
+        cw = [_CW/6.0] * 6
+        tbl = Table(rows, colWidths=cw, repeatRows=1)
+        extra_cmds = []
+        if sig is not None:
+            extra_cmds.append(("TEXTCOLOR", (5, 1), (5, 1), _GREEN if sig else _TEXT_MUTE))
+        tbl.setStyle(_apply_ts(_BASE_TS, extra_cmds))
+        flowables += [tbl, Spacer(1, 6)]
+
+        # SimpleSlope schema: moderator_level, moderator_value, slope,
+        # ci_lower_95, ci_upper_95, significant
+        slopes = term.get("simple_slopes") or []
+        if slopes:
+            flowables.append(Paragraph("Simple slopes", st["Small"]))
+            flowables.append(Spacer(1, 2))
+            s_header = [_p(h, st["TH"]) for h in
+                         ["Level", "Mod. value", "Slope", "CI lo", "CI hi", "Sig."]]
+            s_rows = [s_header]
+            for s in slopes:
+                s_rows.append([
+                    _p(s.get("moderator_level", "—"),       st["TCL"]),
+                    _p(_fmt(s.get("moderator_value"), 3),   st["TCMono"]),
+                    _p(_fmt(s.get("slope"), 3),             st["TCMono"]),
+                    _p(_fmt(s.get("ci_lower_95"), 3),       st["TCMono"]),
+                    _p(_fmt(s.get("ci_upper_95"), 3),       st["TCMono"]),
+                    _p(_check(s.get("significant")),        st["TC"]),
+                ])
+            s_cw = [_CW*0.20, _CW*0.16, _CW*0.16, _CW*0.16, _CW*0.16, _CW*0.16]
+            s_tbl = Table(s_rows, colWidths=s_cw, repeatRows=1)
+            s_tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+            flowables += [s_tbl, Spacer(1, 6)]
+
+    return flowables
+
+
+def _build_nca_esse_section(esse: dict, st: dict) -> list:
+    """NCA Effect-Size Sensitivity Extension: threshold sweep per IV->DV pair."""
+    if not esse:
+        return []
+    entries = esse.get("entries") or []
+    if not entries:
+        return []
+
+    flowables = _section_header(
+        "NCA Effect-Size Sensitivity Extension (NCA-ESSE)", st)
+
+    for entry in entries:
+        iv = _first_present(entry, "iv", "predictor") or "?"
+        dv = _first_present(entry, "dv", "outcome") or "?"
+        rec_t = entry.get("recommended_threshold")
+        rec_d = entry.get("recommended_effect_size")
+        rec_label = entry.get("recommended_label", "—")
+
+        flowables.append(Paragraph(
+            _safe_text(f"{_xml_escape(iv)} → {_xml_escape(dv)}"), st["ColHeader"]))
+        if rec_t is not None:
+            pct = f"{float(rec_t)*100:.0f}%" if isinstance(rec_t, (int, float)) else str(rec_t)
+            flowables.append(Paragraph(
+                _safe_text(
+                    f"Recommended ceiling threshold: <b>{_xml_escape(pct)}</b> "
+                    f"&nbsp;·&nbsp; d = {_xml_escape(_fmt(rec_d, 3))} "
+                    f"({_xml_escape(str(rec_label))})"),
+                st["Small"]))
+            flowables.append(Spacer(1, 2))
+
+        header = [_p(h, st["TH"]) for h in
+                   ["Threshold", "Empirical d", "Theoretical d", "p-value", "Sig."]]
+        rows = [header]
+        for pt in (entry.get("thresholds") or []):
+            t = pt.get("threshold")
+            t_str = f"{float(t)*100:.0f}%" if isinstance(t, (int, float)) else str(t or "—")
+            rows.append([
+                _p(t_str,                                   st["TC"]),
+                _p(_fmt(pt.get("empirical_d"), 3),          st["TCMono"]),
+                _p(_fmt(pt.get("theoretical_d"), 3),        st["TCMono"]),
+                _p(_fmt_p(pt.get("p_value")),               st["TC"]),
+                _p(_check(pt.get("significant")),           st["TC"]),
+            ])
+        if len(rows) > 1:
+            cw = [_CW*0.20, _CW*0.22, _CW*0.22, _CW*0.18, _CW*0.18]
+            tbl = Table(rows, colWidths=cw, repeatRows=1)
+            tbl.setStyle(_apply_ts(_BASE_TS, []))
+            flowables += [tbl, Spacer(1, 6)]
+        else:
+            flowables.append(Spacer(1, 4))
+
+    return flowables
+
+
+def _build_plspos_section(plspos: dict, st: dict) -> list:
+    """PLS-POS prediction-oriented segmentation: per-segment paths and stability."""
+    if not plspos:
+        return []
+    segments = plspos.get("segments") or []
+    if not segments:
+        return []
+
+    flowables = _section_header("PLS-POS Segmentation", st)
+    k = plspos.get("k")
+    flowables.append(Paragraph(
+        f"K = <b>{_xml_escape(str(k))}</b> segments &nbsp;\u00b7&nbsp; "
+        f"Algorithm: {_xml_escape(str(plspos.get('algorithm', '—')))} "
+        f"&nbsp;\u00b7&nbsp; N = {_xml_escape(str(plspos.get('n_obs', '—')))}",
+        st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    header = [_p(h, st["TH"]) for h in
+               ["Segment", "Size", "Stability", "Path coefficients", "R\u00b2"]]
+    rows = [header]
+    for seg in segments:
+        paths_str = ", ".join(
+            f"{k_}: {_fmt(v, 3)}" for k_, v in (seg.get("path_coefficients") or {}).items()
+        ) or "\u2014"
+        r2_str = ", ".join(
+            f"{k_}: {_fmt(v, 3)}" for k_, v in (seg.get("r_squared") or {}).items()
+        ) or "\u2014"
+        rows.append([
+            _p(str(seg.get("segment_id", "\u2014")), st["TC"]),
+            _p(str(seg.get("size", "\u2014")),        st["TC"]),
+            _p(_fmt(seg.get("stability"), 4),     st["TCMono"]),
+            _p(paths_str,                          st["TCL"]),
+            _p(r2_str,                             st["TCL"]),
+        ])
+    if len(rows) > 1:
+        cw = [_CW*0.10, _CW*0.10, _CW*0.12, _CW*0.36, _CW*0.32]
+        tbl = Table(rows, colWidths=cw, repeatRows=1)
+        tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (3, 0), (4, -1), "LEFT")]))
+        flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_copula_section(copula: dict, st: dict) -> list:
+    """Gaussian Copula robustness check: per-variable endogeneity diagnostics."""
+    if not copula:
+        return []
+    entries = copula.get("entries") or []
+    if not entries:
+        return []
+
+    flowables = _section_header("Gaussian Copula Robustness Check", st)
+    flowables.append(Paragraph(
+        f"Algorithm: {_xml_escape(str(copula.get('algorithm', '—')))} "
+        f"&nbsp;\u00b7&nbsp; Bootstrap: {_xml_escape(str(copula.get('bootstrap_n', '—')))} "
+        f"&nbsp;\u00b7&nbsp; N = {_xml_escape(str(copula.get('n_obs', '—')))}",
+        st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    for entry in entries:
+        var = entry.get("variable", "?")
+        flowables.append(Paragraph(f"Endogenous: <b>{_xml_escape(var)}</b>", st["ColHeader"]))
+
+        header = [_p(h, st["TH"]) for h in
+                   ["Normality stat", "Normality p", "Copula coef.", _safe_text("\u0394R\u00b2"), "f\u00b2", "Sig."]]
+        rows = [header, [
+            _p(_fmt(entry.get("normality_stat"), 4),      st["TCMono"]),
+            _p(_fmt_p(entry.get("normality_p")),          st["TC"]),
+            _p(_fmt(entry.get("copula_coef"), 4),          st["TCMono"]),
+            _p(_fmt(entry.get("delta_r2"), 4),             st["TCMono"]),
+            _p(_fmt(entry.get("f2_copula"), 4),            st["TCMono"]),
+            _p(_check(entry.get("copula_significant")),    st["TC"]),
+        ]]
+        tbl = Table(rows, colWidths=[_CW/6.0] * 6, repeatRows=1)
+        tbl.setStyle(_apply_ts(_BASE_TS, []))
+        flowables += [tbl, Spacer(1, 4)]
+
+        orig_paths = entry.get("original_paths") or {}
+        corr_paths = entry.get("corrected_paths") or {}
+        outcomes = sorted(set(orig_paths) | set(corr_paths))
+        if outcomes:
+            p_header = [_p(h, st["TH"]) for h in ["Outcome", _safe_text("Original \u03b2"), _safe_text("Corrected \u03b2")]]
+            p_rows = [p_header]
+            for o in outcomes:
+                p_rows.append([
+                    _p(o,                                  st["TCL"]),
+                    _p(_fmt(orig_paths.get(o), 4),         st["TCMono"]),
+                    _p(_fmt(corr_paths.get(o), 4),         st["TCMono"]),
+                ])
+            p_cw = [_CW*0.4, _CW*0.3, _CW*0.3]
+            p_tbl = Table(p_rows, colWidths=p_cw, repeatRows=1)
+            p_tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+            flowables += [p_tbl, Spacer(1, 6)]
+        else:
+            flowables.append(Spacer(1, 2))
+
+    return flowables
+
+
+def _build_nomological_section(nomological, st: dict) -> list:
+    """Nomological validity: R\u00b2 of focal constructs vs. literature benchmarks.
+
+    Wire shape is a bare list (the /nomological endpoint's response_model is
+    List[NomologicalResult], not an object) \u2014 handle both just in case.
+    """
+    if not nomological:
+        return []
+    entries = nomological if isinstance(nomological, list) else (nomological.get("entries") or [])
+    if not entries:
+        return []
+
+    flowables = _section_header("Nomological Validity", st)
+    header = [_p(h, st["TH"]) for h in ["Construct", "R\u00b2", "Benchmark", "Verdict"]]
+    rows = [header]
+    for e in entries:
+        verdict = e.get("interpretation") or ("Pass" if e.get("passed") else "Fail")
+        rows.append([
+            _p(e.get("construct", "?"),       st["TCL"]),
+            _p(_fmt(e.get("r_squared"), 4),   st["TCMono"]),
+            _p(_fmt(e.get("benchmark"), 4),   st["TCMono"]),
+            _p(verdict,                        st["TC"]),
+        ])
+    cw = [_CW*0.35, _CW*0.2, _CW*0.2, _CW*0.25]
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+    flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_invariance_section(invariance: dict, st: dict) -> list:
+    """Measurement invariance (configural / metric / scalar) across groups."""
+    if not invariance:
+        return []
+    levels = ["configural", "metric", "scalar"]
+    if not any(invariance.get(lvl) for lvl in levels):
+        return []
+
+    flowables = _section_header("Measurement Invariance", st)
+    groups = invariance.get("groups") or []
+    flowables.append(Paragraph(
+        f"Groups: <b>{_xml_escape(', '.join(str(g) for g in groups))}</b> "
+        f"&nbsp;\u00b7&nbsp; Conclusion: <b>{_xml_escape(str(invariance.get('conclusion', '—')))}</b>",
+        st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    header = [_p(h, st["TH"]) for h in
+               ["Level", "CFI", "RMSEA", _safe_text("\u0394CFI"), _safe_text("\u0394RMSEA"), "Pass"]]
+    rows = [header]
+    for lvl in levels:
+        m = invariance.get(lvl) or {}
+        rows.append([
+            _p(lvl.capitalize(),                  st["TCL"]),
+            _p(_fmt(m.get("cfi"), 3),             st["TCMono"]),
+            _p(_fmt(m.get("rmsea"), 3),           st["TCMono"]),
+            _p(_fmt(m.get("delta_cfi"), 3),       st["TCMono"]),
+            _p(_fmt(m.get("delta_rmsea"), 3),     st["TCMono"]),
+            _p(_check(m.get("passed")),           st["TC"]),
+        ])
+    cw = [_CW*0.18, _CW*0.16, _CW*0.16, _CW*0.16, _CW*0.16, _CW*0.18]
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+    flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_efa_section(efa: dict, st: dict) -> list:
+    """Exploratory Factor Analysis: suitability diagnostics + factor loadings."""
+    if not efa:
+        return []
+    loadings = efa.get("loadings") or []
+    if not loadings:
+        return []
+
+    flowables = _section_header("Exploratory Factor Analysis (EFA)", st)
+    cum_var = efa.get("cumulative_variance")
+    cum_str = f"{cum_var*100:.1f}%" if isinstance(cum_var, (int, float)) else "\u2014"
+    flowables.append(Paragraph(
+        f"KMO = <b>{_fmt(efa.get('kmo'), 4)}</b> &nbsp;\u00b7&nbsp; "
+        f"Bartlett p = {_fmt_p(efa.get('bartlett_p'))} &nbsp;\u00b7&nbsp; "
+        f"Factors = {_xml_escape(str(efa.get('n_factors', '—')))} &nbsp;\u00b7&nbsp; "
+        f"Cumulative variance = {cum_str}",
+        st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    header = [_p(h, st["TH"]) for h in ["Item", "Factor", "Loading"]]
+    rows = [header]
+    for l in loadings:
+        rows.append([
+            _p(l.get("item", "?"),                  st["TCL"]),
+            _p(f"F{l.get('factor', '—')}",     st["TC"]),
+            _p(_fmt(l.get("loading"), 4),            st["TCMono"]),
+        ])
+    cw = [_CW*0.5, _CW*0.2, _CW*0.3]
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+    flowables += [tbl, Spacer(1, 4)]
+
+    cross = efa.get("cross_loadings") or []
+    if cross:
+        flowables.append(Paragraph("Cross-loadings", st["ColHeader"]))
+        c_header = [_p(h, st["TH"]) for h in ["Item", "Primary", "Secondary", "Sec. loading"]]
+        c_rows = [c_header]
+        for c in cross:
+            c_rows.append([
+                _p(c.get("item", "?"),                          st["TCL"]),
+                _p(f"F{c.get('primary_factor', '—')}",     st["TC"]),
+                _p(f"F{c.get('secondary_factor', '—')}",   st["TC"]),
+                _p(_fmt(c.get("secondary_loading"), 4),         st["TCMono"]),
+            ])
+        c_cw = [_CW*0.4, _CW*0.2, _CW*0.2, _CW*0.2]
+        c_tbl = Table(c_rows, colWidths=c_cw, repeatRows=1)
+        c_tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+        flowables += [c_tbl, Spacer(1, 6)]
+    else:
+        flowables.append(Spacer(1, 2))
+    return flowables
+
+
+def _build_cvi_section(cvi: dict, st: dict) -> list:
+    """Content Validity Index: per-item I-CVI plus scale-level summary stats."""
+    if not cvi:
+        return []
+    item_cvi = cvi.get("item_cvi") or {}
+    if not item_cvi:
+        return []
+
+    flowables = _section_header("Content Validity Index (CVI)", st)
+    flowables.append(Paragraph(
+        f"Experts = <b>{_xml_escape(str(cvi.get('n_experts', '—')))}</b> &nbsp;\u00b7&nbsp; "
+        f"Items = {_xml_escape(str(cvi.get('n_items', '—')))} &nbsp;\u00b7&nbsp; "
+        f"S-CVI/Ave = {_fmt(cvi.get('s_cvi_ave'), 4)} &nbsp;\u00b7&nbsp; "
+        f"S-CVI/UA = {_fmt(cvi.get('s_cvi_ua'), 4)} &nbsp;\u00b7&nbsp; "
+        f"{_safe_text('κ')}* = {_fmt(cvi.get('kappa_star'), 4)} &nbsp;\u00b7&nbsp; "
+        f"<b>{_xml_escape(str(cvi.get('interpretation', '—')))}</b>",
+        st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    header = [_p(h, st["TH"]) for h in ["Item", "I-CVI", _safe_text("\u2265 0.78")]]
+    rows = [header]
+    for item, v in item_cvi.items():
+        ok = (v or 0) >= 0.78
+        rows.append([
+            _p(item,                       st["TCL"]),
+            _p(_fmt(v, 4),                 st["TCMono"]),
+            _p(_check(ok),                 st["TC"]),
+        ])
+    cw = [_CW*0.5, _CW*0.3, _CW*0.2]
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+    flowables += [tbl, Spacer(1, 6)]
+    return flowables
+
+
+def _build_modmediation_section(modmed: dict, st: dict) -> list:
+    """Moderated mediation: index of moderated mediation + conditional indirect effects."""
+    if not modmed:
+        return []
+    paths = modmed.get("paths") or []
+    if not paths:
+        return []
+
+    flowables = _section_header("Moderated Mediation", st)
+    flowables.append(Paragraph(
+        f"Algorithm: {_xml_escape(str(modmed.get('algorithm', '—')))} "
+        f"&nbsp;\u00b7&nbsp; Bootstrap: {_xml_escape(str(modmed.get('bootstrap_n', '—')))} "
+        f"&nbsp;\u00b7&nbsp; N = {_xml_escape(str(modmed.get('n_obs', '—')))}",
+        st["Small"]))
+    flowables.append(Spacer(1, 3))
+
+    for p in paths:
+        x, m, y, w = (p.get(k, "?") for k in ("x", "m", "y", "w"))
+        flowables.append(Paragraph(
+            _safe_text(f"{_xml_escape(x)} \u2192 {_xml_escape(m)} \u2192 {_xml_escape(y)} "
+                       f"(moderator: {_xml_escape(w)})"),
+            st["ColHeader"]))
+
+        # Plain-ASCII headers (a, b, c', a3, b3, IMM) \u2014 avoids PRIME/theta
+        # glyphs that fall outside WinAnsi when DejaVu fonts aren't registered.
+        header = [_p(h, st["TH"]) for h in
+                   ["a", "b", "c'", "a3", "b3", "IMM", "CI lo", "CI hi", "Sig."]]
+        rows = [header, [
+            _p(_fmt(p.get("a_path"), 4),           st["TCMono"]),
+            _p(_fmt(p.get("b_path"), 4),           st["TCMono"]),
+            _p(_fmt(p.get("c_prime"), 4),          st["TCMono"]),
+            _p(_fmt(p.get("a3_interaction"), 4),   st["TCMono"]),
+            _p(_fmt(p.get("b3_interaction"), 4),   st["TCMono"]),
+            _p(_fmt(p.get("imm"), 4),              st["TCMono"]),
+            _p(_fmt(p.get("imm_ci_lower_95"), 4),  st["TCMono"]),
+            _p(_fmt(p.get("imm_ci_upper_95"), 4),  st["TCMono"]),
+            _p(_check(p.get("imm_significant")),   st["TC"]),
+        ]]
+        cw = [_CW/9.0] * 9
+        tbl = Table(rows, colWidths=cw, repeatRows=1)
+        tbl.setStyle(_apply_ts(_BASE_TS, []))
+        flowables += [tbl, Spacer(1, 4)]
+
+        cond = p.get("conditional_effects") or []
+        if cond:
+            c_header = [_p(h, st["TH"]) for h in
+                         ["Level", "Mod. value", "Indirect effect", "CI lo", "CI hi", "Sig."]]
+            c_rows = [c_header]
+            for c in cond:
+                c_rows.append([
+                    _p(c.get("moderator_level", "\u2014"),  st["TCL"]),
+                    _p(_fmt(c.get("moderator_value"), 3),    st["TCMono"]),
+                    _p(_fmt(c.get("indirect_effect"), 4),    st["TCMono"]),
+                    _p(_fmt(c.get("ci_lower_95"), 4),        st["TCMono"]),
+                    _p(_fmt(c.get("ci_upper_95"), 4),        st["TCMono"]),
+                    _p(_check(c.get("significant")),         st["TC"]),
+                ])
+            c_cw = [_CW*0.20, _CW*0.16, _CW*0.20, _CW*0.16, _CW*0.16, _CW*0.12]
+            c_tbl = Table(c_rows, colWidths=c_cw, repeatRows=1)
+            c_tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
+            flowables += [c_tbl, Spacer(1, 6)]
+        else:
+            flowables.append(Spacer(1, 2))
+
+    return flowables
+
+
 def _make_on_page(run_id: str, ts: str, total_pages_ref: list):
     """Return an onPage callback that draws header + footer on every page."""
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -1031,6 +1595,22 @@ def generate_pdf(payload: dict) -> bytes:
     mga      = payload.get("mga")
     htmt     = payload.get("htmt")
     pred     = payload.get("predictive")
+    mod_     = payload.get("moderation")
+    ipma     = payload.get("ipma")
+    nca      = payload.get("nca")
+    fimix    = payload.get("fimix")
+    nca_esse = payload.get("nca_esse")
+    plspos        = payload.get("plspos")
+    # The frontend sends the *whole* /robustness response under "copula"
+    # (RobustnessChecks{nonlinear, fimix, plspos, copula, copula_warning}),
+    # so the actual GaussianCopulaResult is nested one level down.
+    _copula_raw   = payload.get("copula") or {}
+    copula_data   = _copula_raw.get("copula") if isinstance(_copula_raw, dict) and _copula_raw.get("copula") else _copula_raw
+    nomological   = payload.get("nomological")
+    invariance    = payload.get("invariance")
+    efa           = payload.get("efa")
+    cvi           = payload.get("cvi")
+    mod_mediation = payload.get("mod_mediation")
     diag_b64 = payload.get("diagram_png") or ""
     analyst  = payload.get("analyst")  or {}
     note     = payload.get("note")     or ""
@@ -1056,6 +1636,32 @@ def generate_pdf(payload: dict) -> bytes:
         story += _build_mga(mga, st)
     if pred:
         story += _build_predictive(pred, st)
+
+    # ── Satellite sections ─────────────────────────────────────────────────────
+    if mod_:
+        story += _build_moderation_section(mod_, st)
+    if ipma:
+        story += _build_ipma_section(ipma, st)
+    if nca:
+        story += _build_nca_section(nca, st)
+    if fimix:
+        story += _build_fimix_section(fimix, st)
+    if nca_esse:
+        story += _build_nca_esse_section(nca_esse, st)
+    if plspos:
+        story += _build_plspos_section(plspos, st)
+    if copula_data:
+        story += _build_copula_section(copula_data, st)
+    if nomological:
+        story += _build_nomological_section(nomological, st)
+    if invariance:
+        story += _build_invariance_section(invariance, st)
+    if efa:
+        story += _build_efa_section(efa, st)
+    if cvi:
+        story += _build_cvi_section(cvi, st)
+    if mod_mediation:
+        story += _build_modmediation_section(mod_mediation, st)
 
     # Diagram last (can be large)
     if diag_b64:

@@ -23,9 +23,22 @@ def compute_cvi(
 
     ratings_df: rows = experts, columns = items, values = 1–4 Likert ratings.
     n_experts: number of experts (rows) the I-CVI proportions are computed over.
+        Must equal ratings_df.shape[0] — see validation below.
     relevant_scale: rating values counted as "relevant" (default top two points
         of a 4-point relevance scale: 3 = quite relevant, 4 = highly relevant).
     """
+    n_rows = ratings_df.shape[0]
+    if n_experts != n_rows:
+        raise ValueError(
+            f"Number of experts ({n_experts}) does not match the number of "
+            f"rows in the uploaded ratings file ({n_rows}). Each row must be "
+            "one expert's ratings — every I-CVI proportion is computed as "
+            "(experts rating the item as relevant) / n_experts, so a "
+            "mismatch here silently produces invalid values (e.g. an I-CVI "
+            "above 1.0). Fix the 'Number of experts' field or check that "
+            "the file has the expected number of rows."
+        )
+
     n_items = ratings_df.shape[1]
 
     # 1. I-CVI per item: proportion of experts rating the item as relevant.
