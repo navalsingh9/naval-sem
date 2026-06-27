@@ -4,10 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NAVAL-SEM</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
+/* ── Self-hosted fonts: DM Sans & DM Mono ───────────────────────────────────
+   Files live at static/vendor/DM_Sans/ and static/vendor/DM_Mono/.
+   Run download_fonts.py once to populate them.
+   No CDN dependency — app works fully offline.
+─────────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('vendor/DM_Sans/dm-sans-300.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('vendor/DM_Sans/dm-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('vendor/DM_Sans/dm-sans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url('vendor/DM_Sans/dm-sans-300-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('vendor/DM_Mono/dm-mono-300.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('vendor/DM_Mono/dm-mono-400.woff2') format('woff2');
+}
+
 /* ═══════════════════════════════════════════════════════════
    NAVAL-SEM  ·  Unified UI  ·  v0.6+
    Design language: liquid glass · ambient depth · Apple DNA
@@ -506,6 +551,7 @@ button { cursor: pointer; }
 .nb-07 { background: var(--purple-soft); border: .5px solid rgba(167,139,250,.25); color: var(--purple-text); }
 .nb-08 { background: var(--amber-soft);  border: .5px solid rgba(251,191,36,.25); color: var(--amber-text); }
 .nb-09 { background: var(--glass);       border: .5px solid var(--line);           color: var(--t2); }
+.new-badge { background: var(--accent-blue, #3D52D5); color: white; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 10px; margin-left: auto; }
 .andiv { height: .5px; background: var(--line); margin: 6px 10px; }
 
 /* analyse content */
@@ -1497,7 +1543,7 @@ button { cursor: pointer; }
       <div class="ans">Scale dev</div>
       <div class="ani" onclick="showAna(this,'efa')">EFA <span class="nbadge nb-09">v0.9</span></div>
       <div class="ani" onclick="showAna(this,'cvi')">CVI <span class="nbadge nb-09">v0.9</span></div>
-      <div class="ani soon">fsQCA <span class="nbadge nb-09">v1.0</span></div>
+      <div class="ani" onclick="showAna(this,'fsqca')" style="display:flex;align-items:center">fsQCA <span class="nbadge nb-09" style="margin-right:4px">v1.0</span><span class="new-badge" id="fsqca-new-badge">New</span></div>
     </nav>
 
     <!-- Core analysis -->
@@ -2167,8 +2213,35 @@ button { cursor: pointer; }
       </div>
     </div>
 
-  </div>
+    <!-- ── fsQCA (v1.0) ── -->
+    <div class="ana-content" id="ana-fsqca" style="display:none;flex-direction:column">
+      <div class="cfg-bar">
+        <span class="cfg-lbl">Outcome variable</span>
+        <input class="cinp" id="fsqca-outcome" type="text" placeholder="e.g. Performance" style="width:160px">
+        <span class="cfg-lbl">Condition variables <span style="font-size:9px;color:var(--t3)">(comma-separated)</span></span>
+        <input class="cinp" id="fsqca-conditions" type="text" placeholder="e.g. Leadership,Resources,Training" style="width:240px">
+        <span class="cfg-lbl">Freq. threshold</span>
+        <input class="cinp" id="fsqca-freq" type="number" value="1" min="1" max="10" style="width:52px">
+        <span class="cfg-lbl">Consistency</span>
+        <input class="cinp" id="fsqca-consist" type="number" value="0.75" min="0.5" max="1.0" step="0.05" style="width:60px">
+        <button class="run-sm" id="fsqca-run-btn" onclick="runFsQCA()" style="margin-left:auto">▶&nbsp; Run fsQCA</button>
+      </div>
+      <div class="infonote">
+        Fuzzy-Set QCA performs set-theoretic analysis of necessary and sufficient configurations.
+        Upload a dataset with fuzzy-set membership scores (0–1) for outcome and condition variables.
+      </div>
+      <div id="fsqca-spinner" style="display:none;padding:32px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--t2)">
+        <div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px"></div>
+        Running fsQCA…
+      </div>
+      <div id="fsqca-error" style="display:none;padding:14px 18px;font-family:var(--mono);font-size:11px;color:var(--red)"></div>
+      <div id="fsqca-results" class="res-scroll" style="display:none;flex-direction:column;gap:14px;padding:16px 18px"></div>
+      <div id="fsqca-idle" class="res-scroll" style="display:flex;align-items:center;justify-content:center;flex:1">
+        <div class="no-data">Upload a dataset and run fsQCA to see necessity and sufficiency solutions here.<em>Set-theoretic analysis · truth table minimisation.</em></div>
+      </div>
+    </div>
 
+  </div>
   <!-- ═══════════════════════════════════════
        REPORT VIEW
   ═══════════════════════════════════════ -->
@@ -2201,6 +2274,7 @@ button { cursor: pointer; }
       <div class="rns" style="margin-top:12px">Download</div>
       <button class="rni" style="text-align:left;background:transparent;border:.5px solid transparent;color:var(--t2);width:100%;cursor:pointer;font-family:var(--font);font-size:12px" onclick="downloadReport('png')">⬇ &nbsp;PNG image</button>
       <button class="rni" style="text-align:left;background:transparent;border:.5px solid transparent;color:var(--t2);width:100%;cursor:pointer;font-family:var(--font);font-size:12px" onclick="downloadReport('pdf')">⬇ &nbsp;PDF report</button>
+      <button class="rni" id="docx-export-btn" style="display:none;text-align:left;background:transparent;border:.5px solid transparent;color:var(--t2);width:100%;cursor:pointer;font-family:var(--font);font-size:12px" onclick="exportDocx()">⬇ &nbsp;Export APA (.docx)</button>
     </nav>
     <div class="rep-content" id="report-view-inner"><div id="report-card-wrap" style="position:relative"><div id="rpt-spinner" style="display:none;position:absolute;inset:0;background:var(--panel-bg-70);backdrop-filter:blur(6px);align-items:center;justify-content:center;z-index:10;flex-direction:column;gap:14px;font-family:var(--mono);font-size:11px;color:var(--t1)"><div style="width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite"></div><span id="rpt-spinner-msg">Rendering…</span></div><div id="report-card">
       <div class="kpi-row">
@@ -2315,8 +2389,23 @@ function showMGATab(tab) {
 
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="vendor/d3.min.js"></script>
+<script>
+/* ── D3 load check ─────────────────────────────────────────────────────────────
+   vendor/d3.min.js must be present in static/vendor/.
+   The CDN fallback has been removed — this app is designed to work offline.
+   If d3 fails to load, show a clear error rather than silently failing.       */
+if (typeof d3 === 'undefined') {
+  document.body.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:100vh;' +
+    'background:#0b0f1a;color:#f87171;font-family:sans-serif;text-align:center;padding:2rem">' +
+    '<div><h2 style="margin:0 0 .75rem">D3 failed to load</h2>' +
+    '<p style="margin:0;opacity:.7">vendor/d3.min.js could not be loaded from the server.<br>' +
+    'Check that the static directory is correctly mounted in app/main.py.</p></div></div>';
+  throw new Error('D3 failed to load from vendor/d3.min.js');
+}
+</script>
+<script src="vendor/html2canvas.min.js"></script>
 <script>
 /* ── HTML / JS escape helpers (prevent XSS from user-supplied column names) ── */
 function esc(s) {
@@ -2709,41 +2798,52 @@ let panX=0,panY=0,zoom=1;   // kept in sync with d3.zoom transform for legacy co
 let prevTool='lv';
 
 // ── D3 setup ──────────────────────────────────────────────────────────────────
-const _d3svg  = d3.select('#sem-canvas');
-const _d3vp   = _d3svg.select('#d3-viewport');
-const _d3eL   = _d3vp.select('#d3-edges-layer');
-const _d3eLbl = _d3vp.select('#d3-edge-labels-layer');
-const _d3nL   = _d3vp.select('#d3-nodes-layer');
-const _d3prev = _d3vp.select('#d3-arrow-preview');
+// Pre-declare with let so that a failed d3 load does NOT abort this script
+// block and strand every variable declared below (W, results, csvColumns …)
+// in the Temporal Dead Zone.  The app requires d3 to function; the try/catch
+// gives a clear console error rather than a cascade of cryptic TDZ errors.
+let _d3svg, _d3vp, _d3eL, _d3eLbl, _d3nL, _d3prev, _d3zoom, _d3sim;
+try {
+  _d3svg  = d3.select('#sem-canvas');
+  _d3vp   = _d3svg.select('#d3-viewport');
+  _d3eL   = _d3vp.select('#d3-edges-layer');
+  _d3eLbl = _d3vp.select('#d3-edge-labels-layer');
+  _d3nL   = _d3vp.select('#d3-nodes-layer');
+  _d3prev = _d3vp.select('#d3-arrow-preview');
 
-const _d3zoom = d3.zoom()
-  .scaleExtent([0.08, 4])
-  .filter(ev => {
-    if (ev.type === 'wheel') return true;
-    if (tool === 'hand') return true;
-    return false;
-  })
-  .on('zoom', ({transform: t}) => {
-    _d3vp.attr('transform', t);
-    // Sync legacy vars
-    panX=t.x; panY=t.y; zoom=t.k;
-    // Animate grid pattern offset
-    _d3svg.select('#d3-grid-pat')
-      .attr('x', t.x % 40).attr('y', t.y % 40)
-      .attr('patternTransform', `scale(${t.k})`);
-    _d3UpdateMinimap();
-  });
-_d3svg.call(_d3zoom);
+  _d3zoom = d3.zoom()
+    .scaleExtent([0.08, 4])
+    .filter(ev => {
+      if (ev.type === 'wheel') return true;
+      if (tool === 'hand') return true;
+      return false;
+    })
+    .on('zoom', ({transform: t}) => {
+      _d3vp.attr('transform', t);
+      // Sync legacy vars
+      panX=t.x; panY=t.y; zoom=t.k;
+      // Animate grid pattern offset
+      _d3svg.select('#d3-grid-pat')
+        .attr('x', t.x % 40).attr('y', t.y % 40)
+        .attr('patternTransform', `scale(${t.k})`);
+      _d3UpdateMinimap();
+    });
+  _d3svg.call(_d3zoom);
 
-// Force simulation — used only for auto-layout; disabled during manual editing
-const _d3sim = d3.forceSimulation()
-  .force('link', d3.forceLink().id(d=>d.id)
-    .distance(e => e.type==='measurement' ? 110 : 200)
-    .strength(e => e.type==='measurement' ? 0.8 : 0.6))
-  .force('charge', d3.forceManyBody().strength(d => d.type==='lv' ? -900 : -280))
-  .force('collide', d3.forceCollide().radius(d => d.type==='lv' ? 72 : 44).strength(0.85))
-  .on('tick', () => { _d3Render(); _d3UpdateMinimap(); })
-  .stop();
+  // Force simulation — used only for auto-layout; disabled during manual editing
+  _d3sim = d3.forceSimulation()
+    .force('link', d3.forceLink().id(d=>d.id)
+      .distance(e => e.type==='measurement' ? 110 : 200)
+      .strength(e => e.type==='measurement' ? 0.8 : 0.6))
+    .force('charge', d3.forceManyBody().strength(d => d.type==='lv' ? -900 : -280))
+    .force('collide', d3.forceCollide().radius(d => d.type==='lv' ? 72 : 44).strength(0.85))
+    .on('tick', () => { _d3Render(); _d3UpdateMinimap(); })
+    .stop();
+} catch(e) {
+  console.error('[NAVAL-SEM] D3 initialisation failed:', e.message);
+  console.error('Ensure vendor/d3.min.js is present. Download it from:\n' +
+    'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js');
+}
 
 // ── Node geometry helpers ─────────────────────────────────────────────────────
 function _d3LvRx(label) { return Math.max(50, label.length * 6.8 + 18); }
@@ -3661,6 +3761,7 @@ async function runAnalysis(){
     }
 
     draw();renderCoreResults('fit');
+    { const _db=document.getElementById('docx-export-btn'); if(_db) _db.style.display='inline-block'; }
 
     // Wait for the drawer CSS transition (320ms) to finish, then resize the
     // canvas to its new dimensions and redraw before snapshotting — otherwise
@@ -3765,6 +3866,7 @@ async function runFromSyntax(){
     draw();
     switchView('builder');
     renderResults('fit');
+    { const _db=document.getElementById('docx-export-btn'); if(_db) _db.style.display='inline-block'; }
 
     // Open drawer
     const _d2 = document.getElementById('results-drawer');
@@ -7274,6 +7376,27 @@ async function downloadReport(fmt){
   }
 }
 
+async function exportDocx() {
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  if (!file || !syntax) { alert('Run an analysis first.'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('model', syntax);
+  fd.append('algorithm', document.getElementById('algo-sel')?.value || 'pls');
+  fd.append('bootstrap_n', '1000');
+  fd.append('missing', document.getElementById('missing-sel')?.value || 'listwise');
+  try {
+    const r = await fetch('/export/docx', { method: 'POST', body: fd });
+    if (!r.ok) { alert('Export failed.'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'naval_sem_report.docx'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Export error: ' + e.message); }
+}
+
 // ── MGA tab ────────────────────────────────────────────────────────────────
 let _mgaFile = null;
 let _mgaResult = null;
@@ -8780,6 +8903,93 @@ function _renderNCAESSEResults(data) {
 }
 
 // ════════════════════════════════════════════════════════
+//  v1.0  fsQCA — Fuzzy-Set Qualitative Comparative Analysis
+// ════════════════════════════════════════════════════════
+async function runFsQCA() {
+  const btn = document.getElementById('fsqca-run-btn');
+  const outcome = (document.getElementById('fsqca-outcome')?.value || '').trim();
+  const conditions = (document.getElementById('fsqca-conditions')?.value || '').trim();
+  const freq = document.getElementById('fsqca-freq')?.value || '1';
+  const consist = document.getElementById('fsqca-consist')?.value || '0.75';
+  const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
+  if (!outcome || !conditions) { _fsqcaShowError('Enter an outcome variable and at least one condition variable.'); return; }
+  if (!file) { _fsqcaShowError('Upload a dataset first.'); return; }
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  document.getElementById('fsqca-spinner').style.display = 'block';
+  document.getElementById('fsqca-error').style.display   = 'none';
+  document.getElementById('fsqca-results').style.display = 'none';
+  document.getElementById('fsqca-idle').style.display    = 'none';
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('outcome', outcome);
+  fd.append('conditions', conditions);
+  fd.append('freq_threshold', freq);
+  fd.append('consist_threshold', consist);
+  fd.append('missing', document.getElementById('missing-sel')?.value || 'listwise');
+  try {
+    const r = await fetch('/fsqca', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+    _renderFsQCAResults(d);
+    document.getElementById('fsqca-spinner').style.display = 'none';
+    document.getElementById('fsqca-results').style.display = 'flex';
+  } catch(e) {
+    _fsqcaShowError('fsQCA error: ' + e.message);
+  }
+  if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.cursor = ''; }
+}
+
+function _fsqcaShowError(msg) {
+  document.getElementById('fsqca-spinner').style.display = 'none';
+  document.getElementById('fsqca-results').style.display = 'none';
+  document.getElementById('fsqca-idle').style.display    = 'none';
+  const el = document.getElementById('fsqca-error');
+  el.textContent = '✗ ' + msg;
+  el.style.display = 'block';
+}
+
+function _renderFsQCAResults(d) {
+  const el = document.getElementById('fsqca-results');
+  let html = '<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin-bottom:8px">Necessity Analysis</h3>';
+  html += '<table class="res-tbl"><thead><tr><th>Condition</th><th>Coverage</th><th>Consistency</th><th>Label</th></tr></thead><tbody>';
+  for (const n of (d.necessity || [])) {
+    html += `<tr><td>${n.condition}</td><td>${Number(n.coverage).toFixed(3)}</td><td>${Number(n.consistency).toFixed(3)}</td><td><span class="nbadge nb-v">${n.label}</span></td></tr>`;
+  }
+  html += '</tbody></table>';
+  for (const sol of (d.solutions || [])) {
+    const stype = sol.solution_type ? sol.solution_type.charAt(0).toUpperCase() + sol.solution_type.slice(1) : '';
+    html += `<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin:14px 0 8px">${stype} Solution <span class="nbadge nb-v">Coverage ${Number(sol.solution_coverage).toFixed(3)} · Consistency ${Number(sol.solution_consistency).toFixed(3)}</span></h3>`;
+    html += '<table class="res-tbl"><thead><tr><th>Configuration</th><th>Raw Cov.</th><th>Unique Cov.</th><th>Consistency</th></tr></thead><tbody>';
+    for (const t of (sol.terms || [])) {
+      html += `<tr><td><code style="font-family:var(--mono);font-size:11px">${t.configuration}</code></td><td>${Number(t.raw_coverage).toFixed(3)}</td><td>${Number(t.unique_coverage).toFixed(3)}</td><td>${Number(t.consistency).toFixed(3)}</td></tr>`;
+    }
+    html += '</tbody></table>';
+  }
+  if (d.bubble_chart_data && d.bubble_chart_data.length > 0) {
+    const conditions = [...new Set(d.bubble_chart_data.map(p => p.condition))];
+    html += '<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin:14px 0 8px">Coincidence Analysis</h3>';
+    for (const cond of conditions) {
+      const pts = d.bubble_chart_data.filter(p => p.condition === cond);
+      html += `<p style="font-size:12px;color:var(--t2);margin-bottom:4px">Condition: <strong>${cond}</strong></p>`;
+      html += '<svg width="240" height="200" viewBox="-12 -12 124 124" style="border:1px solid var(--line);border-radius:6px;margin-bottom:14px;display:block">';
+      html += '<line x1="0" y1="100" x2="100" y2="100" stroke="var(--line-strong)" stroke-width="0.6"/>';
+      html += '<line x1="0" y1="0" x2="0" y2="100" stroke="var(--line-strong)" stroke-width="0.6"/>';
+      html += '<line x1="50" y1="0" x2="50" y2="100" stroke="var(--line)" stroke-width="0.4" stroke-dasharray="3,3"/>';
+      html += '<line x1="0" y1="50" x2="100" y2="50" stroke="var(--line)" stroke-width="0.4" stroke-dasharray="3,3"/>';
+      for (const p of pts) {
+        const cx = (p.x_membership * 100).toFixed(1);
+        const cy = (100 - p.y_membership * 100).toFixed(1);
+        html += `<circle cx="${cx}" cy="${cy}" r="2.5" fill="var(--accent)" fill-opacity="0.4" stroke="var(--accent)" stroke-width="0.4"/>`;
+      }
+      html += '<text x="50" y="115" text-anchor="middle" font-size="7" fill="var(--t3)">Membership in condition</text>';
+      html += '<text x="-8" y="50" text-anchor="middle" font-size="7" fill="var(--t3)" transform="rotate(-90,-8,50)">Outcome</text>';
+      html += '</svg>';
+    }
+  }
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
 //  v0.9  Nomological Validity
 // ════════════════════════════════════════════════════════
 function _nomologicalCheckRunnable() {
@@ -9346,7 +9556,7 @@ function toggleResultsPanel() {
 
 <!-- ═══════ THEME MODAL ═══════ -->
 <!-- JSZip for unpacking .xpi / .crx browser extension archives -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
 
 <div id="theme-overlay" style="
   display:none;position:fixed;inset:0;z-index:9000;
@@ -10096,6 +10306,17 @@ function toggleResultsPanel() {
   }
 
   function _injectFont(fontName) {
+    // DM Sans is self-hosted — no CDN call needed for the default font.
+    if (!fontName || fontName === 'DM Sans') {
+      document.documentElement.style.setProperty('--sans', "'DM Sans', sans-serif");
+      return;
+    }
+    // Custom theme fonts require Google Fonts (internet connection needed).
+    // Skip the CDN call when offline — fall back silently to DM Sans instead.
+    if (!navigator.onLine) {
+      document.documentElement.style.setProperty('--sans', "'DM Sans', sans-serif");
+      return;
+    }
     const href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontName) + ':wght@400;500;600&display=swap';
     let link = document.getElementById('theme-font-link');
     if (!link) {
@@ -10106,7 +10327,7 @@ function toggleResultsPanel() {
     }
     // Update href even if element already existed (different theme, different font)
     if (link.href !== href) link.href = href;
-    document.documentElement.style.setProperty('--sans', "'" + fontName + "', sans-serif");
+    document.documentElement.style.setProperty('--sans', "'" + fontName + "', 'DM Sans', sans-serif");
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
