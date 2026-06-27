@@ -64,7 +64,17 @@ class BootstrapParameter(BaseModel):
     significant: bool
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCHEMA FREEZE — v1.0
+# Public result models below this line are stable. No fields may be renamed,
+# removed, or have their types narrowed in patch or minor releases.
+# New optional fields may be added (default=None). Breaking changes require v2.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
 class BootstrapResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     n_samples: int
     parameters: List[BootstrapParameter]
     converged_pct: float
@@ -183,6 +193,8 @@ class ModelSummary(BaseModel):
 
 
 class CVIResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     item_cvi: Dict[str, float]       # I-CVI per item (proportion rating >= 3)
     s_cvi_ave: float                 # mean of all I-CVIs
     s_cvi_ua: float                  # proportion of items with I-CVI = 1.00
@@ -193,6 +205,8 @@ class CVIResult(BaseModel):
 
 
 class ScaleDevelopmentResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     method: str                      # e.g. "PCA_Varimax"
     n_factors: int
     kmo: float
@@ -243,6 +257,8 @@ class MeasurementInvarianceResult(BaseModel):
 
 
 class ModelResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     algorithm: str
     n_obs: int
     n_params: int
@@ -411,6 +427,8 @@ class MGAResult(BaseModel):
     Includes per-group fit, pairwise bootstrap path-difference CIs,
     and (for 2-group analyses) MICOM measurement-invariance results.
     """
+    model_config = ConfigDict(extra="ignore")
+
     grouping_variable: str
     groups: List[str]
     bootstrap_n: int
@@ -461,6 +479,8 @@ class ModerationTerm(BaseModel):
 
 class ModerationResult(BaseModel):
     """Full moderation analysis output."""
+    model_config = ConfigDict(extra="ignore")
+
     algorithm:         str
     n_obs:             int
     bootstrap_n:       int
@@ -490,6 +510,8 @@ class IPMAResult(BaseModel):
     Importance-Performance Map Analysis result.
     Entries are sorted by importance descending.
     """
+    model_config = ConfigDict(extra="ignore")
+
     target_lv:   str
     entries:     List[IPMAEntry]
     scale_min:   float            # theoretical or observed scale minimum used
@@ -534,6 +556,8 @@ class NCAEntry(BaseModel):
 
 class NCAResult(BaseModel):
     """Full NCA output across all structural IV → DV pairs."""
+    model_config = ConfigDict(extra="ignore")
+
     entries:         List[NCAEntry]
     n_permutations:  int
     warnings:        List[str] = []
@@ -575,6 +599,8 @@ class NCAESSEEntry(BaseModel):
 
 class NCAESSEResult(BaseModel):
     """Top-level container returned by compute_nca_esse()."""
+    model_config = ConfigDict(extra="ignore")
+
     entries:          List[NCAESSEEntry]
     threshold_range:  List[float]
     benchmark:        str = "joint_uniform"
@@ -647,6 +673,8 @@ class ModMediationResult(BaseModel):
     Edwards & Lambert (2007); Hayes (2018, Chapters 11–14).
     One ModMediationPath entry per detected X→M→Y chain.
     """
+    model_config = ConfigDict(extra="ignore")
+
     algorithm:   str
     n_obs:       int
     bootstrap_n: int
@@ -725,6 +753,8 @@ class FIMIXSolution(BaseModel):
 
 
 class FIMIXResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     solutions: List[FIMIXSolution]
     recommended_k: int                   # k minimising CAIC
     algorithm: str = "fimix-pls"
@@ -743,6 +773,8 @@ class PLSPOSSegment(BaseModel):
 
 
 class PLSPOSResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     k: int
     segments: List[PLSPOSSegment]
     fimix_comparison: Optional[Dict[str, Any]] = None  # FIMIX vs POS coef table
@@ -759,6 +791,84 @@ class RobustnessChecks(BaseModel):
     plspos:         Optional["PLSPOSResult"]          = None
     copula:         Optional["GaussianCopulaResult"]  = None
     copula_warning: Optional[str]                     = None
+
+
+# ── fsQCA schemas (v1.0) ──────────────────────────────────────────────────────
+# Ragin, C. C. (2008). Redesigning Social Inquiry. University of Chicago Press.
+# Schneider, C. Q., & Wagemann, C. (2012). Set-Theoretic Methods for the
+#   Social Sciences. Cambridge University Press.
+
+
+class NecessityEntry(BaseModel):
+    """Necessity analysis result for one condition."""
+    condition:   str
+    coverage:    float
+    consistency: float
+    label:       str      # "Necessary" | "Near-Necessary" | "Not Necessary"
+
+
+class TruthTableRow(BaseModel):
+    """One row of the fsQCA truth table (one of 2^k configurations).
+
+    Condition columns (e.g. ``X1``, ``X2``) are stored as extra fields so that
+    the serialised JSON exposes each condition's crisp value (0 or 1) as a direct
+    top-level key — required by the JS ``_renderFsQCAResults`` function.
+    """
+    model_config = ConfigDict(extra="allow")
+
+    configuration: str    # binary string, e.g. "101"
+    n:             int    # cases primarily assigned to this configuration
+    consistency:   float  # PRI score for cases assigned here
+    outcome:       int    # 1 if passes freq & consist thresholds; else 0
+
+
+class FsQCAConfigTerm(BaseModel):
+    """One prime implicant term in a minimized fsQCA solution."""
+    configuration:    str    # QCA notation, e.g. "X1*~X2*X3"
+    raw_coverage:     float
+    unique_coverage:  float
+    consistency:      float
+
+
+class FsQCASolution(BaseModel):
+    """Minimized Boolean solution (complex, parsimonious, or intermediate)."""
+    solution_type:        str               # "complex" | "parsimonious" | "intermediate"
+    terms:                List[FsQCAConfigTerm]
+    solution_coverage:    float
+    solution_consistency: float
+
+
+class BubbleChartPoint(BaseModel):
+    """One XY data point for the fuzzy-set coincidence (bubble) chart."""
+    case_id:      int    # zero-based row index in the fuzzy DataFrame
+    condition:    str    # condition column name
+    x_membership: float  # calibrated set membership in condition  (0–1)
+    y_membership: float  # calibrated set membership in outcome    (0–1)
+
+
+class FsQCAResult(BaseModel):
+    """Full fsQCA output returned by run_fsqca().
+
+    Top-level ``minimized_solution`` / ``consistency`` / ``coverage`` fields
+    mirror the complex-solution values and are consumed directly by the
+    ``_renderFsQCAResults`` JavaScript function.  The full three-solution
+    breakdown is still available under ``solutions``.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    outcome:           str
+    conditions:        List[str]
+    n_obs:             int
+    necessity:         List[NecessityEntry]
+    truth_table:       List[TruthTableRow]
+    solutions:         List[FsQCASolution]
+    # ── UI-consumed shortcut fields (complex solution) ─────────────────────
+    minimized_solution: Optional[str]   = None   # prime-implicant string, " + "-joined
+    consistency:        Optional[float] = None   # solution-level PRI consistency
+    coverage:           Optional[float] = None   # solution-level coverage
+    # ──────────────────────────────────────────────────────────────────────
+    warnings:          List[str]              = []
+    bubble_chart_data: List[BubbleChartPoint] = []
 
 
 # Resolve all forward references now that every class is defined.

@@ -115,11 +115,11 @@ No telemetry. No account. No data transmission.
 git clone https://github.com/navalsingh9/naval-sem.git
 cd naval-sem
 
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python launcher.py              # opens at http://127.0.0.1:8765
+uv sync                         # creates .venv and installs locked dependencies
+uv run launcher.py              # opens at http://127.0.0.1:8765
 ```
+
+No `uv`? [Install it](https://docs.astral.sh/uv/getting-started/installation/) first — it's what keeps every contributor's environment identical via `uv.lock`.
 
 → For full build instructions (EXE, DMG, .deb): see [`docs/building.md`](docs/building.md)
 
@@ -169,7 +169,7 @@ https://doi.org/10.5281/zenodo.20124109
 | Problem | Fix |
 |---------|-----|
 | `server offline` in UI | Confirm `launcher.py` started cleanly; check port 8765 is free |
-| `ModuleNotFoundError: semopy` | `pip install -r requirements.txt` inside your venv |
+| `ModuleNotFoundError: semopy` | `uv sync --locked` from the project root |
 | White screen (Linux) | Install WebKit2GTK — see [building.md](docs/building.md) |
 | MSI build fails | Confirm WiX 3 on PATH: `candle.exe --version` |
 | macOS "App is damaged" | `xattr -cr dist/NAVAL-SEM.app` |
