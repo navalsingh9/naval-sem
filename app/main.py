@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelna
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
 
@@ -172,6 +172,7 @@ from app.schemas import (
     NomologicalResult,                                # v0.9
     MeasurementInvarianceResult,                      # v0.9
     CVIResult, ScaleDevelopmentResult,                # v0.9 — scale development
+    FsQCAResult,                                       # v1.0 — fsQCA
 )
 from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stage
 from app.engine_moderation    import run_moderation                                # v0.7
@@ -474,16 +475,7 @@ app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
 
-if Path(_STATIC_DIR).exists():
-    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
-
-    @app.get("/", include_in_schema=False)
-    def root():
-        return FileResponse(str(Path(_STATIC_DIR) / "index.html"))
-else:
-    @app.get("/", include_in_schema=False)
-    def root_missing():
-        return JSONResponse({"error": "Static files not found. Check server configuration."}, status_code=500)
+# Static files mounted at end of file — see bottom of module.
 
 
 
@@ -1077,6 +1069,154 @@ async def export_pdf(payload: dict):
         except Exception:
             detail = f"/export/pdf failed unexpectedly: {type(exc).__name__} (unprintable message)"
         raise HTTPException(500, detail.encode("ascii", "backslashreplace").decode("ascii"))
+
+
+# ── v1.0: APA 7th Edition Word export ────────────────────────────────────────
+
+@app.post("/export/docx")
+async def export_docx_route(
+    file: UploadFile = File(...),
+    model: str = Form(...),
+    algorithm: str = Form("pls"),
+    bootstrap_n: int = Form(1000),
+    missing: str = Form("listwise"),
+    reverse_items: Optional[str] = Form(None),
+):
+    """
+    Generate an APA 7th-edition Word (.docx) report for a PLS/CB/WLS model.
+
+    Form fields
+    -----------
+    file         : CSV, XLSX, or SAV data file.
+    model        : lavaan-style model syntax (=~ / ~ / ~~).
+    algorithm    : ``pls`` (default) | ``cb`` | ``wls``.
+    bootstrap_n  : Bootstrap replications for path CIs (default 1 000).
+
+    Returns
+    -------
+    Streaming .docx download (naval_sem_report.docx).
+
+    Produces four APA-formatted tables:
+      1. Measurement model (loadings, AVE, CR, α)
+      2. Discriminant validity (HTMT + √AVE diagonal)
+      3. Structural model (β, t, p, CI, f², R²)
+      (Table 4 — Indirect effects — requires a separate /indirect call
+       and is not included in this single-step export.)
+
+    Requires: pip install python-docx
+    """
+    try:
+        if algorithm not in ("pls", "cb", "wls"):
+            raise HTTPException(
+                400,
+                f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.",
+            )
+
+        bootstrap_n = min(bootstrap_n, 20_000)
+
+        # ── Parse upload ─────────────────────────────────────────────────
+        raw = await file.read()
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /export/docx: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file.")
+
+        # ── Missing data + reverse scoring (parity with /run) ────────────
+        if missing == "listwise":
+            df = df.dropna()
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+        df = auto_reverse_score(df, model, reverse_items=reverse_items)
+
+        # ── Fit model ────────────────────────────────────────────────────
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: fit_model(
+                    df, model,
+                    algorithm=algorithm,
+                    bootstrap_n=bootstrap_n,
+                ),
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            logger.error("Model fit error in /export/docx: %s", exc, exc_info=True)
+            raise HTTPException(500, "Model fitting failed. Check server logs.")
+
+        # ── Generate DOCX ────────────────────────────────────────────────
+        try:
+            from app.export_docx import generate_docx
+        except Exception:
+            try:
+                import importlib.util, pathlib
+                spec = importlib.util.spec_from_file_location(
+                    "export_docx",
+                    pathlib.Path(__file__).parent / "export_docx.py",
+                )
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                generate_docx = mod.generate_docx
+            except Exception as ie:
+                logger.error("export_docx import failed: %s", ie, exc_info=True)
+                raise HTTPException(
+                    500,
+                    f"export_docx module failed to load: {ie!r}. "
+                    "Ensure python-docx is installed: pip install python-docx",
+                ) from ie
+
+        try:
+            buf = await asyncio.get_running_loop().run_in_executor(
+                None, lambda: generate_docx(result)
+            )
+        except Exception as exc:
+            try:
+                logger.error("DOCX generation error: %r", exc, exc_info=True)
+            except Exception:
+                logger.error("DOCX generation error (unprintable): %s", type(exc).__name__)
+            try:
+                detail = f"DOCX generation failed: {exc!r}"
+            except Exception:
+                detail = f"DOCX generation failed: {type(exc).__name__} (unprintable)"
+            raise HTTPException(
+                500,
+                detail.encode("ascii", "backslashreplace").decode("ascii"),
+            )
+
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(
+            buf,
+            media_type=(
+                "application/vnd.openxmlformats-officedocument"
+                ".wordprocessingml.document"
+            ),
+            headers={
+                "Content-Disposition": 'attachment; filename="naval_sem_report.docx"'
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        try:
+            logger.error("Unhandled /export/docx failure: %r", exc, exc_info=True)
+        except Exception:
+            logger.error("Unhandled /export/docx failure (unprintable): %s",
+                         type(exc).__name__)
+        try:
+            detail = f"/export/docx failed unexpectedly: {type(exc).__name__}: {exc!r}"
+        except Exception:
+            detail = (
+                f"/export/docx failed unexpectedly: "
+                f"{type(exc).__name__} (unprintable message)"
+            )
+        raise HTTPException(
+            500,
+            detail.encode("ascii", "backslashreplace").decode("ascii"),
+        )
 
 
 # ── v0.6: Multi-Group Analysis ─────────────────────────────────────────────────
@@ -1679,6 +1819,77 @@ async def nca_esse_analysis(
         return result
 
 
+# ── v1.0: fsQCA (fuzzy-set Qualitative Comparative Analysis) ──────────────────
+
+@app.post("/fsqca", response_model=FsQCAResult)
+async def run_fsqca_endpoint(
+    file:              UploadFile = File(...),
+    outcome:           str        = Form(...),
+    conditions:        str        = Form(...),   # comma-separated column names
+    freq_threshold:    int        = Form(1),
+    consist_threshold: float      = Form(0.75),
+    missing:           str        = Form("listwise"),
+):
+    """
+    Fuzzy-set Qualitative Comparative Analysis (fsQCA).
+
+    Form fields
+    -----------
+    file              : CSV, XLSX, or SAV dataset.
+                        Columns should already be calibrated to fuzzy membership
+                        scores in (0, 1).  Values outside this range trigger
+                        automatic indirect (percentile-based) calibration.
+    outcome           : Column name of the outcome fuzzy set.
+    conditions        : Comma-separated column names of the condition fuzzy sets.
+    freq_threshold    : Minimum cases per truth-table row for the row to count
+                        as non-remainder (default 1).
+    consist_threshold : Minimum PRI consistency score for a truth-table row to be
+                        coded outcome=1 (default 0.75).
+    missing           : ``listwise`` (default) | ``mean``.
+
+    Returns
+    -------
+    FsQCAResult — necessity analysis, truth table, three minimized solutions
+    (complex / parsimonious / intermediate), and XY bubble-chart data.
+    """
+    raw = await file.read()
+    try:
+        df = _parse_upload(raw, file.filename)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("File parse error in /fsqca: %s", exc, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file.")
+
+    if missing == "listwise":
+        df = df.dropna()
+    elif missing == "mean":
+        df = df.fillna(df.mean(numeric_only=True))
+
+    cond_list = [c.strip() for c in conditions.split(",") if c.strip()]
+    if not cond_list:
+        raise HTTPException(400, "At least one condition column must be provided.")
+
+    from app.fsqca import run_fsqca
+    try:
+        return await asyncio.get_running_loop().run_in_executor(
+            None,
+            lambda: run_fsqca(
+                df,
+                outcome,
+                cond_list,
+                calibration_params={},
+                freq_threshold=freq_threshold,
+                consist_threshold=consist_threshold,
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        logger.error("Unexpected error in /fsqca: %s", exc, exc_info=True)
+        raise HTTPException(500, "fsQCA analysis failed. Check server logs.")
+
+
 # ── v0.8: Robustness Checks ───────────────────────────────────────────────────
 
 @app.post("/robustness", response_model=RobustnessChecks)
@@ -2122,3 +2333,22 @@ async def run_cvi(
 
         log("ok", f"CVI complete — {result.n_items} item(s), interpretation: {result.interpretation}")
         return result
+
+
+# ── Static files — MUST be registered last ────────────────────────────────────
+# Starlette evaluates routes in insertion order. Mounting StaticFiles at "/"
+# before any API route would shadow every endpoint. Mounting here ensures all
+# @app.get / @app.post routes are resolved first; only unmatched paths fall
+# through to the static file handler.
+#
+# html=True means StaticFiles will serve index.html for bare directory requests
+# (e.g. GET /), so the explicit @app.get("/") route is no longer needed.
+if Path(_STATIC_DIR).exists():
+    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")
+else:
+    @app.get("/", include_in_schema=False)
+    def root_missing():
+        return JSONResponse(
+            {"error": "Static files not found. Check server configuration."},
+            status_code=500,
+        )

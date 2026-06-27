@@ -242,9 +242,15 @@ jobs:
           body: |
             ## NAVAL-SEM ${{ github.ref_name }}
 
-            Fully offline PLS-SEM / CB-SEM desktop application — visual model builder, bootstrapping, HTMT, fit indices, and advanced robustness analysis. No internet required after install.
+            Fully offline PLS-SEM / CB-SEM desktop application — no internet required after install.
 
-            **What's new in ${{ github.ref_name }}:** FIMIX-PLS segmentation, PLS-POS segmentation, Gaussian Copula endogeneity correction, PDF report export, and centralised versioning.
+            **What's new in ${{ github.ref_name }}:**
+            - **fsQCA engine** — fuzzy-set Qualitative Comparative Analysis: calibration, necessity analysis, truth table construction, Quine-McCluskey Boolean minimisation (complex / parsimonious / intermediate solutions)
+            - **APA 7th edition Word export** — measurement model, discriminant validity, structural model, and indirect effects tables formatted to journal submission standards
+            - **NCA-ESSE** — Necessary Condition Analysis with Effect Size Sensitivity Extension
+            - **Measurement invariance** — configural → metric → scalar sequential constraint testing
+            - **Nomological validity** — R² benchmark checking against literature thresholds
+            - **Scale development pipeline** — EFA (KMO, Bartlett, factor loadings), CVI (I-CVI, S-CVI, κ*)
 
             ---
 
@@ -261,28 +267,18 @@ jobs:
             ---
 
             ### 💛 Support Development
-
-            NAVAL-SEM is free to use. If you find it useful, please consider donating to help keep the project running.
-
+            NAVAL-SEM is free to use. If you find it useful, please consider donating.
             👉 https://www.paypal.com/paypalme/singhn9
 
             ---
 
             ### 🐛 Bug Reports & Feedback
-
-            Found a bug or have a suggestion? We read every submission!
-
             👉 https://forms.gle/N4AmCkJyCK6HHsZz8
 
             ---
 
             ### ⚠️ Windows Security Note
-
-            Windows may show a SmartScreen warning on first run — this is normal for new apps without a paid code-signing certificate.
-
-            Click:
-            More info → Run anyway
+            Windows may show a SmartScreen warning on first run — click: More info → Run anyway
 
             ### ⚠️ macOS Note
-
             Right-click → Open the first time to bypass Gatekeeper.

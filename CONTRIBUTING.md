@@ -42,43 +42,25 @@ Clone the repository:
     git clone https://github.com/navalsingh9/naval-sem.git
     cd naval-sem
 
-Create virtual environment:
+Install dependencies (creates `.venv` automatically):
 
-    python -m venv .venv
-
-Activate environment
-
-Windows:
-
-    .venv\Scripts\activate
-
-Linux/macOS:
-
-    source .venv/bin/activate
-
-Install dependencies:
-
-    pip install -r requirements.txt
+    uv sync
 
 Run locally:
 
-    python launcher.py
+    uv run launcher.py
+
+No `uv`? [Install it](https://docs.astral.sh/uv/getting-started/installation/) first — it keeps everyone's environment identical via `uv.lock`.
 
 ---
 
 # Build instructions
 
-Windows:
+Windows EXE/MSI, macOS DMG, and the Linux binary/.deb are built automatically by GitHub Actions (`.github/workflows/release.yml`) on every `v*.*.*` tag push — you shouldn't need to build these locally.
 
-    build_windows.bat
-
-Linux:
+If you want to test a Linux package build on your own machine:
 
     bash build_linux.sh
-
-macOS:
-
-    bash build_macos.sh
 
 ---
 
