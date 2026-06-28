@@ -852,7 +852,7 @@ def generate_coincidence_data(
 
     if n_obs * n_conds > cap:
         max_rows = max(1, cap // n_conds)
-        rng      = random.Random(42)
+        rng      = random.Random(42)  # nosec B311 — seeded for reproducible statistical sampling, not security
         idx_pool = rng.sample(range(n_obs), min(max_rows, n_obs))
         row_indices = sorted(idx_pool)
     else:
