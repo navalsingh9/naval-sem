@@ -1,6 +1,6 @@
 # NAVAL-SEM
 
-> **Free offline PLS-SEM / CB-SEM desktop application** — visual model builder, bootstrapping, HTMT, fit indices, and R/Python export. No internet required. No licence. No sample size limit.
+> **Free offline PLS-SEM / CB-SEM / fsQCA desktop application** — visual model builder, bootstrapping, HTMT, APA 7th edition reporting, and R/Python export. No internet required. No licence. No sample size limit.
 
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
 [![Latest Release](https://img.shields.io/github/v/release/navalsingh9/naval-sem)](https://github.com/navalsingh9/naval-sem/releases/latest)
@@ -16,8 +16,11 @@
 
 ---
 
-## Google Calendar: 
+## Google Calendar
+
 [Link](https://calendar.google.com/calendar/u/0?cid=YjZmYzkzMTBlYzQxZWQ5MDYxMDgwMDcyN2YwMjY0ZjliZDM1M2FiMjkzNjFlZjBlYjhmMGRkMWNhMmFiNWQ5MEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t)
+
+---
 
 ## Download
 
@@ -44,13 +47,16 @@ Fastest way to get the newest stable release.
 | **Linux** | `naval-sem_*.deb` | Debian / Ubuntu installer |
 | **Linux** | `NAVAL-SEM` | Portable binary |
 
-> **Windows:** SmartScreen may appear on first launch. Click *More info → Run anyway*.  
+> **Windows:** SmartScreen may appear on first launch. Click *More info → Run anyway*.
 > **macOS:** Right-click → *Open* on first launch to bypass Gatekeeper for unsigned apps.
+
 ---
 
 ## What is NAVAL-SEM?
 
 NAVAL-SEM is a **structural equation modelling desktop app** that runs entirely on your machine. Load your dataset, draw your model in the visual canvas, and get bootstrapped path coefficients, HTMT, AVE, and fit indices — without an internet connection, a licence key, or your data leaving the machine.
+
+**v1.0.0 LTS** — released 27 June 2026 — is the long-term support milestone. All public API schemas are frozen: no field removals or renames in patch or minor releases. This is the build to cite in your methods section.
 
 Built for:
 - **PhD students** who need full PLS-SEM without a SmartPLS subscription
@@ -62,15 +68,55 @@ Built for:
 
 ## Features
 
+### Core SEM
+
 - **PLS-SEM** — reflective + formative constructs, bootstrapped path coefficients (5,000 iterations), indirect effects, full/partial/no mediation classification
 - **CB-SEM** — covariance-based SEM, lavaan syntax, fit indices (CFI, RMSEA, SRMR, χ²/df)
-- **Visual model builder** — drag-and-drop canvas, live validity warnings
-- **Measurement model** — AVE, Composite Reliability, Cronbach's α, outer loadings, cross-loadings
+- **WLS** — weighted least squares estimator
+- **Visual model builder** — drag-and-drop canvas, live validity warnings, Undo/Redo, PNG export
+- **Measurement model** — AVE, Composite Reliability, Cronbach's α, outer loadings, cross-loadings, Fornell-Larcker criterion
 - **HTMT** — full discriminant validity matrix, configurable threshold (0.85 / 0.90)
+
+### Effects & Validity
+
+- **VIF** — Variance Inflation Factor per indicator with strict (<3.3) and acceptable (<5.0) thresholds
+- **Cohen's f²** — effect size per structural path (negligible / small / medium / large)
 - **Mediation analysis** — bootstrapped specific indirect effects, 95% CI, mediation type classification
-- **Multi-group analysis (MGA)** — compare path coefficients across groups
-- **Export** — R (lavaan / seminr syntax), Python (semopy syntax), CSV tables, PDF report
+- **Predictive relevance** — Q² blindfolding, PLSpredict (k-fold), CVPAT (Liengaard et al. 2021)
+- **Common Method Bias** — Lindell & Whitney (2001) marker variable analysis
+
+### Advanced Analysis (v0.6–v0.8)
+
+- **Higher-Order Constructs (HOC)** — repeated-indicator and two-stage methods
+- **Multi-Group Analysis (MGA)** — compare path coefficients across groups with permutation significance testing
+- **Moderation** — product-of-composites, simple slopes at ±1 SD, bootstrap CIs for interaction effects
+- **Moderated Mediation** — conditional indirect effects, Index of Moderated Mediation, Hayes PROCESS Models 7, 14, 58/59
+- **IPMA** — Importance–Performance Map Analysis for construct prioritisation
+- **NCA** — Necessary Condition Analysis, CE-FDH and CR-FDH ceiling techniques with permutation significance
+- **FIMIX-PLS** — EM-based finite mixture segmentation, AIC/BIC/CAIC model selection, segment membership
+- **PLS-POS** — prediction-oriented segmentation
+- **PDF export** — full results report to PDF
+
+### Scale Development Suite (v0.9)
+
+- **CVI** — Content Validity Index, item-level I-CVI and scale-level S-CVI/Ave and S-CVI/UA, Polit & Beck (2006) thresholds
+- **EFA** — Exploratory Factor Analysis, principal-axis factoring, promax/varimax rotation, Kaiser criterion, scree eigenvalues
+- **Nomological Validity** — bivariate correlation matrix, directional hypothesis testing with sign expectations
+- **Measurement Invariance (MICOM extended)** — configural, compositional, and scalar invariance with permutation p-values
+- **NCA-ESSE** — Effect Size Sensitivity Extension, threshold-removal sweep, joint-uniform benchmark (Becker, Richter, Ringle & Sarstedt, 2026)
+
+### v1.0 LTS Additions
+
+- **fsQCA** — fuzzy-set Qualitative Comparative Analysis: direct calibration, necessity analysis, truth table, Quine-McCluskey Boolean minimisation. Complex, parsimonious, and intermediate solutions with raw/unique coverage, consistency, and bubble-chart coincidence visualisation
+- **APA 7th Edition Reporting** — one-click Word (.docx) export of measurement model, discriminant validity, structural paths, and indirect effects tables, formatted to journal submission standards
+- **Schema freeze** — all public result models stable under semantic versioning; no field removals or renames in v1.x.x
+
+### Export & Distribution
+
+- **Code export** — R (lavaan / seminr syntax), Python (semopy syntax), JASP
 - **Fully offline** — nothing leaves your machine, no account required, no internet after install
+- **Citable** — Zenodo DOI archived for every release, `CITATION.cff` in repository root
+- Available on **SourceForge**, **Microsoft Store**, and listed on **AlternativeTo**
 
 ---
 
@@ -100,9 +146,11 @@ NAVAL-SEM starts a local FastAPI server on `http://127.0.0.1:8765` and opens the
 launcher.py
   ├── starts FastAPI on port 8765
   ├── opens pywebview window  →  http://127.0.0.1:8765
-  ├── app/engine.py    ← PLS/CB-SEM, bootstrapping, HTMT, MGA
-  ├── app/parser.py    ← CSV / Excel / SPSS ingestion
-  └── static/index.html  ← canvas builder, results panels, export
+  ├── app/engine.py           ← PLS/CB-SEM, bootstrapping, HTMT, MGA
+  ├── app/fsqca.py            ← fsQCA engine (v1.0)
+  ├── app/report.py           ← APA 7th edition DOCX export (v1.0)
+  ├── app/parser.py           ← CSV / Excel / SPSS ingestion
+  └── static/index.html       ← canvas builder, results panels, export
 ```
 
 No telemetry. No account. No data transmission.
@@ -127,40 +175,86 @@ No `uv`? [Install it](https://docs.astral.sh/uv/getting-started/installation/) f
 
 ## NAVAL-SEM vs SmartPLS
 
-| | NAVAL-SEM | SmartPLS 4 |
+| | NAVAL-SEM v1.0 LTS | SmartPLS 4 |
 |--|-----------|------------|
 | Price | **Free** | Paid licence |
 | Sample size limit | **None** | Student edition: 100 rows |
 | Construct limit | **None** | Student edition: 4 constructs |
 | OS | **Windows · macOS · Linux** | Windows · macOS only |
 | Offline | **Fully offline — no internet ever** | Offline after licence activation |
-| Case library | **5 cases, open datasets, expected findings** | Sample projects only |
+| PLS-SEM | **✓ Full support** | ✓ Full support |
+| CB-SEM | **✓ ML, WLS estimators** | Limited |
+| Moderation & IPMA | **✓ Full support** | ✓ Full support |
+| NCA | **✓ CE-FDH, CR-FDH, NCA-ESSE** | ✓ Basic support |
+| HOC | **✓ Repeated indicator + two-stage** | ✓ Full support |
+| MGA | **✓ Permutation significance** | ✓ Full support |
+| FIMIX-PLS / PLS-POS | **✓ Full support** | ✓ Full support |
+| Scale development (CVI, EFA, Nomological, MICOM) | **✓ Full suite (v0.9)** | Partial |
+| **fsQCA** | **✓ Quine-McCluskey minimisation (v1.0)** | Not available |
+| **APA 7 reporting (.docx)** | **✓ One-click Word export (v1.0)** | Not available |
 | R / Python export | **✓ lavaan, seminr, semopy** | Not available |
+| Case library | **✓ 5 cases, open datasets, expected findings** | Sample projects only |
 | Data privacy | **Localhost only — nothing transmitted** | Local analysis |
-| Citation count | Growing (2026 launch) | ~50,000+ (established) |
-| Moderation support | In development | Full support |
+| Schema stability | **✓ Frozen public API (v1.0 LTS)** | Proprietary |
+| Citable DOI | **✓ Zenodo archive per release** | Not available |
+
+---
+
+## Validation
+
+NAVAL-SEM v1.0 ships with **174 pytest + Playwright tests** gated on every release. Results are compared to published anchor values from peer-reviewed literature — if the numbers don't match, the release is blocked.
+
+Key benchmarks:
+- HS1939 CB-SEM CFI ≈ 0.931 (Holzinger & Swineford 1939)
+- Bollen Political Democracy CFI ≥ 0.997 (Bollen 1989)
+- Corporate Reputation avg loading ≈ 0.80, max HTMT ≈ 0.86 (Hair et al. 2011/2013)
+- fsQCA consistency ≥ 0.80 (Wagemann & Schneider 2010; Ragin 2008)
+
+→ [View full test suite documentation](https://naval-sem.sourceforge.io/testbench.html)
 
 ---
 
 ## Citation
 
+If you use NAVAL-SEM in published research, please cite:
+
 ```
-Singh, N. (2025). NAVAL-SEM: Free offline structural equation modelling
-desktop application [Software, v0.4.0].
-https://doi.org/10.5281/zenodo.20124109
+Singh, N. (2026). NAVAL-SEM: Free offline structural equation modelling
+desktop application [Software, v1.0.0 LTS].
+https://doi.org/10.5281/zenodo.20124108
 ```
 
 ```bibtex
-@software{singh2025navalsem,
+@software{singh2026navalsem,
   author  = {Singh, Naval},
   title   = {{NAVAL-SEM}: Free offline structural equation modelling desktop application},
-  year    = {2025},
-  doi     = {10.5281/zenodo.20124109},
+  year    = {2026},
+  doi     = {10.5281/zenodo.20124108},
   url     = {https://github.com/navalsingh9/naval-sem},
-  version = {0.4.0},
+  version = {1.0.0},
   license = {CC BY-NC-ND 4.0}
 }
 ```
+
+A `CITATION.cff` is included in the repository root for APA 7, BibTeX, and RIS export.
+
+---
+
+## Changelog highlights
+
+| Version | Date | Additions |
+|---------|------|-----------|
+| **v1.0.0 LTS** | 27 Jun 2026 | fsQCA (Quine-McCluskey), APA 7 Word export, schema freeze, 174 tests |
+| v0.9.0 | 22 Jun 2026 | CVI, EFA, Nomological validity, Measurement invariance (MICOM), NCA-ESSE |
+| v0.8.0 | 14 Jun 2026 | FIMIX-PLS, PLS-POS, PDF export |
+| v0.7.0 | 8 Jun 2026 | Moderation, IPMA, NCA, Conditional process (Hayes PROCESS Models 7/14/58/59) |
+| v0.6.0 | 2 Jun 2026 | Higher-Order Constructs, MICOM, Multi-Group Analysis |
+| v0.5.0 | 25 May 2026 | Predictive relevance (Q², PLSpredict, CVPAT), CMB marker analysis |
+| v0.4.1 | 22 May 2026 | VIF, Cohen's f², indirect effects, outer weight significance |
+| v0.3.0 | 11 May 2026 | AVE, CR, Cronbach's α, Fornell-Larcker, Validity tab |
+| v0.2.0 | 7 May 2026 | Initial release — PLS/CB-SEM, HTMT, visual builder |
+
+→ [Full CHANGELOG](CHANGELOG.md)
 
 ---
 
@@ -173,6 +267,7 @@ https://doi.org/10.5281/zenodo.20124109
 | White screen (Linux) | Install WebKit2GTK — see [building.md](docs/building.md) |
 | MSI build fails | Confirm WiX 3 on PATH: `candle.exe --version` |
 | macOS "App is damaged" | `xattr -cr dist/NAVAL-SEM.app` |
+| DOCX export empty | Ensure a `/run` call completed for the current session before calling `/report` |
 
 ---
 
@@ -191,4 +286,4 @@ https://doi.org/10.5281/zenodo.20124109
 
 ## Keywords
 
-`PLS-SEM` · `structural equation modeling` · `SmartPLS alternative` · `SmartPLS free` · `free SEM software` · `offline SEM` · `CB-SEM` · `HTMT` · `mediation analysis` · `bootstrapping SEM` · `SEM desktop app` · `lavaan` · `semopy` · `HR analytics SEM` · `brand equity SEM` · `UTAUT PLS-SEM` · `TAM SEM` · `SERVQUAL PLS-SEM` · `structural equation modeling Python` · `PLS-SEM Windows macOS Linux`
+`PLS-SEM` · `fsQCA` · `structural equation modeling` · `SmartPLS alternative` · `SmartPLS free` · `free SEM software` · `offline SEM` · `CB-SEM` · `HTMT` · `mediation analysis` · `bootstrapping SEM` · `APA reporting` · `SEM desktop app` · `lavaan` · `semopy` · `CVI` · `EFA` · `measurement invariance` · `NCA` · `FIMIX-PLS` · `fuzzy-set QCA` · `HR analytics SEM` · `brand equity SEM` · `UTAUT PLS-SEM` · `TAM SEM` · `SERVQUAL PLS-SEM` · `structural equation modeling Python` · `PLS-SEM Windows macOS Linux`
