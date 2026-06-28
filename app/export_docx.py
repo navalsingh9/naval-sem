@@ -47,15 +47,15 @@ def _get(obj: Any, *keys: str, default: Any = None) -> Any:
             v = getattr(obj, key, _SENTINEL)
             if v is not _SENTINEL:
                 return v
-        except Exception:
+        except Exception:  # nosec B110 — intentional: try multiple access patterns
             pass
-        # Dict-key access (serialised payloads)
+        # Dict        # Dict-key access (serialised payloads)
         try:
             if isinstance(obj, dict) and key in obj:
                 return obj[key]
-        except Exception:
+        except Exception:  # nosec B110 — intentional: try multiple access patterns
             pass
-    return default
+    return default    return default
 
 
 def _first(*vals: Any) -> Any:
@@ -767,5 +767,5 @@ if __name__ == "__main__":
     length = len(buf.getvalue())
 
     print(f"[SMOKE TEST]  generate_docx() → BytesIO length = {length:,} bytes")
-    assert length > 0, "generate_docx() returned an empty buffer!"
+    assert length > 0, "generate_docx() returned an empty buffer!"  # nosec B101 — smoke test only, never runs in production
     print("[SMOKE TEST]  Non-empty BytesIO confirmed. All assertions passed. ✓")
