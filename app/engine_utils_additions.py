@@ -315,10 +315,15 @@ if __name__ == "__main__":
     # merged, but confirms the functions run and match the ticket's example.
     s1 = annotate_indirect_effect(0.14, 0.06, 0.23)
     print(s1)
-    assert s1 == (
+    _expected_s1 = (
         "This indirect effect (b = .14) is significant: the 95% bootstrap "
         "CI [.06, .23] excludes zero."
-    ), "Does not match the ticket's example sentence"
+    )
+    if s1 != _expected_s1:
+        raise ValueError(
+            f"Self-test failed: does not match the ticket's example "
+            f"sentence.\n  got:      {s1!r}\n  expected: {_expected_s1!r}"
+        )
 
     print(annotate_indirect_effect(0.03, -0.02, 0.09))
     print(annotate_indirect_effect(0.14, None, None))

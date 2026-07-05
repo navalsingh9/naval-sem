@@ -20,11 +20,14 @@ from __future__ import annotations
 import base64
 import html
 import io
+import logging
 import math
 import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("naval_sem.export_pdf")
 import sys
 
 _PKG_DIR = Path(__file__).resolve().parent
@@ -1083,7 +1086,11 @@ def _build_ipma_section(ipma: dict, st: dict) -> list:
                 Spacer(1, 6),
             ]
         except Exception:
-            pass  # corrupt/undecodable image — keep the table, skip the figure
+            logger.warning(
+                "IPMA chart image could not be decoded/rendered; "
+                "skipping figure, keeping table",
+                exc_info=True,
+            )
 
     return flowables
 
