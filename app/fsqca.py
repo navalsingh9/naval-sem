@@ -572,6 +572,7 @@ def minimize_boolean(
     fuzzy_df: pd.DataFrame,
     condition_cols: list[str],
     outcome_col: str,
+    directional_expectations: Optional[dict] = None,
 ) -> object:
     """
     Boolean minimization via the Quine-McCluskey algorithm.
@@ -603,9 +604,26 @@ def minimize_boolean(
     elif solution_type == "parsimonious":
         dontcares = remainders
     elif solution_type == "intermediate":
-        # Simplifying assumption: include remainders that have ≥ k/2 ones
-        # (consistent with the expectation that presence → outcome).
-        dontcares = [r for r in remainders if r.count("1") >= k / 2]
+        if directional_expectations:
+            # Include remainder if every condition bit matches its expected direction
+            def _matches_expectations(config: str) -> bool:
+                for ci, col in enumerate(condition_cols):
+                    direction = directional_expectations.get(col, "presence")
+                    expected_bit = "1" if direction == "presence" else "0"
+                    if config[ci] != expected_bit:
+                        return False
+                return True
+            dontcares = [r for r in remainders if _matches_expectations(r)]
+        else:
+            # Legacy fallback with warning
+            import warnings as _w
+            _w.warn(
+                "minimize_boolean: intermediate solution using heuristic fallback "
+                "(>=k/2 present conditions). Pass directional_expectations={'cond_name': "
+                "'presence'|'absence'} for the textbook Ragin (2008) intermediate solution.",
+                UserWarning, stacklevel=2,
+            )
+            dontcares = [r for r in remainders if r.count("1") >= k / 2]
     else:
         raise ValueError(f"minimize_boolean: invalid solution_type '{solution_type}'.")
 
@@ -658,6 +676,7 @@ def run_fsqca(
     freq_threshold: int = 1,
     consist_threshold: float = 0.75,
     log_fn: Optional[Callable] = None,
+    directional_expectations: Optional[dict] = None,
 ) -> object:
     """
     Top-level fsQCA orchestrator.
@@ -775,13 +794,23 @@ def run_fsqca(
     solutions: list = []
     for sol_type in ("complex", "parsimonious", "intermediate"):
         _log("step", f"Minimizing: {sol_type} solution")
-        sol = minimize_boolean(
-            tt_rows,
-            sol_type,
-            fuzzy_df,
-            list(condition_cols),
-            outcome_col,
-        )
+        if sol_type == "intermediate":
+            sol = minimize_boolean(
+                tt_rows,
+                sol_type,
+                fuzzy_df,
+                list(condition_cols),
+                outcome_col,
+                directional_expectations=directional_expectations,
+            )
+        else:
+            sol = minimize_boolean(
+                tt_rows,
+                sol_type,
+                fuzzy_df,
+                list(condition_cols),
+                outcome_col,
+            )
         solutions.append(sol)
 
     # ── Step 4: Coincidence / bubble-chart data ───────────────────────────────

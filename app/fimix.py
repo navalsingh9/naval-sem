@@ -130,6 +130,49 @@ def _run_em(composites, structural_rels, n, K, rng, max_iter, tol):
 
 # ── public API ───────────────────────────────────────────────────────────────
 
+def recommend_k(solutions: list, entropy_threshold: float = 0.50, label: str = "FIMIX") -> tuple:
+    """
+    Choose a recommended K by minimum CAIC, gated by relative entropy (M2 fix).
+
+    This is the single source of truth for the "min-CAIC, but warn (and suggest
+    an alternative) when the winning solution's separation is poor" rule
+    (Sarstedt et al. 2011). ``run_fimix`` uses it directly; any other finite
+    mixture / latent-class engine (e.g. ``engine_lca.run_lca``) should call it
+    too rather than re-deriving the rule.
+
+    Parameters
+    ----------
+    solutions : list of objects each exposing ``.k``, ``.caic``, and
+                ``.relative_entropy`` attributes (e.g. FIMIXSolution, or any
+                per-K fit-table row with the same three fields).
+    entropy_threshold : R_E cutoff below which the recommendation is flagged
+                as low-separation (default 0.50, per Sarstedt et al. 2011).
+    label       : Short tag used in the warning text (e.g. "FIMIX", "LCA").
+
+    Returns
+    -------
+    (recommended_k, warnings) — recommended_k is the int K minimising CAIC;
+    warnings is a list[str], empty unless entropy is below the threshold.
+    """
+    warnings: list[str] = []
+    recommended_k = min(solutions, key=lambda s: s.caic).k
+
+    rec_sol = next(s for s in solutions if s.k == recommended_k)
+    if rec_sol.relative_entropy < entropy_threshold:
+        next_k = next(
+            (s for s in sorted(solutions, key=lambda s: s.k)
+             if s.k != recommended_k and s.relative_entropy >= entropy_threshold),
+            None,
+        )
+        alt = f" Consider K={next_k.k} (R_E={next_k.relative_entropy:.3f})." if next_k else ""
+        warnings.append(
+            f"{label}: recommended K={recommended_k} (minimum CAIC) has low entropy "
+            f"R_E={rec_sol.relative_entropy:.3f} < {entropy_threshold:.2f} threshold "
+            f"(Sarstedt et al. 2011). Segment separation may be insufficient.{alt}"
+        )
+    return recommended_k, warnings
+
+
 def run_fimix(
     df: pd.DataFrame,
     model_syntax: str,
@@ -271,7 +314,9 @@ def run_fimix(
     if not solutions:
         raise ValueError("FIMIX: no solutions converged for any K in [2, k_max].")
 
-    recommended_k = min(solutions, key=lambda s: s.caic).k
+    recommended_k, rec_warnings = recommend_k(solutions, label="FIMIX")
+    warnings.extend(rec_warnings)
+
     _emit(log_fn, "ok", f"FIMIX complete — recommended K={recommended_k}")
 
     return FIMIXResult(

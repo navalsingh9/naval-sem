@@ -298,6 +298,30 @@ def compute_nca_esse(
             ))
             prev_emp, prev_theo = emp_d, theo_d
 
+        # ── Benjamini-Hochberg correction across the 11 threshold p-values ────
+        _raw_ps = [pt.p_value for pt in points]
+        _bh_ps: list[Optional[float]] = [None] * len(_raw_ps)
+        _indexed = [(p, i) for i, p in enumerate(_raw_ps) if p is not None]
+        if _indexed:
+            _m = len(_indexed)
+            _sorted_idx = sorted(_indexed, key=lambda x: x[0])
+            for _rank, (_pv, _orig_i) in enumerate(_sorted_idx, start=1):
+                _bh_ps[_orig_i] = min(1.0, _pv * _m / _rank)
+            # Enforce monotonicity (step-down)
+            _prev_adj = 1.0
+            for _, _orig_i in reversed(_sorted_idx):
+                _bh_ps[_orig_i] = min(_prev_adj, _bh_ps[_orig_i])
+                _prev_adj = _bh_ps[_orig_i]
+        # Rebuild points with adjusted p-values and updated significant flag
+        points = [
+            NCAESSEThresholdPoint(
+                **{k: v for k, v in pt.model_dump().items() if k not in ("p_value_adjusted", "significant")},
+                p_value_adjusted=round(_bh_ps[_i], 4) if _bh_ps[_i] is not None else None,
+                significant=(_bh_ps[_i] is not None and _bh_ps[_i] < 0.05),
+            )
+            for _i, pt in enumerate(points)
+        ]
+
         # ── Recommended threshold: longest contiguous run (from the first
         #    nonzero step) where the empirical gain beats the benchmark gain ──
         recommended = points[0]

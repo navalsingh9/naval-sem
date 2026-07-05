@@ -158,6 +158,7 @@ from app.engine import (
     fit_model, run_bootstrap, compute_htmt, export_as_code,
     compute_indirect_effects, compute_cmb, compute_predict,
     compute_nomological_validity, compute_measurement_invariance,
+    compute_cta, fit_multigroup_cbsem,
 )
 from app.scale import compute_efa, compute_cvi
 from app.parser import (parse_spss, parse_excel, parse_lavaan, parse_csv_robust,)
@@ -173,7 +174,13 @@ from app.schemas import (
     MeasurementInvarianceResult,                      # v0.9
     CVIResult, ScaleDevelopmentResult,                # v0.9 — scale development
     FsQCAResult,                                       # v1.0 — fsQCA
+    ImputationResult, ImputeResponse,                 # v1.1 — imputation (A3)
+    BayesianSemResponse,                               # v1.1 — Bayesian SEM (A10/A11)
+    LCAResult,                                          # v1.1 — general LCA / finite mixture (A12-A15)
+    CTAResult,                                          # v1.1 — Confirmatory Tetrad Analysis (S2)
+    MultigroupCBSEMResult,                              # v1.1 — multi-group CB-SEM (A16)
 )
+from app.engine_bayesian      import fit_bayesian_sem_with_density                 # v1.1 — Bayesian SEM (A8)
 from app.engine_mga import run_mga, fit_hoc_repeated_indicator, fit_hoc_two_stage
 from app.engine_moderation    import run_moderation                                # v0.7
 from app.engine_ipma          import compute_ipma                                  # v0.7
@@ -772,6 +779,7 @@ async def run_model(
     missing: str = Form("listwise"),
     run_id: str = Form(None),
     reverse_items: Optional[str] = Form(None),
+    estimator: Optional[str] = Form(None),
 ):
     run_id = run_id or str(uuid.uuid4())
     _validate_run_id(run_id)
@@ -781,6 +789,24 @@ async def run_model(
     with _run_context(run_id):
         if algorithm not in ("pls", "cb", "wls"):
             raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
+
+        # F2: GLS/ADF/ULS_SF were already implemented in engine.py but had no
+        # way to be selected over this endpoint (in-process callers only).
+        _valid_estimators = {"ML", "FIML", "WLS", "GLS", "ADF", "ULS_SF"}
+        if estimator is not None:
+            if estimator not in _valid_estimators:
+                raise HTTPException(
+                    400,
+                    f"Invalid estimator '{estimator}'. Use one of: "
+                    f"{sorted(_valid_estimators)}."
+                )
+            if estimator in ("GLS", "ADF", "ULS_SF") and algorithm == "pls":
+                raise HTTPException(
+                    400,
+                    f"estimator='{estimator}' requires algorithm='cb' (these "
+                    "are CB-SEM estimators; PLS-SEM is component-based and "
+                    "has no equivalent)."
+                )
 
         raw = await file.read()
         ext = file.filename.rsplit(".", 1)[-1].lower()
@@ -806,6 +832,25 @@ async def run_model(
         elif missing == "mean":
             df = df.fillna(df.mean(numeric_only=True))
             log("info", "Missing data: mean imputation applied")
+        elif missing == "FIML":
+            # A1: pass raw df (with NaNs) straight through; semopy's native
+            # obj='FIML' path groups rows by observed-variable pattern
+            # (Arbuckle 1996). PLS guard is inside fit_model.
+            n_incomplete = int(df.isna().any(axis=1).sum())
+            log("info",
+                f"Missing data: FIML — {n_incomplete} incomplete row(s) retained "
+                f"(total {len(df)} rows passed to engine)")
+        else:
+            df = df.dropna()
+            log("warn",
+                f"Unknown missing-data method '{missing}'; defaulted to listwise "
+                f"→ {len(df)} complete rows")
+
+        # FIML (selected via `missing`) takes priority over an explicit
+        # `estimator`: the data-loading branch above already decided whether
+        # raw NaNs were kept based on missing=="FIML", and GLS/ADF/ULS_SF all
+        # expect complete data, so they can't coherently apply at the same time.
+        _effective_estimator = "FIML" if missing == "FIML" else estimator
 
         df = auto_reverse_score(df, model, log_fn=log, reverse_items=reverse_items)
         model = _expand_covariances(model)   # TC-52: expand 'y2 ~~ y4 + y6' → individual pairs
@@ -814,7 +859,9 @@ async def run_model(
             result = await asyncio.get_running_loop().run_in_executor(
                 None,
                 lambda: fit_model(df, model, algorithm=algorithm,
-                                   bootstrap_n=bootstrap_n, log_fn=log)
+                                   bootstrap_n=bootstrap_n, log_fn=log,
+                                   estimator=_effective_estimator,
+                                   missing_data_method=missing)
             )
         except ValueError as e:
             log("error", f"Model fit failed: {e}")
@@ -869,6 +916,82 @@ async def bootstrap_only(
     except Exception as e:
         logger.error("Unexpected error in /bootstrap: %s", e, exc_info=True)
         raise HTTPException(500, "Bootstrap analysis failed. Check server logs.")
+
+
+@app.post("/bayesian-sem", response_model=BayesianSemResponse)
+async def bayesian_sem(payload: dict):
+    """
+    Bayesian estimation of a CB-SEM measurement + structural model (A8-A11).
+
+    Body: {data, model_syntax, priors: Optional[dict], n_chains, n_samples,
+    n_warmup, run_id: Optional[str]}.
+
+    ``data`` is JSON-embedded tabular data (list of row-objects, or a
+    dict of column -> list — both are accepted, same as pd.DataFrame()'s
+    own constructor) rather than a file upload. No existing endpoint in
+    this codebase embeds tabular data directly in a JSON body (every other
+    long-running endpoint takes a multipart file upload), so this is a new
+    convention for this one route rather than an established pattern.
+
+    Sampling 2000+ draws across 4 chains is slow enough that the frontend
+    needs progress feedback rather than a silent multi-second hang — this
+    reuses the existing run_id / log_fn / GET /logs/{run_id} SSE pattern
+    used by /run, /mga, /hoc, etc., rather than inventing a new mechanism.
+    """
+    run_id = payload.get("run_id") or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+
+    with _run_context(run_id):
+        raw_data = payload.get("data")
+        model_syntax = payload.get("model_syntax", "")
+        priors = payload.get("priors")
+        # Same conservative caps as /bootstrap's bootstrap_n = min(n, 20_000)
+        # — MCMC is far more expensive per draw than a bootstrap resample,
+        # so the ceilings here are tighter.
+        n_chains  = max(1, min(int(payload.get("n_chains", 4)), 8))
+        n_samples = max(100, min(int(payload.get("n_samples", 2000)), 10_000))
+        n_warmup  = max(100, min(int(payload.get("n_warmup", 1000)), 10_000))
+        rng_seed  = int(payload.get("rng_seed", 42))
+
+        if not raw_data:
+            raise HTTPException(400, "Missing 'data' in request body.")
+        if not model_syntax:
+            raise HTTPException(400, "Missing 'model_syntax' in request body.")
+
+        try:
+            df = pd.DataFrame(raw_data)
+        except Exception as e:
+            raise HTTPException(422, f"Could not parse 'data' into a table: {e}")
+        if df.empty:
+            raise HTTPException(422, "'data' produced an empty table.")
+
+        log("step", f"Parsing lavaan syntax for Bayesian SEM (run_id={run_id})")
+        try:
+            parsed = parse_lavaan(model_syntax)
+        except ValueError as e:
+            log("error", f"Model syntax error: {e}")
+            raise HTTPException(422, f"Invalid model syntax: {e}")
+
+        try:
+            result, density = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: fit_bayesian_sem_with_density(
+                    df, parsed, priors=priors,
+                    n_chains=n_chains, n_samples=n_samples, n_warmup=n_warmup,
+                    rng_seed=rng_seed, log_fn=log,
+                )
+            )
+        except ValueError as e:
+            log("error", f"Bayesian SEM fit failed: {e}")
+            raise HTTPException(422, str(e))
+        except Exception as e:
+            log("error", "Unexpected engine error — see server logs for details")
+            logger.error("Unexpected engine error in /bayesian-sem: %s", e, exc_info=True)
+            raise HTTPException(500, "Bayesian SEM fitting failed. Check server logs.")
+
+        return BayesianSemResponse(result=result, posterior_density=density)
 
 
 @app.post("/htmt", response_model=HTMTResult)
@@ -1242,6 +1365,7 @@ async def multi_group_analysis(
     bootstrap_n: int = Form(500),
     n_permutations: int = Form(500),
     run_micom: bool = Form(True),
+    mga_method: str = Form("bootstrap"),
     missing: str = Form("listwise"),
     run_id: str = Form(None),
     reverse_items: Optional[str] = Form(None),
@@ -1259,6 +1383,9 @@ async def multi_group_analysis(
     bootstrap_n   : Bootstrap resamples for per-pair path-difference CIs (default 500).
     n_permutations: Permutation samples for MICOM steps 2 and 3 (default 500).
     run_micom     : Whether to run MICOM before MGA (2-group PLS only, default True).
+    mga_method    : ``bootstrap`` (default) | ``henseler`` | ``parametric``. Selects
+                    which method's significance call is used for the primary
+                    ``significant`` flag; all three p-values are always reported.
     missing       : ``listwise`` (default) | ``mean``.
     run_id        : Optional SSE tracking ID — logs available at /logs/{run_id}.
 
@@ -1275,6 +1402,11 @@ async def multi_group_analysis(
     with _run_context(run_id):
         if algorithm not in ("pls", "cb", "wls"):
             raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
+        if mga_method not in ("bootstrap", "henseler", "parametric"):
+            raise HTTPException(
+                400,
+                f"Invalid mga_method '{mga_method}'. Use 'bootstrap', 'henseler', or 'parametric'.",
+            )
 
         raw = await file.read()
         log("step", f"MGA: parsing uploaded file: {file.filename}")
@@ -1312,6 +1444,7 @@ async def multi_group_analysis(
                     bootstrap_n=bootstrap_n,
                     n_permutations=n_permutations,
                     run_micom_test=run_micom,
+                    mga_method=mga_method,
                     log_fn=log,
                 ),
             )
@@ -2013,6 +2146,96 @@ async def run_plspos_endpoint(
             raise HTTPException(500, "PLS-POS analysis failed. Check server logs.")
         return result
 
+# ── v1.1: General Latent Class / Finite Mixture engine (A12–A15) ──────────────
+
+@app.post("/lca", response_model=LCAResult)
+async def run_lca_endpoint(
+    file:                  UploadFile = File(...),
+    indicator_cols:        str        = Form(...),        # comma-separated column names
+    k_min:                 int        = Form(2),
+    k_max:                 int        = Form(6),
+    mode:                  str        = Form("segmentation"),   # segmentation | mixture_regression | mixture_factor
+    dv_col:                str        = Form(""),          # required for mixture_regression
+    known_class_col:       str        = Form(""),          # optional semi-supervised label column
+    equality_constraints:  str        = Form(""),          # comma-separated parameter names
+    n_starts:              int        = Form(10),
+    seed:                  int        = Form(42),
+    missing:               str        = Form("listwise"),
+    run_id:                str        = Form(""),
+):
+    """
+    General-purpose latent class / finite mixture segmentation.
+
+    Form fields
+    -----------
+    file                  : CSV, XLSX, or SAV dataset.
+    indicator_cols        : Comma-separated column names defining class
+                            membership (IV columns, when mode="mixture_regression").
+    k_min, k_max          : Inclusive range of class counts to test (default 2..6).
+    mode                  : "segmentation" (class-specific means/variances) |
+                            "mixture_regression" (class-specific weighted OLS,
+                            dv_col ~ indicator_cols) | "mixture_factor"
+                            (class-specific single-factor loadings).
+    dv_col                : Dependent variable column — required for mixture_regression.
+    known_class_col       : Optional column of known class labels (0..K-1) for
+                            semi-supervised seeding; null rows are classified by EM.
+    equality_constraints  : Comma-separated parameter names to estimate as
+                            equal across all classes (e.g. "x1,sigma2").
+    n_starts, seed        : EM random-restart controls.
+    missing               : ``listwise`` (default) | ``mean``.
+    run_id                : Optional SSE tracking ID — logs available at /logs/{run_id}.
+
+    Returns
+    -------
+    LCAResult — fit table (AIC/BIC/CAIC/entropy) per K, recommended K chosen
+    via the same entropy-gated CAIC rule as FIMIX-PLS, per-case posterior
+    membership, and per-class (or constraint-pooled) parameters.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _init_run(run_id)
+    log_fn = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /lca: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file.")
+
+        if missing == "listwise":
+            df = df.dropna()
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        cols = [c.strip() for c in indicator_cols.split(",") if c.strip()]
+        if not cols:
+            raise HTTPException(400, "At least one indicator column must be provided.")
+        constraints = [c.strip() for c in equality_constraints.split(",") if c.strip()] or None
+
+        from app.engine_lca import run_lca
+        loop = asyncio.get_running_loop()
+        try:
+            result = await loop.run_in_executor(None, lambda: run_lca(
+                df, cols,
+                k_range=(k_min, k_max),
+                mode=mode,
+                dv_col=dv_col or None,
+                known_class_col=known_class_col or None,
+                equality_constraints=constraints,
+                n_starts=n_starts,
+                seed=seed,
+                log_fn=log_fn,
+            ))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            logger.error("Unexpected error in /lca: %s", exc, exc_info=True)
+            raise HTTPException(500, "LCA analysis failed. Check server logs.")
+        return result
+
+
 @app.post("/mod-mediation", response_model=ModMediationResult)
 async def mod_mediation_analysis(
     file:        UploadFile = File(...),
@@ -2218,6 +2441,178 @@ async def run_invariance(
         return result
 
 
+# ── v1.1 (S2): Confirmatory Tetrad Analysis (CTA-PLS) ──────────────────────────
+
+@app.post("/cta", response_model=CTAResult)
+async def run_cta(
+    file: UploadFile = File(...),
+    model_syntax: str = Form(...),
+    reflective_lvs: str = Form(...),
+    bootstrap_n: int = Form(500),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
+):
+    """
+    Confirmatory Tetrad Analysis (CTA-PLS; Bollen & Ting 2000, Gudergan et
+    al. 2008) — tests whether each named reflective LV block is correctly
+    specified as reflective by checking whether its non-redundant vanishing
+    tetrads bootstrap-CI-exclude zero.
+
+    Form fields
+    -----------
+    file           : CSV upload containing all indicator columns.
+    model_syntax   : lavaan-style model syntax (=~ / ~ / ~~); only the
+                     measurement (=~) blocks are used.
+    reflective_lvs : Comma-separated list of LV names (from model_syntax)
+                     to test. LVs with < 4 indicators are skipped.
+    bootstrap_n    : Bootstrap resamples per tetrad (default 500).
+    missing        : ``listwise`` (default) | ``mean``.
+    run_id         : Optional SSE tracking ID — logs available at /logs/{run_id}.
+
+    Returns
+    -------
+    CTAResult — per-LV: n_tetrads_tested, n_significant, verdict
+    ("supports reflective" | "consider formative respecification"), and the
+    individual tetrad CIs.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    bootstrap_n = min(bootstrap_n, 5_000)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"CTA: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /cta: %s", exc, exc_info=True)
+            raise HTTPException(422, f"Could not parse uploaded file: {exc}")
+
+        if missing == "listwise":
+            df = df.dropna()
+            log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        try:
+            parsed = parse_lavaan(model_syntax)
+        except Exception as exc:
+            raise HTTPException(422, f"Could not parse model_syntax: {exc}")
+        measurement = parsed.get("measurement", {})
+
+        lv_list = [s.strip() for s in reflective_lvs.split(",") if s.strip()]
+        if not lv_list:
+            raise HTTPException(400, "reflective_lvs must contain at least one LV name.")
+        unknown = [lv for lv in lv_list if lv not in measurement]
+        if unknown:
+            raise HTTPException(
+                400,
+                f"reflective_lvs contains name(s) not found in model_syntax's =~ blocks: {unknown}",
+            )
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: compute_cta(df, measurement, lv_list, bootstrap_n=bootstrap_n, log_fn=log),
+            )
+        except ValueError as exc:
+            log("error", f"CTA failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "CTA unexpected error — see server logs")
+            logger.error("Unexpected error in /cta: %s", exc, exc_info=True)
+            raise HTTPException(500, "CTA analysis failed. Check server logs.")
+
+        log("ok", f"CTA complete — {len(result.lv_results)} LV block(s) tested")
+        return result
+
+
+# ── v1.1 (A16): Multi-group CB-SEM with equality constraints ──────────────────
+
+@app.post("/multigroup-cbsem", response_model=MultigroupCBSEMResult)
+async def run_multigroup_cbsem(
+    file: UploadFile = File(...),
+    model_syntax: str = Form(...),
+    group_col: str = Form(...),
+    equality_constraints: str = Form(""),
+    missing: str = Form("listwise"),
+    run_id: str = Form(None),
+):
+    """
+    Multi-group CB-SEM likelihood-ratio test (A16).
+
+    Fits a "free" model (every parameter estimated separately per group) and
+    a "constrained" model (parameters named in `equality_constraints` forced
+    equal across groups), then runs a chi-square difference (LR) test
+    between them.
+
+    Form fields
+    -----------
+    file                  : CSV upload containing all variables + group_col.
+    model_syntax          : lavaan-style CB-SEM syntax (=~ / ~ / ~~).
+    group_col             : Column name whose values define groups (>= 2).
+    equality_constraints  : Comma-separated lavaan-style relation strings to
+                             force equal across groups, e.g.
+                             "Satisfaction~Trust, Trust=~trust_1". Leave
+                             blank to compare the free model against itself
+                             (LR test will show no difference).
+    missing               : ``listwise`` (default) | ``mean``.
+    run_id                : Optional SSE tracking ID — logs at /logs/{run_id}.
+
+    Returns
+    -------
+    MultigroupCBSEMResult — free/constrained fit summaries, the LR chi-square
+    difference test, and a plain-English conclusion on whether the equality
+    constraint(s) are rejected.
+    """
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"Multi-group CB-SEM: parsing {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /multigroup-cbsem: %s", exc, exc_info=True)
+            raise HTTPException(422, f"Could not parse uploaded file: {exc}")
+
+        if missing == "listwise":
+            df = df.dropna()
+            log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+
+        try:
+            parsed = parse_lavaan(model_syntax)
+        except Exception as exc:
+            raise HTTPException(422, f"Could not parse model_syntax: {exc}")
+
+        constraints_list = [s.strip() for s in equality_constraints.split(",") if s.strip()]
+
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: fit_multigroup_cbsem(df, parsed, group_col, constraints_list, log_fn=log),
+            )
+        except ValueError as exc:
+            log("error", f"Multi-group CB-SEM failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "Multi-group CB-SEM unexpected error — see server logs")
+            logger.error("Unexpected error in /multigroup-cbsem: %s", exc, exc_info=True)
+            raise HTTPException(500, "Multi-group CB-SEM analysis failed. Check server logs.")
+
+        log("ok", f"Multi-group CB-SEM complete — rejected={result.constrained_rejected}")
+        return result
+
+
 # ── v0.9: EFA (Exploratory Factor Analysis) ────────────────────────────────────
 
 @app.post("/efa", response_model=ScaleDevelopmentResult)
@@ -2333,6 +2728,177 @@ async def run_cvi(
 
         log("ok", f"CVI complete — {result.n_items} item(s), interpretation: {result.interpretation}")
         return result
+
+
+
+# ── A3: POST /impute ──────────────────────────────────────────────────────────
+
+@app.post("/impute", response_model=ImputeResponse)
+async def impute_data(
+    file:        UploadFile = File(...),
+    method:      str        = Form("regression"),
+    target_cols: str        = Form(...),    # comma-separated column names
+    m:           int        = Form(1),      # number of imputed datasets (bayesian only)
+    seed:        int        = Form(42),
+):
+    """
+    POST /impute — v1.1
+
+    Impute missing values using one of three methods:
+
+    ``regression``
+        Single deterministic imputation via OLS regression on complete cases.
+        Equivalent to single imputation; variance is artificially deflated.
+
+    ``stochastic``
+        OLS predictions plus residual noise N(0, MSE).  Preserves variance
+        without requiring a Bayesian prior.
+
+    ``bayesian``
+        Multiple imputation via Normal-Inverse-Gamma posterior draws.
+        Returns ``m`` imputed datasets; combine estimates using Rubin's rules.
+
+    Parameters
+    ----------
+    file        : CSV / XLSX / SAV upload
+    method      : "regression" | "stochastic" | "bayesian"
+    target_cols : comma-separated list of columns to impute
+    m           : number of imputed datasets (default 1; meaningful for bayesian)
+    seed        : random seed for reproducibility
+
+    Returns
+    -------
+    ImputeResponse
+        ``result``            — ImputationResult diagnostics
+        ``imputed_datasets``  — list of m datasets as records
+    """
+    from app.engine_missing import (
+        regression_impute,
+        stochastic_regression_impute,
+        bayesian_impute,
+    )
+    import numpy as _np
+
+    if method not in ("regression", "stochastic", "bayesian"):
+        raise HTTPException(
+            400,
+            f"Unknown imputation method '{method}'. "
+            "Use 'regression', 'stochastic', or 'bayesian'."
+        )
+    if m < 1 or m > 100:
+        raise HTTPException(400, "m must be between 1 and 100.")
+
+    # ── Parse file ────────────────────────────────────────────────────────────
+    content = await file.read()
+    try:
+        df = _parse_upload(content, file.filename)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("File parse error in /impute: %s", exc, exc_info=True)
+        raise HTTPException(422, "Could not parse the uploaded file.")
+
+    # ── Resolve target columns ────────────────────────────────────────────────
+    targets = [c.strip() for c in target_cols.split(",") if c.strip()]
+    if not targets:
+        raise HTTPException(400, "target_cols must contain at least one column name.")
+    missing_targets = [c for c in targets if c not in df.columns]
+    if missing_targets:
+        raise HTTPException(
+            422,
+            f"target_cols not found in uploaded data: {missing_targets}. "
+            f"Available columns: {df.columns.tolist()}"
+        )
+
+    # ── Predictor columns = everything that is not a target ───────────────────
+    # We impute each target independently using all other columns as predictors.
+    rng = _np.random.default_rng(seed)
+    n_total_imputed = 0
+    per_variable: dict = {}
+
+    # For multiple imputation we run all draws in one pass; collect (col → list[Series])
+    draw_series: dict[str, list] = {t: [] for t in targets}
+
+    try:
+        for target in targets:
+            n_missing_target = int(df[target].isna().sum())
+            pct_missing = round(100.0 * n_missing_target / len(df), 2) if len(df) else 0.0
+
+            predictor_cols = [c for c in df.columns if c != target
+                              and pd.api.types.is_numeric_dtype(df[c])]
+            if not predictor_cols:
+                raise HTTPException(
+                    422,
+                    f"No numeric predictor columns available to impute '{target}'."
+                )
+
+            per_variable[target] = {
+                "pct_missing": pct_missing,
+                "n_missing": n_missing_target,
+                "method": method,
+            }
+            n_total_imputed += n_missing_target
+
+            if method == "regression":
+                for _ in range(m):
+                    draw_series[target].append(
+                        regression_impute(df, target, predictor_cols)
+                    )
+            elif method == "stochastic":
+                for _ in range(m):
+                    draw_series[target].append(
+                        stochastic_regression_impute(df, target, predictor_cols, rng)
+                    )
+            else:  # bayesian
+                draws = bayesian_impute(df, target, predictor_cols, rng, n_draws=m)
+                draw_series[target].extend(draws)
+
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except Exception as exc:
+        logger.error("Unexpected error in /impute: %s", exc, exc_info=True)
+        raise HTTPException(500, f"Imputation failed: {exc}")
+
+    # ── Assemble m imputed datasets ───────────────────────────────────────────
+    imputed_datasets: list[list[dict]] = []
+    for draw_idx in range(m):
+        df_imputed = df.copy()
+        for target in targets:
+            df_imputed[target] = draw_series[target][draw_idx]
+        imputed_datasets.append(
+            df_imputed.where(df_imputed.notna(), other=None).to_dict(orient="records")
+        )
+
+    # ── Rubin's between-imputation variance for m > 1 ─────────────────────────
+    # B_j = (1/(m−1)) Σ_d (ē_{dj} − ē_j)²  where ē_{dj} = mean of imputed values
+    # in draw d for column j (only over rows that were missing in the original).
+    between_var: dict[str, float] | None = None
+    if m > 1:
+        between_var = {}
+        for target in targets:
+            missing_mask = df[target].isna()
+            if not missing_mask.any():
+                between_var[target] = 0.0
+                continue
+            # mean of imputed cells per draw
+            draw_means = [
+                float(draw_series[target][d][missing_mask].mean())
+                for d in range(m)
+            ]
+            grand_mean = sum(draw_means) / m
+            bv = sum((dm - grand_mean) ** 2 for dm in draw_means) / (m - 1)
+            between_var[target] = round(bv, 8)
+
+    result = ImputationResult(
+        method=method,
+        n_imputed=n_total_imputed,
+        m=m,
+        per_variable=per_variable,
+        between_imputation_variance=between_var,
+    )
+    return ImputeResponse(result=result, imputed_datasets=imputed_datasets)
 
 
 # ── Static files — MUST be registered last ────────────────────────────────────

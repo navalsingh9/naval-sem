@@ -6,7 +6,7 @@ Pure-numpy PLS-SEM estimator for NAVAL-SEM.
 Implements the standard PLSPM iterative algorithm
 (Lohmöller 1989 / Hair, Ringle & Sarstedt 2022):
 
-  • Mode A (reflective) outer weight estimation
+  • Mode A (reflective) and Mode B (formative) outer weight estimation
   • Path weighting scheme for inner approximation
   • Convergence loop (max 300 iterations, ε = 1e-7)
   • Structural OLS for path coefficients and R²
@@ -44,6 +44,7 @@ class PLSResult:
     converged:         bool
     n_obs:             int
     warnings:          List[str] = field(default_factory=list)
+    construct_modes:   Dict[str, str] = field(default_factory=dict)  # {lv: "A"|"B"}
 
 
 def _compute_srmr_matrix(S: np.ndarray, Sigma: np.ndarray, p: int) -> Optional[float]:
@@ -81,7 +82,8 @@ class PLSEstimator:
     ----------
     df     : pandas DataFrame with indicator columns
     parsed : dict from parse_lavaan() — keys: measurement, structural,
-             latent_vars, observed_vars
+             latent_vars, observed_vars, construct_modes (optional;
+             defaults every LV to Mode A / reflective when absent)
     """
 
     def __init__(
@@ -101,6 +103,7 @@ class PLSEstimator:
 
         measurement: Dict[str, List[str]] = parsed.get("measurement", {})
         structural:  List[dict]           = parsed.get("structural",  [])
+        construct_modes: Dict[str, str]   = parsed.get("construct_modes", {})
         lvs:         List[str]            = list(measurement.keys())
         warnings:    List[str]            = []
 
@@ -158,7 +161,7 @@ class PLSEstimator:
                 lvs, scores, predecessors, successors, lv_idx
             )
 
-            # (b) Mode A weight update: w_new_j = X_j^T · inner_j / n
+            # (b) Outer weight update: Mode A (reflective) / Mode B (formative)
             new_weights: Dict[str, np.ndarray] = {}
             for lv, inds in measurement.items():
                 cols = [ind for ind in inds if ind in ind_idx]
@@ -167,13 +170,28 @@ class PLSEstimator:
                     continue
                 j       = lv_idx[lv]
                 X_block = X_std[:, [ind_idx[ind] for ind in cols]]
-                w_raw   = X_block.T @ inner[:, j] / n_obs
 
-                # Normalise so Var(η_j) = 1
-                var_eta = w_raw @ (X_block.T @ X_block / n_obs) @ w_raw
-                denom   = np.sqrt(abs(var_eta))
-                w_norm  = w_raw / max(denom, 1e-12)
-                new_weights[lv] = w_norm
+                if construct_modes.get(lv, "A") == "B":
+                    # Mode B (formative): w = (X'X + ridge*I)^{-1} X' eta_inner
+                    # Ridge regularisation (1e-4) guards against perfect
+                    # collinearity in formative blocks.
+                    XtX   = X_block.T @ X_block / n_obs
+                    ridge = 1e-4 * np.eye(XtX.shape[0])
+                    try:
+                        w_raw = np.linalg.solve(XtX + ridge, X_block.T @ inner[:, j] / n_obs)
+                    except np.linalg.LinAlgError:
+                        w_raw = X_block.T @ inner[:, j] / n_obs   # fallback to unregularised
+
+                    # Normalise so Var(η_j) = 1
+                    var_eta = w_raw @ XtX @ w_raw
+                    denom   = np.sqrt(abs(var_eta))
+                    new_weights[lv] = w_raw / max(denom, 1e-12)
+                else:
+                    # Mode A (reflective): unchanged
+                    w_raw   = X_block.T @ inner[:, j] / n_obs
+                    var_eta = w_raw @ (X_block.T @ X_block / n_obs) @ w_raw
+                    denom   = np.sqrt(abs(var_eta))
+                    new_weights[lv] = w_raw / max(denom, 1e-12)
 
             # (c) Recompute scores
             new_scores = self._outer_scores(
@@ -230,6 +248,7 @@ class PLSEstimator:
             converged         = converged,
             n_obs             = n_obs,
             warnings          = warnings,
+            construct_modes   = construct_modes,
         )
 
     # ── Private helpers ───────────────────────────────────────────────────────

@@ -1060,6 +1060,31 @@ def _build_ipma_section(ipma: dict, st: dict) -> list:
     tbl = Table(rows, colWidths=cw, repeatRows=1)
     tbl.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (0, 0), (0, -1), "LEFT")]))
     flowables += [tbl, Spacer(1, 6)]
+
+    # ── Indicator-level quadrant chart (B2) ─────────────────────────────────
+    # chart_png is produced by engine_ipma._generate_ipma_chart; same
+    # decode-and-bound pattern as _build_diagram_section below.
+    chart_png_b64 = ipma.get("chart_png")
+    if chart_png_b64:
+        try:
+            png_bytes = base64.b64decode(chart_png_b64)
+            img_buf   = io.BytesIO(png_bytes)
+            max_w = _CW
+            max_h = 100 * mm
+            img   = Image(img_buf, width=max_w, height=max_h, kind="bound")
+            flowables += [
+                img,
+                Paragraph(
+                    f"<i>Indicator-level importance-performance map. Dashed "
+                    f"lines mark mean importance and mean performance "
+                    f"(Martilla &amp; James, 1977; Hair et al., 2022, Ch. 7).</i>",
+                    st["Italic"],
+                ),
+                Spacer(1, 6),
+            ]
+        except Exception:
+            pass  # corrupt/undecodable image — keep the table, skip the figure
+
     return flowables
 
 
