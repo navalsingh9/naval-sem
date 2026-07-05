@@ -2502,6 +2502,10 @@ def compute_htmt(df: pd.DataFrame, model_syntax: str,
                     if denom_bs > 0:
                         bs_htmt[(e.construct_a, e.construct_b)].append(cross_bs / denom_bs)
             except Exception:
+                logger.warning(
+                    "HTMT bootstrap iteration skipped due to error",
+                    exc_info=True,
+                )
                 continue
         # Back-fill CI onto entries
         new_entries = []
