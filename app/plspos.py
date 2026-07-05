@@ -95,25 +95,38 @@ def _pos_iterate(
             seg_coefs.append(kc)
 
         # ── Reassign observations to segment minimising prediction SSE ───────
-        new_hard = np.zeros(n, dtype=int)
-        for i in range(n):
-            best_k, best_sse = 0, np.inf
-            for k in range(K):
-                sse = 0.0
-                for eq_i, eq in enumerate(eq_data):
-                    pred = eq["X"][i] @ seg_coefs[k][eq_i]
-                    sse += (eq["y"][i] - pred) ** 2
-                if sse < best_sse:
-                    best_sse, best_k = sse, k
-            new_hard[i] = best_k
+        improved = True
+        obj = _total_within_r2(hard, eq_data, K)
+        visit_order = np.random.permutation(n)   # random visit order each pass
+        for i in visit_order:
+            current_k = int(hard[i])
+            best_k, best_obj = current_k, obj
+            for k_try in range(K):
+                if k_try == current_k:
+                    continue
+                trial = hard.copy()
+                trial[i] = k_try
+                trial_obj = _total_within_r2(trial, eq_data, K)
+                if trial_obj > best_obj + 1e-10:
+                    best_obj, best_k = trial_obj, k_try
+            if best_k != current_k:
+                hard[i] = best_k
+                obj = best_obj
+                # Re-estimate segment models after each beneficial switch
+                for k in range(K):
+                    mask_k = hard == k
+                    seg_coefs[k] = []
+                    for eq in eq_data:
+                        w_k = mask_k.astype(float)
+                        if w_k.sum() < 2:
+                            seg_coefs[k].append(np.zeros(eq["X"].shape[1]))
+                        else:
+                            c, _, _ = _ols_paths(eq["X"], eq["y"], w_k)
+                            seg_coefs[k].append(c)
 
-        obj = _total_within_r2(new_hard, eq_data, K)
-
-        if np.array_equal(new_hard, hard) or abs(obj - prev_obj) < 1e-8:
-            hard = new_hard
+        if abs(obj - prev_obj) < 1e-8:
             break
-
-        hard, prev_obj = new_hard, obj
+        prev_obj = obj
 
     return hard, eq_data, seg_coefs
 

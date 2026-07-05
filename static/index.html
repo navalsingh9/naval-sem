@@ -1641,116 +1641,30 @@ button { cursor: pointer; }
       </div>
       <div class="res-scroll" id="mga-res-body">
 
-        <!-- MICOM -->
+        <!-- These four subpanels are placeholders only: showAna('mga') (left
+             nav) reveals this markup as-is with no JS call, so unlike the
+             Report tab this content is NOT guaranteed to be overwritten
+             before being seen. It must never contain invented numbers.
+             renderMGATab() replaces all of #mga-res-body wholesale once an
+             MGA analysis actually runs (see showMGATab() -> renderMGATab()),
+             or once the user clicks any of the four sub-tab buttons above. -->
         <div class="subpanel on" id="sp-micom">
-          <div class="vrow">
-            <div class="vchip vc-g">● Step 2 Compositional PASS</div>
-            <div class="vchip vc-g">● Step 3a Means PASS</div>
-            <div class="vchip vc-g">● Step 3b Variances PASS</div>
-            <div class="vchip vc-b">✦ Full invariance</div>
-          </div>
-          <div class="ptitle" style="margin-top:0">Step 2 — Compositional invariance &nbsp;(c ≥ CI lower)</div>
-          <table class="gtable">
-            <thead><tr><th>Construct</th><th>Correlation c</th><th>CI lower 95%</th><th>Invariant</th></tr></thead>
-            <tbody>
-              <tr><td class="tb">Trust</td><td class="tv2">0.9994</td><td>0.9924</td><td class="tg">✓</td></tr>
-              <tr><td class="tb">Satisfaction</td><td class="tv2">0.9990</td><td>0.9972</td><td class="tg">✓</td></tr>
-              <tr><td class="tb">Loyalty</td><td class="tv2">0.9988</td><td>0.9946</td><td class="tg">✓</td></tr>
-            </tbody>
-          </table>
-          <div class="ptitle">Step 3a — Mean equality &nbsp;(0.0 ∈ CI)</div>
-          <table class="gtable">
-            <thead><tr><th>Construct</th><th>Mean G1</th><th>Mean G2</th><th>Diff</th><th>CI [lo, hi]</th><th>Inv</th></tr></thead>
-            <tbody>
-              <tr><td class="tb">Trust</td><td>0.0722</td><td>−0.0722</td><td class="tv2">0.1445</td><td class="tci">[−0.226, +0.237]</td><td class="tg">✓</td></tr>
-              <tr><td class="tb">Satisfaction</td><td>−0.0669</td><td>0.0669</td><td class="tv2">−0.1338</td><td class="tci">[−0.225, +0.217]</td><td class="tg">✓</td></tr>
-              <tr><td class="tb">Loyalty</td><td>−0.0449</td><td>0.0449</td><td class="tv2">−0.0897</td><td class="tci">[−0.234, +0.240]</td><td class="tg">✓</td></tr>
-            </tbody>
-          </table>
-          <div class="ptitle">Step 3b — Variance equality &nbsp;(1.0 ∈ CI)</div>
-          <table class="gtable">
-            <thead><tr><th>Construct</th><th>Var G1</th><th>Var G2</th><th>Ratio</th><th>CI [lo, hi]</th><th>Inv</th></tr></thead>
-            <tbody>
-              <tr><td class="tb">Trust</td><td>1.0827</td><td>0.9202</td><td class="tv2">1.1766</td><td class="tci">[0.719, 1.373]</td><td class="tg">✓</td></tr>
-              <tr><td class="tb">Satisfaction</td><td>0.9830</td><td>1.0214</td><td class="tv2">0.9624</td><td class="tci">[0.704, 1.396]</td><td class="tg">✓</td></tr>
-              <tr><td class="tb">Loyalty</td><td>1.0284</td><td>0.9809</td><td class="tv2">1.0484</td><td class="tci">[0.748, 1.326]</td><td class="tg">✓</td></tr>
-            </tbody>
-          </table>
-          <div class="footnote">500 permutations · groups: offline (n=150) / online (n=150) · Partial invariance (Step 2) is sufficient for valid path-coefficient comparisons. Full invariance additionally requires Steps 3a and 3b. Reference: Henseler, Ringle &amp; Sarstedt (2016).</div>
+          <div class="no-data">No results yet — run a multi-group analysis to see MICOM invariance testing (Steps 2, 3a, 3b).</div>
         </div>
 
         <!-- Group fits -->
         <div class="subpanel" id="sp-groups">
-          <div class="gfgrid">
-            <div class="gfcard">
-              <div class="gfname">offline</div>
-              <div class="gfn">n = 150</div>
-              <div class="gfrow">
-                <span class="gfc gfcg">SRMR 0.068</span>
-                <span class="gfc gfcg">FL ✓</span>
-                <span class="gfc gfcg">AVE ✓</span>
-              </div>
-              <div class="gfr2">R² Satisfaction = 0.134<br>R² Loyalty = 0.361</div>
-            </div>
-            <div class="gfcard">
-              <div class="gfname">online</div>
-              <div class="gfn">n = 150</div>
-              <div class="gfrow">
-                <span class="gfc gfcg">SRMR 0.072</span>
-                <span class="gfc gfcg">FL ✓</span>
-                <span class="gfc gfca">α 0.735</span>
-              </div>
-              <div class="gfr2">R² Satisfaction = 0.314<br>R² Loyalty = 0.070</div>
-            </div>
-          </div>
+          <div class="no-data">No results yet — run a multi-group analysis to see per-group fit indices.</div>
         </div>
 
         <!-- Path diffs -->
         <div class="subpanel" id="sp-diffs">
-          <div class="ptitle" style="margin-top:0">offline vs online &nbsp;<span style="color:var(--t4);font-weight:400;letter-spacing:0;font-size:10px">(1 000 bootstrap samples)</span></div>
-          <table class="gtable">
-            <thead><tr><th>Path</th><th>β offline</th><th>β online</th><th>Diff</th><th>95% CI</th><th>Sig</th></tr></thead>
-            <tbody>
-              <tr>
-                <td><span class="tb">Satisfaction</span> ~ Trust</td>
-                <td>0.3658</td><td>0.5600</td>
-                <td class="tv2">−0.1942</td>
-                <td class="tci">[−0.377, +0.000]</td>
-                <td><span class="npill">borderline</span></td>
-              </tr>
-              <tr>
-                <td><span class="tb">Loyalty</span> ~ Satisfaction</td>
-                <td>0.6011</td><td>0.2639</td>
-                <td class="tv2" style="color:var(--green-text)">+0.3371</td>
-                <td class="tci">[+0.146, +0.524]</td>
-                <td><span class="spill">✓ sig</span></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="footnote">Significant = 95% percentile bootstrap CI excludes 0 &nbsp;·&nbsp; Diff = β<sub>offline</sub> − β<sub>online</sub></div>
+          <div class="no-data">No results yet — run a multi-group analysis to see path-coefficient comparisons.</div>
         </div>
 
         <!-- Export -->
         <div class="subpanel" id="sp-export">
-          <div class="ptitle" style="margin-top:0">Downloads</div>
-          <div class="dl-list">
-            <div class="dlrow">
-              <div class="dl-info"><div class="dl-lbl">Path differences (.csv)</div><div class="dl-note">β per group, diff, 95% CI, significance flag</div></div>
-              <button class="dl-btn">⬇ Download</button>
-            </div>
-            <div class="dlrow">
-              <div class="dl-info"><div class="dl-lbl">Group fit indices (.csv)</div><div class="dl-note">SRMR, R², AVE, CR, α per group</div></div>
-              <button class="dl-btn">⬇ Download</button>
-            </div>
-            <div class="dlrow">
-              <div class="dl-info"><div class="dl-lbl">MICOM results (.csv)</div><div class="dl-note">Steps 2, 3a, 3b — correlations, mean diffs, variance ratios with CIs</div></div>
-              <button class="dl-btn">⬇ Download</button>
-            </div>
-            <div class="dlrow">
-              <div class="dl-info"><div class="dl-lbl">Full MGA results (.json)</div><div class="dl-note">Complete machine-readable output</div></div>
-              <button class="dl-btn">⬇ Download</button>
-            </div>
-          </div>
+          <div class="no-data">No results yet — run a multi-group analysis to enable downloads.</div>
         </div>
 
       </div>
@@ -2277,42 +2191,11 @@ button { cursor: pointer; }
       <button class="rni" id="docx-export-btn" style="display:none;text-align:left;background:transparent;border:.5px solid transparent;color:var(--t2);width:100%;cursor:pointer;font-family:var(--font);font-size:12px" onclick="exportDocx()">⬇ &nbsp;Export APA (.docx)</button>
     </nav>
     <div class="rep-content" id="report-view-inner"><div id="report-card-wrap" style="position:relative"><div id="rpt-spinner" style="display:none;position:absolute;inset:0;background:var(--panel-bg-70);backdrop-filter:blur(6px);align-items:center;justify-content:center;z-index:10;flex-direction:column;gap:14px;font-family:var(--mono);font-size:11px;color:var(--t1)"><div style="width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite"></div><span id="rpt-spinner-msg">Rendering…</span></div><div id="report-card">
-      <div class="kpi-row">
-        <div class="kpi"><div class="kpiv">0.947</div><div class="kpil">CFI</div></div>
-        <div class="kpi"><div class="kpiv">0.051</div><div class="kpil">RMSEA</div></div>
-        <div class="kpi"><div class="kpiv">0.068</div><div class="kpil">SRMR</div></div>
-        <div class="kpi"><div class="kpiv">300</div><div class="kpil">N obs</div></div>
-      </div>
-      <div class="fit-row" style="margin-bottom:18px">
-        <span class="fchip fg">CFI ✓</span>
-        <span class="fchip fg">RMSEA ✓</span>
-        <span class="fchip fg">AVE ✓</span>
-        <span class="fchip fg">Fornell-Larcker ✓</span>
-        <span class="fchip fg">HTMT ✓</span>
-        <span class="fchip fo">Trust α = 0.735 borderline</span>
-      </div>
-      <div class="exp-title">APA paragraph preview</div>
-      <div class="apa-card">
-        <div class="apa-lbl">Auto-generated · ready to paste into manuscript</div>
-        <div class="apa-text">
-          The measurement model demonstrated adequate fit (<em>CFI</em> = 0.947, <em>RMSEA</em> = 0.051 [0.034, 0.068], <em>SRMR</em> = 0.068). All AVE values exceeded the 0.50 threshold (Trust = 0.757, Satisfaction = 0.743, Loyalty = 0.759), supporting convergent validity. Discriminant validity was established via the Fornell-Larcker criterion and HTMT ratios, all below the 0.90 threshold. Structural path analysis revealed a significant positive effect of Trust on Satisfaction (<em>β</em> = 0.560, <em>p</em> &lt; .01) and a significant effect of Satisfaction on Loyalty (<em>β</em> = 0.264, <em>p</em> &lt; .01).
-        </div>
-      </div>
-      <div class="exp-title">Export</div>
-      <div class="dl-list">
-        <div class="dlrow">
-          <div class="dl-info"><div class="dl-lbl">APA Table 1 — Measurement model</div><div class="dl-note">Loadings, AVE, CR, α — journal-ready</div></div>
-          <button class="dl-btn">⬇ .docx</button>
-        </div>
-        <div class="dlrow">
-          <div class="dl-info"><div class="dl-lbl">APA Table 2 — Structural paths</div><div class="dl-note">β, t, p, 95% CI, f²</div></div>
-          <button class="dl-btn">⬇ .docx</button>
-        </div>
-        <div class="dlrow">
-          <div class="dl-info"><div class="dl-lbl">Full report</div><div class="dl-note">All tables + APA narrative paragraphs + path diagram</div></div>
-          <button class="dl-btn" style="background:var(--green-soft);border-color:rgba(52,211,153,.28);color:var(--green-text)">⬇ Full .docx</button>
-        </div>
-      </div>
+      <!-- Populated by buildReport() when the Report tab is opened; see
+           showView('report') -> buildReport(). This static fallback (rather
+           than a hardcoded example dataset) is what a user would see if that
+           JS has not run yet, so no fabricated numbers are ever on screen. -->
+      <div class="rpt-no-data" style="padding:40px 0;text-align:center;font-size:12px">Run an analysis first, then open this tab to generate the consolidated report.</div>
     </div><!-- /report-card --></div><!-- /report-card-wrap --></div><!-- /rep-content -->
   </div><!-- /v-report -->
 <!-- Hidden report meta inputs (wired to buildReport) -->
@@ -4079,23 +3962,49 @@ function renderResults(tab){
   if(tab==='fit'){
     const f=results.fit;
     const chip=(label,val,cls)=>`<span class="fit-chip ${cls}">${label} = ${val!=null?Number(val).toFixed(3):'—'}</span>`;
-    let html='<div class="fit-row">';
+    let html='';
+    if(f.fit_verdict){
+      const good=f.fit_verdict.indexOf('Good fit')===0, bad=f.fit_verdict.indexOf('Fit not adequate')===0;
+      const vBg=good?'var(--green-soft)':bad?'var(--red-soft)':'var(--amber-soft)';
+      const vBd=good?'rgba(52,211,153,.28)':bad?'rgba(248,113,113,.28)':'rgba(251,191,36,.28)';
+      const vTx=good?'var(--green-text)':bad?'var(--red-text)':'var(--amber)';
+      html+=`<div style="font-size:11px;font-family:var(--mono);line-height:1.6;padding:8px 12px;border-radius:var(--r-sm);background:${vBg};border:.5px solid ${vBd};color:${vTx};margin-bottom:10px">${esc(f.fit_verdict)}</div>`;
+    }
+    html+='<div class="fit-row">';
     const cfi=f.cfi,tli=f.tli,rmsea=f.rmsea,srmr=f.srmr;
     html+=chip('CFI',cfi,cfi!=null?(cfi>=0.95?'fc-good':cfi>=0.90?'fc-ok':'fc-bad'):'fc-neu');
     html+=chip('TLI',tli,tli!=null?(tli>=0.95?'fc-good':tli>=0.90?'fc-ok':'fc-bad'):'fc-neu');
-    html+=chip('RMSEA',rmsea,rmsea!=null?(rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'):'fc-neu');
+    if(rmsea!=null){
+      const rCi=(f.rmsea_ci_lower!=null&&f.rmsea_ci_upper!=null)?` [${Number(f.rmsea_ci_lower).toFixed(3)}, ${Number(f.rmsea_ci_upper).toFixed(3)}]`:'';
+      html+=`<span class="fit-chip ${rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'}">RMSEA = ${Number(rmsea).toFixed(3)}${rCi}</span>`;
+    } else { html+=chip('RMSEA',null,'fc-neu'); }
     html+=chip('SRMR',srmr,srmr!=null?(srmr<=0.05?'fc-good':srmr<=0.08?'fc-ok':'fc-bad'):'fc-neu');
     if(f.chi_square!=null)html+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
     if(f.df!=null)html+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
     if(f.p_value!=null){
-      const pCls=f.p_value<0.001?'fc-neu':f.p_value<0.05?'fc-ok':'fc-bad';
+      // Model chi-square significance is highly sample-size sensitive and is
+      // deliberately excluded from the pass/fail fit_verdict above (see
+      // engine._build_fit_verdict_text) — shown as neutral info, not graded.
       const pStr=f.p_value<0.001?'< .001':Number(f.p_value).toFixed(3);
-      html+=`<span class="fit-chip ${pCls}">p = ${pStr}</span>`;
+      html+=`<span class="fit-chip fc-neu">p = ${pStr}</span>`;
     }
     if(f.aic!=null)html+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
     if(f.bic!=null)html+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
+    if(f.gfi!=null)html+=`<span class="fit-chip fc-neu">GFI = ${Number(f.gfi).toFixed(3)}</span>`;
+    if(f.agfi!=null)html+=`<span class="fit-chip fc-neu">AGFI = ${Number(f.agfi).toFixed(3)}</span>`;
+    if(f.nfi!=null)html+=`<span class="fit-chip fc-neu">NFI = ${Number(f.nfi).toFixed(3)}</span>`;
+    if(f.ecvi!=null)html+=`<span class="fit-chip fc-neu">ECVI = ${Number(f.ecvi).toFixed(3)}</span>`;
+    if(f.pclose!=null)html+=`<span class="fit-chip fc-neu">p(close) = ${f.pclose<0.001?'< .001':Number(f.pclose).toFixed(3)}</span>`;
+    if(f.hoelter_05!=null)html+=`<span class="fit-chip fc-neu">Hoelter .05N = ${f.hoelter_05}</span>`;
+    if(f.hoelter_01!=null)html+=`<span class="fit-chip fc-neu">Hoelter .01N = ${f.hoelter_01}</span>`;
     if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
-    html+=`</div><div style="font-size:10px;color:var(--t3);font-family:var(--mono)">Algorithm: ${results.algorithm||'—'} · N = ${results.n_obs??'—'}${results.n_params!=null?' · k = '+results.n_params:''}</div>`;
+    html+='</div>';
+    html+=`<div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-top:8px">Algorithm: ${results.algorithm||'—'} · N = ${results.n_obs??'—'}${results.n_params!=null?' · k = '+results.n_params:''}${results.missing_data_method?' · Missing data: '+esc(results.missing_data_method):''}</div>`;
+    if(results.normality_check && results.normality_check.verdict){
+      const nc=results.normality_check;
+      const flagged=nc.verdict.indexOf('non-normal')===0;
+      html+=`<div style="font-size:10px;font-family:var(--mono);line-height:1.6;color:${flagged?'var(--amber)':'var(--t2)'};background:${flagged?'var(--amber-soft)':'var(--glass)'};border:.5px solid ${flagged?'rgba(251,191,36,.28)':'var(--line)'};border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">Mardia's multivariate normality test: ${esc(nc.verdict)}${nc.skew_p!=null?` (skewness p = ${nc.skew_p<0.001?'< .001':Number(nc.skew_p).toFixed(3)}, kurtosis p = ${nc.kurt_p<0.001?'< .001':Number(nc.kurt_p).toFixed(3)})`:''}</div>`;
+    }
     if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
     body.innerHTML=html;
   }
@@ -4404,7 +4313,14 @@ function renderResults(tab){
         <td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td>
       </tr>`;
     }).join('');
-    body.innerHTML=`${plsNote}<div style="overflow-x:auto"><table class="param-table"><thead><tr>
+    // NOTE: everything below is accumulated into one `html` string and
+    // written to body.innerHTML exactly once at the end of this block.
+    // (Previously, the structural-path bar chart was written via a second,
+    // separate body.innerHTML= assignment, which *replaced* rather than
+    // supplemented the table above -- so the parameter table was silently
+    // discarded for any model that had at least one structural path. Fixed
+    // by building a single combined string instead.)
+    let html=`${plsNote}<div style="overflow-x:auto"><table class="param-table"><thead><tr>
       <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th title="Standardised estimate (std.all): loadings use λ√φ/√(λ²φ+θ); covariances shown as correlations">Std. Est.</th><th>SE</th><th>z</th><th>${pLabel}</th><th>CI lo</th><th>CI hi</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
     <div style="margin-top:10px;font-size:11px;color:var(--t3);font-family:var(--mono);line-height:2;border-top:1px solid var(--line);padding-top:8px">
@@ -4413,27 +4329,48 @@ function renderResults(tab){
       <span style="color:var(--t2)">■</span> <strong>Use Estimate (white) only when Std. Est. is —</strong> — this applies to structural paths (~), which require factor scores for full standardisation.<br>
       <span style="font-style:italic">■ Italic rows</span> are covariance / variance parameters (~~ operator): off-diagonal blue values are <strong>correlations</strong>; diagonal blue values are variances (scale-fixing — do not report).
     </div>`;
+
+    // A17: plain-English interpretation, one sentence per structural ("~")
+    // path, in the same order as results.parameters. See ModelResult.annotations.
+    if(results.annotations && results.annotations.length){
+      const structRows = results.parameters.filter(p=>p.op==='~');
+      const annoItems = results.annotations.map((a,i)=>{
+        const p = structRows[i];
+        const head = p ? `${esc(p.rhs)} → ${esc(p.lhs)}` : `Path ${i+1}`;
+        return `<div style="margin-bottom:6px"><strong style="color:var(--t2)">${head}:</strong> ${esc(a)}</div>`;
+      }).join('');
+      html += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+        <div class="mv-title" style="margin-bottom:8px">Plain-English interpretation</div>
+        <div style="font-size:11px;color:var(--t2);font-family:var(--font);line-height:1.6">${annoItems}</div>
+      </div>`;
+    }
+
     const isPLS2 = (results.algorithm||'').includes('PLS');
     const hasBS2 = results.bootstrap || (results.outer_weights && results.outer_weights.length);
     const lvSet = new Set(results.latent_variables||[]);
     const str = results.parameters.filter(p =>
       p.op==='~' && lvSet.has(p.lhs) && lvSet.has(p.rhs)
     );
-    if(!str.length){body.innerHTML='<div class="no-data">No structural paths between latent variables.</div>';return;}
-    const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
-    const bars=str.map(p=>{
-      const pct=mx>0?(Math.abs(p.estimate)/mx*100).toFixed(0):0;
-      const sig = p.significant;
-      return `<div class="bar-row">
-        <div class="bar-label">${esc(p.rhs)} → ${esc(p.lhs)}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${sig?'var(--accent)':'var(--t3)'}"></div></div>
-        <div class="bar-val" style="color:${sig?'var(--t0)':'var(--t2)'}">${Number(p.estimate).toFixed(3)}${sig?'':' ns'}</div>
+    if(str.length){
+      const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
+      const bars=str.map(p=>{
+        const pct=mx>0?(Math.abs(p.estimate)/mx*100).toFixed(0):0;
+        const sig = p.significant;
+        return `<div class="bar-row">
+          <div class="bar-label">${esc(p.rhs)} → ${esc(p.lhs)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${sig?'var(--accent)':'var(--t3)'}"></div></div>
+          <div class="bar-val" style="color:${sig?'var(--t0)':'var(--t2)'}">${Number(p.estimate).toFixed(3)}${sig?'':' ns'}</div>
+        </div>`;
+      }).join('');
+      const note = isPLS2 && !hasBS2
+        ? `<div class="warn-box" style="margin-top:8px">PLS significance requires bootstrapping — bars shown in grey until bootstrap is run.</div>`
+        : `<div style="margin-top:8px;font-size:10px;color:var(--t3);font-family:var(--mono)">ns = not significant · bar width = relative magnitude${isPLS2||hasBS2?' · significance from bootstrap CIs':' · significance from p &lt; 0.05'}</div>`;
+      html += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+        <div class="mv-title" style="margin-bottom:8px">Structural path magnitudes</div>
+        <div class="bar-chart">${bars}</div>${note}
       </div>`;
-    }).join('');
-    const note = isPLS2 && !hasBS2
-      ? `<div class="warn-box" style="margin-top:8px">PLS significance requires bootstrapping — bars shown in grey until bootstrap is run.</div>`
-      : `<div style="margin-top:8px;font-size:10px;color:var(--t3);font-family:var(--mono)">ns = not significant · bar width = relative magnitude${isPLS2||hasBS2?' · significance from bootstrap CIs':' · significance from p &lt; 0.05'}</div>`;
-    body.innerHTML=`<div class="bar-chart">${bars}</div>${note}`;
+    }
+    body.innerHTML = html;
   }
 
   if(tab==='bootstrap'&&results.bootstrap){
@@ -4796,23 +4733,49 @@ function renderCoreResults(tab) {
   if(tab==='fit'){
     const f=results.fit;
     const chip=(label,val,cls)=>`<span class="fit-chip ${cls}">${label} = ${val!=null?Number(val).toFixed(3):'—'}</span>`;
-    let html='<div class="fit-row">';
+    let html='';
+    if(f.fit_verdict){
+      const good=f.fit_verdict.indexOf('Good fit')===0, bad=f.fit_verdict.indexOf('Fit not adequate')===0;
+      const vBg=good?'var(--green-soft)':bad?'var(--red-soft)':'var(--amber-soft)';
+      const vBd=good?'rgba(52,211,153,.28)':bad?'rgba(248,113,113,.28)':'rgba(251,191,36,.28)';
+      const vTx=good?'var(--green-text)':bad?'var(--red-text)':'var(--amber)';
+      html+=`<div style="font-size:11px;font-family:var(--mono);line-height:1.6;padding:8px 12px;border-radius:var(--r-sm);background:${vBg};border:.5px solid ${vBd};color:${vTx};margin-bottom:10px">${esc(f.fit_verdict)}</div>`;
+    }
+    html+='<div class="fit-row">';
     const cfi=f.cfi,tli=f.tli,rmsea=f.rmsea,srmr=f.srmr;
     html+=chip('CFI',cfi,cfi!=null?(cfi>=0.95?'fc-good':cfi>=0.90?'fc-ok':'fc-bad'):'fc-neu');
     html+=chip('TLI',tli,tli!=null?(tli>=0.95?'fc-good':tli>=0.90?'fc-ok':'fc-bad'):'fc-neu');
-    html+=chip('RMSEA',rmsea,rmsea!=null?(rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'):'fc-neu');
+    if(rmsea!=null){
+      const rCi=(f.rmsea_ci_lower!=null&&f.rmsea_ci_upper!=null)?` [${Number(f.rmsea_ci_lower).toFixed(3)}, ${Number(f.rmsea_ci_upper).toFixed(3)}]`:'';
+      html+=`<span class="fit-chip ${rmsea<=0.06?'fc-good':rmsea<=0.08?'fc-ok':'fc-bad'}">RMSEA = ${Number(rmsea).toFixed(3)}${rCi}</span>`;
+    } else { html+=chip('RMSEA',null,'fc-neu'); }
     html+=chip('SRMR',srmr,srmr!=null?(srmr<=0.05?'fc-good':srmr<=0.08?'fc-ok':'fc-bad'):'fc-neu');
     if(f.chi_square!=null)html+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
     if(f.df!=null)html+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
     if(f.p_value!=null){
-      const pCls=f.p_value<0.001?'fc-neu':f.p_value<0.05?'fc-ok':'fc-bad';
+      // Model chi-square significance is highly sample-size sensitive and is
+      // deliberately excluded from the pass/fail fit_verdict above (see
+      // engine._build_fit_verdict_text) — shown as neutral info, not graded.
       const pStr=f.p_value<0.001?'< .001':Number(f.p_value).toFixed(3);
-      html+=`<span class="fit-chip ${pCls}">p = ${pStr}</span>`;
+      html+=`<span class="fit-chip fc-neu">p = ${pStr}</span>`;
     }
     if(f.aic!=null)html+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
     if(f.bic!=null)html+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
+    if(f.gfi!=null)html+=`<span class="fit-chip fc-neu">GFI = ${Number(f.gfi).toFixed(3)}</span>`;
+    if(f.agfi!=null)html+=`<span class="fit-chip fc-neu">AGFI = ${Number(f.agfi).toFixed(3)}</span>`;
+    if(f.nfi!=null)html+=`<span class="fit-chip fc-neu">NFI = ${Number(f.nfi).toFixed(3)}</span>`;
+    if(f.ecvi!=null)html+=`<span class="fit-chip fc-neu">ECVI = ${Number(f.ecvi).toFixed(3)}</span>`;
+    if(f.pclose!=null)html+=`<span class="fit-chip fc-neu">p(close) = ${f.pclose<0.001?'< .001':Number(f.pclose).toFixed(3)}</span>`;
+    if(f.hoelter_05!=null)html+=`<span class="fit-chip fc-neu">Hoelter .05N = ${f.hoelter_05}</span>`;
+    if(f.hoelter_01!=null)html+=`<span class="fit-chip fc-neu">Hoelter .01N = ${f.hoelter_01}</span>`;
     if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>html+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
-    html+=`</div><div style="font-size:10px;color:var(--t3);font-family:var(--mono)">Algorithm: ${results.algorithm||'—'} · N = ${results.n_obs??'—'}${results.n_params!=null?' · k = '+results.n_params:''}</div>`;
+    html+='</div>';
+    html+=`<div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-top:8px">Algorithm: ${results.algorithm||'—'} · N = ${results.n_obs??'—'}${results.n_params!=null?' · k = '+results.n_params:''}${results.missing_data_method?' · Missing data: '+esc(results.missing_data_method):''}</div>`;
+    if(results.normality_check && results.normality_check.verdict){
+      const nc=results.normality_check;
+      const flagged=nc.verdict.indexOf('non-normal')===0;
+      html+=`<div style="font-size:10px;font-family:var(--mono);line-height:1.6;color:${flagged?'var(--amber)':'var(--t2)'};background:${flagged?'var(--amber-soft)':'var(--glass)'};border:.5px solid ${flagged?'rgba(251,191,36,.28)':'var(--line)'};border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">Mardia's multivariate normality test: ${esc(nc.verdict)}${nc.skew_p!=null?` (skewness p = ${nc.skew_p<0.001?'< .001':Number(nc.skew_p).toFixed(3)}, kurtosis p = ${nc.kurt_p<0.001?'< .001':Number(nc.kurt_p).toFixed(3)})`:''}</div>`;
+    }
     if(results.warnings&&results.warnings.length)html+=`<div class="warn-box">${results.warnings.join('<br>')}</div>`;
     body.innerHTML=html;
   }
@@ -5121,7 +5084,7 @@ function renderCoreResults(tab) {
         <td class="ci">${p.ci_upper!=null?Number(p.ci_upper).toFixed(3):'—'}</td>
       </tr>`;
     }).join('');
-    body.innerHTML=`${plsNote}<div style="overflow-x:auto"><table class="param-table"><thead><tr>
+    let html=`${plsNote}<div style="overflow-x:auto"><table class="param-table"><thead><tr>
       <th>LHS</th><th>Op</th><th>RHS</th><th>Estimate</th><th title="Standardised estimate (std.all): loadings use λ√φ/√(λ²φ+θ); covariances shown as correlations">Std. Est.</th><th>SE</th><th>z</th><th>${pLabel}</th><th>CI lo</th><th>CI hi</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
     <div style="margin-top:10px;font-size:11px;color:var(--t3);font-family:var(--mono);line-height:2;border-top:1px solid var(--line);padding-top:8px">
@@ -5130,6 +5093,48 @@ function renderCoreResults(tab) {
       <span style="color:var(--t2)">■</span> <strong>Use Estimate (white) only when Std. Est. is —</strong> — this applies to structural paths (~), which require factor scores for full standardisation.<br>
       <span style="font-style:italic">■ Italic rows</span> are covariance / variance parameters (~~ operator): off-diagonal blue values are <strong>correlations</strong>; diagonal blue values are variances (scale-fixing — do not report).
     </div>`;
+
+    // A17: plain-English interpretation, one sentence per structural ("~")
+    // path, in the same order as results.parameters. See ModelResult.annotations.
+    if(results.annotations && results.annotations.length){
+      const structRows = results.parameters.filter(p=>p.op==='~');
+      const annoItems = results.annotations.map((a,i)=>{
+        const p = structRows[i];
+        const head = p ? `${esc(p.rhs)} → ${esc(p.lhs)}` : `Path ${i+1}`;
+        return `<div style="margin-bottom:6px"><strong style="color:var(--t2)">${head}:</strong> ${esc(a)}</div>`;
+      }).join('');
+      html += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+        <div class="mv-title" style="margin-bottom:8px">Plain-English interpretation</div>
+        <div style="font-size:11px;color:var(--t2);font-family:var(--font);line-height:1.6">${annoItems}</div>
+      </div>`;
+    }
+
+    const isPLS2 = (results.algorithm||'').includes('PLS');
+    const hasBS2 = results.bootstrap || (results.outer_weights && results.outer_weights.length);
+    const lvSet = new Set(results.latent_variables||[]);
+    const str = results.parameters.filter(p =>
+      p.op==='~' && lvSet.has(p.lhs) && lvSet.has(p.rhs)
+    );
+    if(str.length){
+      const mx=Math.max(...str.map(p=>Math.abs(p.estimate)));
+      const bars=str.map(p=>{
+        const pct=mx>0?(Math.abs(p.estimate)/mx*100).toFixed(0):0;
+        const sig = p.significant;
+        return `<div class="bar-row">
+          <div class="bar-label">${esc(p.rhs)} → ${esc(p.lhs)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${sig?'var(--accent)':'var(--t3)'}"></div></div>
+          <div class="bar-val" style="color:${sig?'var(--t0)':'var(--t2)'}">${Number(p.estimate).toFixed(3)}${sig?'':' ns'}</div>
+        </div>`;
+      }).join('');
+      const note = isPLS2 && !hasBS2
+        ? `<div class="warn-box" style="margin-top:8px">PLS significance requires bootstrapping — bars shown in grey until bootstrap is run.</div>`
+        : `<div style="margin-top:8px;font-size:10px;color:var(--t3);font-family:var(--mono)">ns = not significant · bar width = relative magnitude${isPLS2||hasBS2?' · significance from bootstrap CIs':' · significance from p &lt; 0.05'}</div>`;
+      html += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">
+        <div class="mv-title" style="margin-bottom:8px">Structural path magnitudes</div>
+        <div class="bar-chart">${bars}</div>${note}
+      </div>`;
+    }
+    body.innerHTML = html;
   }
 
   if(tab==='downloads'){
@@ -6321,7 +6326,7 @@ function buildReport(){
 
   function envKV(k,v){ return `<div class="rpt-env-kv"><div class="rpt-env-k">${k}</div><div class="rpt-env-v">${v}</div></div>`; }
 
-  // ── FIT chips ────────────────────────────────────────────────────────────
+  // ── FIT chips ───────────────────────────────────────────────────────────
   function chipClass(metric,val){
     if(val==null)return'fc-neu';
     if(metric==='cfi'||metric==='tli')return val>=0.95?'fc-good':val>=0.90?'fc-ok':'fc-bad';
@@ -6332,15 +6337,40 @@ function buildReport(){
   function chip(label,val,metric){
     return `<span class="fit-chip ${chipClass(metric,val)}">${label} = ${val!=null?Number(val).toFixed(3):'—'}</span>`;
   }
-  let fitHtml = '<div class="fit-row" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">';
-  fitHtml += chip('CFI',f.cfi,'cfi')+chip('TLI',f.tli,'tli')+chip('RMSEA',f.rmsea,'rmsea')+chip('SRMR',f.srmr,'srmr');
+  let fitVerdictHtml = '';
+  if(f.fit_verdict){
+    const good=f.fit_verdict.indexOf('Good fit')===0, bad=f.fit_verdict.indexOf('Fit not adequate')===0;
+    const vBg=good?'var(--green-soft)':bad?'var(--red-soft)':'var(--amber-soft)';
+    const vBd=good?'rgba(52,211,153,.28)':bad?'rgba(248,113,113,.28)':'rgba(251,191,36,.28)';
+    const vTx=good?'var(--green-text)':bad?'var(--red-text)':'var(--amber)';
+    fitVerdictHtml = `<div style="font-size:11px;font-family:var(--mono);line-height:1.6;padding:8px 12px;border-radius:var(--r-sm);background:${vBg};border:.5px solid ${vBd};color:${vTx};margin-bottom:8px">${esc(f.fit_verdict)}</div>`;
+  }
+  let fitHtml = fitVerdictHtml + '<div class="fit-row" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">';
+  fitHtml += chip('CFI',f.cfi,'cfi')+chip('TLI',f.tli,'tli');
+  if(f.rmsea!=null){
+    const rCi=(f.rmsea_ci_lower!=null&&f.rmsea_ci_upper!=null)?` [${Number(f.rmsea_ci_lower).toFixed(3)}, ${Number(f.rmsea_ci_upper).toFixed(3)}]`:'';
+    fitHtml += `<span class="fit-chip ${chipClass('rmsea',f.rmsea)}">RMSEA = ${Number(f.rmsea).toFixed(3)}${rCi}</span>`;
+  } else { fitHtml += chip('RMSEA',null,'rmsea'); }
+  fitHtml += chip('SRMR',f.srmr,'srmr');
   if(f.chi_square!=null)fitHtml+=`<span class="fit-chip fc-neu">χ² = ${Number(f.chi_square).toFixed(2)}</span>`;
   if(f.df!=null)fitHtml+=`<span class="fit-chip fc-neu">df = ${f.df}</span>`;
   if(f.p_value!=null){const pStr=f.p_value<0.001?'< .001':Number(f.p_value).toFixed(3);fitHtml+=`<span class="fit-chip fc-neu">p = ${pStr}</span>`;}
   if(f.aic!=null)fitHtml+=`<span class="fit-chip fc-neu">AIC = ${Number(f.aic).toFixed(1)}</span>`;
   if(f.bic!=null)fitHtml+=`<span class="fit-chip fc-neu">BIC = ${Number(f.bic).toFixed(1)}</span>`;
+  if(f.gfi!=null)fitHtml+=`<span class="fit-chip fc-neu">GFI = ${Number(f.gfi).toFixed(3)}</span>`;
+  if(f.agfi!=null)fitHtml+=`<span class="fit-chip fc-neu">AGFI = ${Number(f.agfi).toFixed(3)}</span>`;
+  if(f.nfi!=null)fitHtml+=`<span class="fit-chip fc-neu">NFI = ${Number(f.nfi).toFixed(3)}</span>`;
+  if(f.ecvi!=null)fitHtml+=`<span class="fit-chip fc-neu">ECVI = ${Number(f.ecvi).toFixed(3)}</span>`;
+  if(f.pclose!=null)fitHtml+=`<span class="fit-chip fc-neu">p(close) = ${f.pclose<0.001?'< .001':Number(f.pclose).toFixed(3)}</span>`;
+  if(f.hoelter_05!=null)fitHtml+=`<span class="fit-chip fc-neu">Hoelter .05N = ${f.hoelter_05}</span>`;
+  if(f.hoelter_01!=null)fitHtml+=`<span class="fit-chip fc-neu">Hoelter .01N = ${f.hoelter_01}</span>`;
   if(f.r_squared)Object.entries(f.r_squared).forEach(([k,v])=>fitHtml+=`<span class="fit-chip fc-good">R²(${k}) = ${Number(v).toFixed(3)}</span>`);
   fitHtml += '</div>';
+  if(results.normality_check && results.normality_check.verdict){
+    const nc=results.normality_check;
+    const flagged=nc.verdict.indexOf('non-normal')===0;
+    fitHtml += `<div style="font-size:10px;font-family:var(--mono);line-height:1.6;color:${flagged?'var(--amber)':'var(--t2)'};background:${flagged?'var(--amber-soft)':'var(--glass)'};border:.5px solid ${flagged?'rgba(251,191,36,.28)':'var(--line)'};border-radius:var(--r-sm);padding:6px 10px;margin-bottom:8px">Mardia's multivariate normality test: ${esc(nc.verdict)}${nc.skew_p!=null?` (skewness p = ${nc.skew_p<0.001?'< .001':Number(nc.skew_p).toFixed(3)}, kurtosis p = ${nc.kurt_p<0.001?'< .001':Number(nc.kurt_p).toFixed(3)})`:''}</div>`;
+  }
 
   // ── validity ─────────────────────────────────────────────────────────────
   const ave=f.ave||results.ave||{}, cr=f.composite_reliability||results.composite_reliability||{}, alpha=f.cronbach_alpha||results.cronbach_alpha||{};

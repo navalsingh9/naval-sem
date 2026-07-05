@@ -51,6 +51,22 @@ class FitIndices(BaseModel):
     rmsea_good: Optional[bool] = None        # RMSEA <= 0.06
     srmr_good: Optional[bool] = None         # SRMR <= 0.08
 
+    # v1.1 — Expanded fit indices (A6). TLI already existed above; the rest
+    # are computed post-fit from chi2 / df / baseline chi2 / n, the same
+    # inputs CFI and RMSEA already use (see engine._compute_expanded_fit_indices).
+    gfi: Optional[float] = None          # Goodness of Fit Index (Jöreskog & Sörbom)
+    agfi: Optional[float] = None         # Adjusted GFI (penalized for df)
+    nfi: Optional[float] = None          # Normed Fit Index (Bentler-Bonett, 1980)
+    hoelter_05: Optional[int] = None     # Hoelter's critical N, alpha = .05
+    hoelter_01: Optional[int] = None     # Hoelter's critical N, alpha = .01
+    ecvi: Optional[float] = None         # Expected Cross-Validation Index (Browne & Cudeck, 1989)
+    pclose: Optional[float] = None       # p-value for H0: RMSEA <= .05 (test of close fit)
+
+    # v1.1 — Plain-English fit verdict (A7). Built from the same thresholds
+    # as the *_acceptable / *_good flags above — see engine._fit_verdict,
+    # which is the single source of truth for both the booleans and this text.
+    fit_verdict: Optional[str] = None
+
 
 class BootstrapParameter(BaseModel):
     lhs: str
@@ -78,6 +94,18 @@ class BootstrapResult(BaseModel):
     n_samples: int
     parameters: List[BootstrapParameter]
     converged_pct: float
+    # v1.1 (A17) — NOTE: the feature ticket asked for annotations "per
+    # indirect effect" on this class, but BootstrapResult.parameters holds
+    # bootstrapped *direct*-path estimates (BootstrapParameter: lhs/op/rhs),
+    # not indirect/mediated effects — those live in IndirectResult.effects
+    # (see IndirectResult.annotations below, which is almost certainly the
+    # field that request meant). Adding it here too, in case per-parameter
+    # bootstrap sentences are also wanted for this list — each would use
+    # engine_utils.annotate_indirect_effect(estimate, ci_lower_95, ci_upper_95),
+    # whose CI-excludes-zero logic applies equally to a bootstrapped direct
+    # path. Confirm which is intended before wiring engine.py; harmless
+    # (empty list) either way until then.
+    annotations: List[str] = []
 
 
 class HTMTEntry(BaseModel):
@@ -85,6 +113,9 @@ class HTMTEntry(BaseModel):
     construct_b: str
     htmt: float
     acceptable: bool    # HTMT < 0.90
+    ci_lower_95: Optional[float] = None
+    ci_upper_95: Optional[float] = None
+    ci_significant: Optional[bool] = None   # True when 95% CI upper bound < 0.90
 
 
 class HTMTResult(BaseModel):
@@ -142,6 +173,12 @@ class IndirectEffect(BaseModel):
 class IndirectResult(BaseModel):
     effects: List[IndirectEffect]
     total_effects: Dict[str, Dict[str, float]]  # {from_var: {to_var: total}}
+    # v1.1 — plain-English indirect-effect annotations (A17). One sentence
+    # per entry in `effects`, same order, via engine_utils.annotate_
+    # indirect_effect(indirect_effect, ci_lower_95, ci_upper_95). See the
+    # note on BootstrapResult.annotations above — this is likely the field
+    # the ticket's "BootstrapResult (per indirect effect)" line meant.
+    annotations: List[str] = []
 
 
 # ── v0.7 summary schemas ──────────────────────────────────────────────────────────────────
@@ -282,7 +319,61 @@ class ModelResult(BaseModel):
     summary: Optional[ModelSummary] = None
     # v0.6 — higher-order constructs
     hoc_type: Optional["HOCType"] = None
+    # v1.1 — missing data & normality (A1 + B1)
+    missing_data_method: Optional[str] = None  # "listwise" | "FIML" | "mean"
+    normality_check: Optional[Dict[str, Any]] = None  # Mardia (1970) test result
+    # v1.1 — plain-English path-coefficient annotations (A17). One sentence
+    # per regression-weight parameter (op == "~") in `parameters`, in the
+    # same relative order — annotations[i] describes the i-th "~" row, not
+    # necessarily the i-th row of `parameters` as a whole (which also holds
+    # "=~" and "~~" rows). Populated via
+    # engine_utils.annotate_path_coefficient(estimate, std_error, p_value).
+    annotations: List[str] = []
 # ── v0.5 schemas ──────────────────────────────────────────────────────────────
+
+# ── v1.1 schemas — Imputation (A3) ────────────────────────────────────────────
+
+class ImputationVariableStats(BaseModel):
+    """Per-variable diagnostics returned by /impute."""
+    pct_missing: float        # percentage of values that were missing before imputation
+    n_missing: int            # absolute count of imputed cells
+    method: str               # method actually applied ("regression" | "stochastic" | "bayesian")
+
+
+class ImputationResult(BaseModel):
+    """
+    Diagnostics returned alongside imputed dataset(s) by POST /impute.
+
+    ``between_imputation_variance`` is populated only for multiple-imputation
+    runs (``m > 1``) and holds Rubin's (1987) between-imputation variance
+    component  B = (1/(m−1)) Σ_j (q̄_j − q̄)²  for each imputed column,
+    where q̄_j is the column mean of imputed values in draw *j*.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    method: str                                          # "regression" | "stochastic" | "bayesian"
+    n_imputed: int                                       # total number of cells imputed across all target_cols
+    m: int = 1                                           # number of imputed datasets
+    per_variable: Dict[str, ImputationVariableStats]     # one entry per target_col
+    between_imputation_variance: Optional[Dict[str, float]] = None  # Rubin's B per column
+
+
+class ImputeResponse(BaseModel):
+    """
+    Full response from POST /impute.
+
+    ``imputed_datasets`` holds *m* datasets as lists of records (same format as
+    ``df.to_dict(orient='records')``).  For ``m = 1`` the list has exactly one
+    element.  Consumers should apply Rubin's rules across all *m* datasets
+    before analysing results.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    result: ImputationResult
+    imputed_datasets: List[List[Dict[str, Any]]]        # m datasets, each as list-of-records
+
+
+
 
 class Q2Entry(BaseModel):
     lv: str                      # endogenous LV
@@ -297,11 +388,47 @@ class PLSPredictEntry(BaseModel):
     lv: str                      # endogenous LV
     indicator: str
     rmse_model: float            # RMSE of PLS-SEM predictions
-    rmse_lm: float               # RMSE of LM (naive) benchmark
+    rmse_lm: float                # RMSE of the LM (linear-regression) benchmark
     mae_model: float
     mae_lm: float
     q2_predict: float            # 1 - (RMSE_model² / RMSE_lm²)
     better_than_lm: bool         # model outperforms linear baseline
+
+    # v1.1 (S4) — naive benchmark: every held-out value in a fold is
+    # predicted using that fold's training-set mean for the indicator
+    # (no predictors, no model at all). This is distinct from rmse_lm/
+    # mae_lm above despite the older comment that used to call the LM
+    # benchmark "naive" — rmse_lm is a real OLS regression; this is not.
+    # Optional only for backward-compatible schema evolution (same
+    # pattern as MGAPathDiff.p_value_henseler, v1.1 S1); always populated
+    # once PLSpredict runs.
+    rmse_naive: Optional[float] = None
+    mae_naive: Optional[float] = None
+    better_than_naive: Optional[bool] = None   # model outperforms naive baseline
+
+    # v1.1 (S5) — per-indicator Shmueli et al. (2019) decision-rule
+    # verdict (RMSE-based, matching better_than_lm above), extended with
+    # the naive floor check (S4). See PLSPredictBlockVerdict.overall_verdict
+    # for the block-level aggregate across this indicator's whole
+    # construct, and _predict_verdict (engine.py) for the exact rule —
+    # note the naive-benchmark component is an extension of Shmueli et
+    # al. (2019), not part of the original paper's rule.
+    verdict: Optional[str] = None
+
+
+class PLSPredictBlockVerdict(BaseModel):
+    """
+    v1.1 (S5) — Block-level PLSpredict verdict for one endogenous LV's
+    indicator block. Aggregates that block's PLSPredictEntry rows via the
+    Shmueli et al. (2019) majority-rule decision rule, extended with the
+    S4 naive-benchmark floor check (see _predict_verdict in engine.py).
+    """
+    lv: str
+    n_indicators: int
+    n_beats_lm: int               # indicators where PLS RMSE < LM RMSE
+    n_beats_naive: int            # indicators where PLS RMSE < naive RMSE
+    overall_verdict: str          # "high predictive power" | "medium" | "low" | "lacks predictive relevance"
+    entries: List[PLSPredictEntry] = []   # this block's rows from `plspredict`
 
 
 class CVPATResult(BaseModel):
@@ -325,6 +452,9 @@ class PredictResult(BaseModel):
     q2: List[Q2Entry]
     plspredict: Optional[List[PLSPredictEntry]] = None
     cvpat: Optional[List[CVPATResult]] = None
+    # v1.1 (S5) — one block-level verdict per endogenous LV present in
+    # `plspredict`, aggregated from that LV's PLSPredictEntry rows.
+    overall_verdict: Optional[List[PLSPredictBlockVerdict]] = None
 
 
 
@@ -406,7 +536,11 @@ class MGAPathDiff(BaseModel):
     """
     Bootstrap path-coefficient difference for one structural path, one group pair.
 
-    Significant when the 95 % percentile CI excludes 0.
+    ``significant`` reflects whichever method was requested as the primary
+    ``mga_method`` on the parent :class:`MGAResult` (default ``"bootstrap"``,
+    the percentile-CI test — significant when the 95% CI excludes 0). All
+    three p-values below are always computed regardless of the primary
+    method, so the analyst can compare them side by side (v1.1, S1).
     """
     lhs: str
     rhs: str
@@ -417,7 +551,21 @@ class MGAPathDiff(BaseModel):
     diff: float                  # beta_a − beta_b  (point estimate on full data)
     ci_lower_95: float           # 2.5th percentile of bootstrap distribution
     ci_upper_95: float           # 97.5th percentile
-    significant: bool            # CI excludes 0
+    significant: bool            # per mga_method (see MGAResult.mga_method)
+
+    # v0.9 — bootstrap-CI test's own two-tailed empirical p-value
+    p_value_bootstrap: Optional[float] = None
+
+    # v1.1 (S1) — Henseler et al. (2009) non-parametric MGA: two-tailed
+    # p-value derived from the proportion of bootstrap draws of group A
+    # that exceed every draw of group B (and vice versa).
+    p_value_henseler: Optional[float] = None
+
+    # Parametric PLS-MGA test (Sarstedt, Henseler & Ringle 2011), corrected
+    # for unequal group variances/sample sizes via Welch-Satterthwaite:
+    # t = (b_A - b_B) / sqrt(SE_A^2 + SE_B^2), df via Welch-Satterthwaite.
+    p_value_parametric: Optional[float] = None
+    df_welch: Optional[float] = None   # Welch-Satterthwaite degrees of freedom
 
 
 class MGAResult(BaseModel):
@@ -435,6 +583,10 @@ class MGAResult(BaseModel):
     group_results: List[MGAGroupResult]
     path_differences: List[MGAPathDiff]
     micom: Optional[MICOMResult] = None
+    # v1.1 (S1) — which of the three methods ("bootstrap" | "henseler" |
+    # "parametric") determines MGAPathDiff.significant. All three p-values
+    # are always reported on every path regardless of this choice.
+    mga_method: str = "bootstrap"
     warnings: List[str] = []
 
 # ── v0.7 schemas ──────────────────────────────────────────────────────────────
@@ -492,6 +644,13 @@ class ModerationResult(BaseModel):
 
 # ── IPMA ──────────────────────────────────────────────────────────────────────
 
+class IPMAIndicatorEntry(BaseModel):
+    lv: str
+    indicator: str
+    importance: float    # total_effect_on_target * |outer_loading|
+    performance: float   # rescaled indicator mean 0-100
+
+
 class IPMAEntry(BaseModel):
     """
     One construct in the Importance-Performance Map.
@@ -518,6 +677,16 @@ class IPMAResult(BaseModel):
     scale_max:   float            # theoretical or observed scale maximum used
     algorithm:   str
     warnings:    List[str] = []
+    indicator_entries: list = []   # list[IPMAIndicatorEntry]
+
+    # v1.1 — Indicator-level IPMA quadrant chart (B2). SVG is the primary
+    # format for the web frontend; PNG (base64-encoded) is for DOCX/PDF
+    # embedding — see export_docx._build_ipma_section and
+    # export_pdf._build_ipma_section. Both are None if chart generation
+    # produced no plottable points or failed (see `warnings` for why).
+    chart_svg: Optional[str] = None   # inline <svg>...</svg> markup
+    chart_png: Optional[str] = None   # base64-encoded PNG bytes
+
 
 
 # ── NCA ───────────────────────────────────────────────────────────────────────
@@ -553,6 +722,16 @@ class NCAEntry(BaseModel):
     ceiling_x:     List[float] = []
     ceiling_y:     List[float] = []
 
+    bottleneck_table: Optional[list] = None   # list[NCABottleneckRow]
+
+
+class NCABottleneckRow(BaseModel):
+    """Dul (2016) bottleneck table row: minimum X required by the ceiling at a given Y percentile."""
+    y_percentile: float     # e.g. 10 = 10th percentile of Y scope
+    y_value: float          # actual Y value at that percentile of the scope
+    x_required: float       # minimum X that ceiling requires at this Y
+    x_percentile: float     # where x_required falls in the observed X distribution
+
 
 class NCAResult(BaseModel):
     """Full NCA output across all structural IV → DV pairs."""
@@ -561,6 +740,12 @@ class NCAResult(BaseModel):
     entries:         List[NCAEntry]
     n_permutations:  int
     warnings:        List[str] = []
+    # v1.1 — plain-English ceiling-line annotations (A17). Up to two
+    # sentences per NCAEntry — CE-FDH d then CR-FDH d, in that order, each
+    # via engine_utils.annotate_fit_index("CE-FDH d", entry.ce_fdh_d) /
+    # annotate_fit_index("CR-FDH d", entry.cr_fdh_d). "Ceiling-line ratio"
+    # in the ticket refers to these d values (ceiling zone / scope).
+    annotations: List[str] = []
 
 
 # ── NCA-ESSE: Effect Size Sensitivity Extension (v0.9) ────────────────────────
@@ -580,6 +765,7 @@ class NCAESSEThresholdPoint(BaseModel):
     delta_theoretical: Optional[float] = None
     delta_diff:        Optional[float] = None   # delta_empirical − delta_theoretical
     p_value:           Optional[float] = None   # permutation p-value at this threshold
+    p_value_adjusted:  Optional[float] = None   # BH-adjusted p-value
     significant:       bool = False
 
 
@@ -869,6 +1055,196 @@ class FsQCAResult(BaseModel):
     # ──────────────────────────────────────────────────────────────────────
     warnings:          List[str]              = []
     bubble_chart_data: List[BubbleChartPoint] = []
+
+
+# ── Bayesian SEM schemas (v1.1, A10) ─────────────────────────────────────────
+# Lee, S.-Y. (2007). Structural Equation Modeling: A Bayesian Approach. Wiley.
+# Gelman, A., et al. (2013). Bayesian Data Analysis, 3rd ed. — split R-hat.
+# Vehtari, A., et al. (2021). Rank-normalization, folding, and localization:
+#   An improved R-hat for MCMC. Bayesian Analysis. — bulk-ESS.
+# Chen, M.-H., & Shao, Q.-M. (1999). Monte Carlo estimation of Bayesian
+#   credible and HPD intervals. J. Comp. Graph. Statistics, 8(1), 69-92.
+
+
+class BayesianParameterEntry(BaseModel):
+    """One free parameter's posterior summary from fit_bayesian_sem().
+
+    ``name`` is the canonical lavaan-style key used to key the ``priors``
+    dict in A9 and to match ModelResult.parameters' (lhs, op, rhs) identity
+    elsewhere in the codebase, e.g. "Trust=~t1" (loading), "Sat~Trust"
+    (structural path), "Trust~~Trust" (factor/disturbance variance),
+    "t1~~t1" (indicator residual variance).
+    """
+    name: str
+    op:   str     # "=~" | "~" | "~~"
+    lhs:  str
+    rhs:  str
+    posterior_mean:   float
+    posterior_median: float
+    posterior_sd:     float
+    # 95% HIGHEST POSTERIOR DENSITY interval — the shortest interval containing
+    # 95% of posterior mass (Chen & Shao 1999), NOT a symmetric mean ± 1.96*sd
+    # interval and NOT the percentile interval used for BootstrapParameter's
+    # ci_lower_95/ci_upper_95 elsewhere in this file. For a skewed posterior
+    # (routine for variance parameters) the two intervals diverge meaningfully;
+    # HPD is the one that actually has 95% posterior mass inside it.
+    hpd_lower: float
+    hpd_upper: float
+    r_hat:    float   # split R-hat (Gelman-Rubin); should be <= 1.01 at convergence
+    ess_bulk: float    # rank-normalized bulk effective sample size (Vehtari et al. 2021)
+
+
+class BayesianResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    parameters: List[BayesianParameterEntry]
+    n_chains:  int
+    n_samples: int              # post-warmup draws retained per chain
+    converged: bool              # True iff max(r_hat) <= 1.01 across all parameters
+    convergence_warnings: List[str] = []   # parameter names that failed the R-hat check
+
+
+class ParameterPosteriorDensity(BaseModel):
+    """Binned posterior density for one parameter (A11): 50 bins, sized for
+    the existing frontend bubble-chart/histogram component. x = bin centers,
+    y = density heights. Never raw sample arrays."""
+    name: str
+    x: List[float]
+    y: List[float]
+
+
+class BayesianSemResponse(BaseModel):
+    """Top-level response body for POST /bayesian-sem."""
+    model_config = ConfigDict(extra="ignore")
+
+    result: BayesianResult
+    posterior_density: List[ParameterPosteriorDensity]
+
+
+# ── General Latent Class / Finite Mixture engine (v1.1, A12–A15) ──────────────
+# Reuses the FIMIX-PLS EM scaffolding (fimix.py) but operates on raw indicator
+# columns directly. See app/engine_lca.py.
+
+class LCAFitRow(BaseModel):
+    """One row of the K-selection fit table (mirrors FIMIXSolution's fit
+    fields so recommend_k() in fimix.py can be reused unmodified)."""
+    k:                 int
+    log_likelihood:    float
+    aic:               float
+    bic:               float
+    caic:              float
+    relative_entropy:  float          # R_E — separation quality 0–1
+
+
+class LCAClassParameters(BaseModel):
+    """Class-specific (or constraint-group-pooled) parameter estimates.
+
+    ``parameters`` keys are parameter names in the naming convention used by
+    the relevant mode's M-step:
+      - segmentation:        "mean_<indicator>", "var_<indicator>"
+      - mixture_regression:  "<iv_col>" (coefficient), "sigma2"
+      - mixture_factor:      "mean_<indicator>", "loading_<indicator>",
+                              "uniq_<indicator>"
+    """
+    class_id:   int
+    size:       int
+    proportion: float
+    parameters: Dict[str, float]
+
+
+class LCAResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    algorithm:            str = "lca"
+    mode:                  str                      # "segmentation" | "mixture_regression" | "mixture_factor"
+    n_obs:                 int
+    indicator_cols:        List[str]
+    class_sizes:           Dict[int, Dict[int, int]]   # {k: {class_id: size}}
+    fit_table:             List[LCAFitRow]
+    recommended_k:         int
+    per_case_membership:   Dict[int, List[List[float]]]  # {k: [[p_class0, p_class1, ...], ...]} row-ordered
+    parameters:            Dict[int, List[LCAClassParameters]]  # {k: [per-class params]}
+    equality_constraints:  List[str] = []
+    known_class_col:       Optional[str] = None
+    warnings:              List[str] = []
+
+
+# ── v1.1 (S2) — Confirmatory Tetrad Analysis (CTA-PLS) ─────────────────────────
+
+class CTATetradEntry(BaseModel):
+    """
+    One bootstrapped tetrad test for a single quartet of indicators within
+    a reflective LV block (Bollen & Ting 2000).
+
+    A tetrad is the algebraic difference of two covariance products,
+    e.g. τ = σ(w,x)·σ(y,z) − σ(w,z)·σ(x,y). Under a single-factor
+    (reflective/congeneric) measurement model every tetrad should vanish
+    (≈ 0) in the population. A tetrad whose bootstrap CI excludes 0 is
+    evidence *against* the reflective specification for that block.
+    """
+    lv_name: str
+    indicators: List[str]        # the four indicators (w, x, y, z) in this tetrad
+    pairing: str                 # which of the 3 covariance-product pairings, e.g. "wx.yz"
+    value: float                 # observed tetrad value (full sample)
+    ci_lower_95: float
+    ci_upper_95: float
+    vanishes: bool                # True (supports reflective) when 0 ∈ [ci_lower_95, ci_upper_95]
+
+
+class CTALVResult(BaseModel):
+    """CTA-PLS verdict for one reflective LV block."""
+    lv_name: str
+    n_indicators: int
+    n_tetrads_tested: int         # size of the non-redundant tetrad set (Bollen & Ting 2000)
+    n_significant: int            # tetrads whose CI excludes 0 (non-vanishing)
+    verdict: str                  # "supports reflective" | "consider formative respecification"
+    tetrads: List[CTATetradEntry] = []
+
+
+class CTAResult(BaseModel):
+    """Full Confirmatory Tetrad Analysis output across all eligible reflective LVs."""
+    model_config = ConfigDict(extra="ignore")
+
+    bootstrap_n: int
+    lv_results: List[CTALVResult]
+    warnings: List[str] = []
+
+
+# ── v1.1 (A16) — Multi-group CB-SEM with equality constraints ─────────────────
+
+class MultigroupCBSEMFit(BaseModel):
+    """Fit summary for one side (free or constrained) of the multi-group test."""
+    chi_square: Optional[float] = None
+    df: Optional[int] = None
+    n_free_parameters: Optional[int] = None
+    per_group: Dict[str, FitIndices] = {}   # per-group CFI/RMSEA/SRMR/etc (free fit only)
+    parameters: List[PathParameter] = []    # pooled/shared + per-group estimates, where available
+
+
+class MultigroupCBSEMResult(BaseModel):
+    """
+    Multi-group CB-SEM likelihood-ratio test result (A16).
+
+    ``free``        : all parameters estimated separately per group (configural).
+    ``constrained``  : parameters named in ``equality_constraints`` forced equal
+                        across groups; every other parameter remains free per group.
+    A significant LR chi-square difference test (``lr_p_value`` < .05) means
+    the constrained (equal-parameter) model fits significantly worse than the
+    free model — i.e. the constrained equality is rejected.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    group_col: str
+    groups: List[str]
+    equality_constraints: List[str]
+    free: MultigroupCBSEMFit
+    constrained: MultigroupCBSEMFit
+    lr_chi_square: Optional[float] = None
+    lr_df: Optional[int] = None
+    lr_p_value: Optional[float] = None
+    constrained_rejected: Optional[bool] = None   # True when lr_p_value < .05
+    conclusion: str = ""
+    warnings: List[str] = []
 
 
 # Resolve all forward references now that every class is defined.

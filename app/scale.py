@@ -151,6 +151,8 @@ def compute_efa(
     _log(f"Retaining {n_factors} factor(s).")
 
     # 4. Factor extraction.
+    # sklearn.FactorAnalysis uses the ML common-factor model — not PCA.
+    # PCA is a different dimensionality-reduction technique with no latent factor assumption.
     fa = FactorAnalysis(n_components=n_factors, rotation=rotation, max_iter=1000)
     fa.fit(df)
     L = fa.components_.T   # shape (n_items, n_factors)
@@ -203,7 +205,7 @@ def compute_efa(
     )
 
     return ScaleDevelopmentResult(
-        method=f"PCA_{rotation.title()}",
+        method=f"FA_{rotation.title()}",
         n_factors=n_factors,
         kmo=kmo,
         bartlett_chi2=bartlett_chi2,

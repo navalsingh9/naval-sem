@@ -50,7 +50,8 @@ def preprocess_lavaan(raw_model: str) -> str:
         # If the line ends with a continuation operator, keep reading
         # Otherwise, the equation is finished
         if not (current_line.endswith('+') or current_line.endswith('~')
-                or current_line.endswith('=~') or current_line.endswith('~~')):
+                or current_line.endswith('=~') or current_line.endswith('~~')
+                or current_line.endswith('<~')):
             cleaned_lines.append(current_line)
             current_line = ""
 
@@ -65,7 +66,8 @@ def parse_lavaan(model: str) -> Dict:
     Parse lavaan-style syntax into structured components.
 
     Supported operators:
-      =~   measurement (LV =~ indicators)
+      =~   measurement, reflective / Mode A (LV =~ indicators)
+      <~   measurement, formative / Mode B (LV <~ indicators)
       ~    structural / regression
       ~~   covariance (optional, future)
 
@@ -76,6 +78,8 @@ def parse_lavaan(model: str) -> Dict:
         "covariances": [...],
         "latent_vars": ["Trust", "Satisfaction"],
         "observed_vars": ["t1", "t2", ...],
+        "formative_lvs": ["Trust", ...],            # LVs declared with <~
+        "construct_modes": {"Trust": "B", ...},      # "A" (reflective) or "B" (formative) per LV
       }
     """
     model = preprocess_lavaan(model)
@@ -92,9 +96,24 @@ def parse_lavaan(model: str) -> Dict:
     measurement: Dict[str, List[str]] = {}
     structural: List[Dict] = []
     covariances: List[Dict] = []
+    formative_lvs: set = set()
 
     for line in lines:
-        if "=~" in line:
+        if "<~" in line:
+            parts = line.split("<~", 1)
+            lv = parts[0].strip()
+            indicators = [v.strip() for v in re.split(r"\+", parts[1]) if v.strip()]
+            if not lv:
+                raise ValueError(f"Missing LHS in formative block: {line}")
+            if not indicators:
+                raise ValueError(f"No indicators found in formative block: {line}")
+            if lv in measurement:
+                measurement[lv].extend(indicators)
+            else:
+                measurement[lv] = indicators
+            formative_lvs.add(lv)
+
+        elif "=~" in line:
             parts = line.split("=~", 1)
             lv = parts[0].strip()
             indicators = [v.strip() for v in re.split(r"\+", parts[1]) if v.strip()]
@@ -157,6 +176,8 @@ def parse_lavaan(model: str) -> Dict:
         "latent_vars": latent_vars,
         "observed_vars": observed_vars,
         "nonlinear_terms": nonlinear_terms,
+        "formative_lvs": list(formative_lvs),
+        "construct_modes": {lv: ("B" if lv in formative_lvs else "A") for lv in measurement},
     }
 
 

@@ -1,204 +1,36 @@
 """
-engine_utils.py  —  NAVAL-SEM shared primitives
-================================================
-Low-level helpers used across all engine modules.
-Extracted from engine.py so satellites never import private
-symbols from the core fitting layer.
+engine_utils_additions.py — v1.1 Feature A17: plain-English annotations
+=========================================================================
+MERGE TARGET: app/engine_utils.py (not uploaded this session — see the
+summary at the end of the chat for why this ships as a separate file
+instead of a direct edit).
 
-Public (internal) API
----------------------
-  _emit(log_fn, level, msg)
-  _safe_float(val, default)
-  _p_to_sig(p)
-  _build_composites(df, measurement, structural)
-  _build_coef_map(parameters)
+Everything below is self-contained (stdlib only) and can be pasted
+directly into engine_utils.py. If engine_utils.py already defines an
+APA-style number formatter (export_docx.py and export_pdf.py each have
+their own _fmt/_fmt_p — engine_utils.py may already have an equivalent),
+reuse that instead of the local _apa_num/_apa_p below to avoid two
+sources of truth for number formatting.
 
-Import pattern for all engine satellites:
-    from app.engine_utils import _emit, _safe_float, _p_to_sig, _build_composites, _build_coef_map
+Public API (as specified in the ticket)
+----------------------------------------
+  annotate_path_coefficient(estimate, se, p_value)      -> str
+  annotate_fit_index(name, value)                        -> str
+  annotate_indirect_effect(estimate, ci_lower, ci_upper) -> str
+
+Each returns ONE auto-generated sentence, Amos-"use-it-in-a-sentence"
+style. These are additive — callers keep reporting the numeric fields
+as before and append the sentence to an `annotations: list[str]` field
+(already added to ModelResult, IndirectResult, BootstrapResult, and
+NCAResult in schemas.py this session).
 """
 
 from __future__ import annotations
 
-import logging
 import re
-from typing import Callable, Optional
-
-import numpy as np
-import pandas as pd
-
-logger = logging.getLogger("naval_sem.engine")
+from typing import Optional
 
 
-def _emit(log_fn: Optional[Callable], level: str, msg: str) -> None:
-    """Emit a structured log entry via callback and standard logger."""
-    if log_fn is not None:
-        log_fn(level, msg)
-    getattr(logger, level.lower(), logger.info)(msg)
-
-
-def _safe_float(val, default=None, precision: int = 6):
-    """
-    Safely coerce val to a rounded float.
-
-    Returns ``default`` (not None) when the value is NaN, Inf, or
-    cannot be converted.  Handles pandas Series by extracting the
-    first scalar element before conversion.
-
-    Parameters
-    ----------
-    precision : int
-        Decimal places passed to ``round()``.  Default 6.  Pass 12 for
-        p-values to prevent tiny values such as 1.8e-9 from rounding to 0.0.
-    """
-    try:
-        if hasattr(val, "iloc"):   # pandas Series — extract scalar first
-            if len(val) > 1:
-                logger.debug(
-                    "_safe_float received a %d-element Series; using iloc[0]. "
-                    "This may indicate a logic error upstream.", len(val)
-                )
-            val = val.iloc[0]
-        v = float(val)
-        return default if (np.isnan(v) or np.isinf(v)) else round(v, precision)
-    except Exception:
-        return default
-
-
-def _p_to_sig(p: Optional[float]) -> bool:
-    """Return True when p is not None and p < 0.05."""
-    if p is None:
-        return False
-    return p < 0.05
-
-
-def _build_composites(
-    df: pd.DataFrame,
-    measurement: dict[str, list[str]],
-    structural: list[dict],
-    pls_weights: Optional[dict] = None,
-) -> dict[str, pd.Series]:
-    """
-    Build LV composite scores for all model variables.
-
-    For latent variables: composite = weighted sum of indicators using
-    ``pls_weights`` (normalised outer weights) when supplied for that LV,
-    otherwise the unweighted mean of its indicators.
-    For observed variables in structural paths with no measurement block:
-    composite = the column itself.
-
-    Parameters
-    ----------
-    df          : pd.DataFrame
-    measurement : {lv_name: [indicator, ...]}
-    structural  : list of {lhs, rhs} dicts from parse_lavaan()
-    pls_weights : optional {lv_name: {indicator: weight}} of PLS outer
-                  weights. When provided for a given LV, composites are
-                  built as the L2-normalised weighted sum of its indicators
-                  instead of an unweighted mean.
-
-    Returns
-    -------
-    {name: pd.Series}
-    """
-    composites: dict[str, pd.Series] = {}
-
-    for lv, indicators in measurement.items():
-        cols = [c for c in indicators if c in df.columns]
-        if cols:
-            if pls_weights and lv in pls_weights:
-                w_dict = pls_weights[lv]
-                w_arr = np.array([w_dict.get(c, 0.0) for c in cols], dtype=float)
-                norm = np.linalg.norm(w_arr)
-                if norm > 1e-12:
-                    w_arr = w_arr / norm
-                composites[lv] = pd.Series(
-                    df[cols].values.astype(float) @ w_arr,
-                    index=df.index,
-                )
-            else:
-                composites[lv] = df[cols].mean(axis=1)
-
-    for rel in structural:
-        for var in (rel["lhs"], rel["rhs"]):
-            if var not in composites and var in df.columns:
-                composites[var] = df[var]
-
-    return composites
-
-
-def _build_squared_terms(df: pd.DataFrame, composites: dict, nonlinear_terms: list) -> pd.DataFrame:
-    """
-    For each nonlinear term, mean-centre the base composite and create
-    a squared column. Returns augmented DataFrame copy (never mutates df).
-    """
-    df = df.copy()
-    for term in nonlinear_terms:
-        base   = term["base_var"]
-        sq_col = term["sq_col"]
-        series = composites.get(base)
-        if series is None and base in df.columns:
-            series = df[base].astype(float)
-        if series is None:
-            continue
-        mc = series - series.mean()
-        df[sq_col] = mc ** 2
-    return df
-
-
-def _build_coef_map(parameters) -> dict:
-    """Return {(rhs, lhs): coef} for structural paths (op == '~').
-
-    Convention: predictor-first (rhs), then outcome (lhs) — consistent
-    with the tuple key order used across engine.py, engine_mga.py, and
-    engine_moderation.py bootstrap loops.
-
-    Parameters
-    ----------
-    parameters : list[PathParameter]
-        The ``.parameters`` list from a ``SemResult`` / ``ModerationResult``.
-
-    Returns
-    -------
-    dict  {(rhs_name, lhs_name): float_estimate}
-    """
-    return {
-        (p.rhs, p.lhs): p.estimate
-        for p in parameters
-        if hasattr(p, "op") and p.op == "~"
-    }
-
-
-def _coef_from_params(parameters, lhs: str, rhs: str):
-    """Return the estimate for a specific structural (lhs ~ rhs) path, or None."""
-    for p in parameters:
-        if getattr(p, 'op', None) == '~' and p.lhs == lhs and p.rhs == rhs:
-            return p.estimate
-    return None
-
-
-def _ci_from_bootstrap(samples: list) -> tuple:
-    """Return (ci_lo_95, ci_hi_95) from a bootstrap distribution, or (None, None)."""
-    if len(samples) < 10:
-        return None, None
-    import numpy as np
-    return float(np.percentile(samples, 2.5)), float(np.percentile(samples, 97.5))
-
-
-def _sig_from_ci(ci_lo, ci_hi) -> bool:
-    """Return True when a 95% CI excludes zero."""
-    if ci_lo is None or ci_hi is None:
-        return False
-    return not (ci_lo <= 0.0 <= ci_hi)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# v1.1 — Feature A17: plain-English annotation layer
-# Amos-"use-it-in-a-sentence" style helpers. Merged in from
-# engine_utils_additions.py (S7). Public API:
-#   annotate_path_coefficient(estimate, se, p_value) -> str
-#   annotate_indirect_effect(estimate, ci_lower, ci_upper) -> str
-#   annotate_fit_index(name, value) -> str
-# ═══════════════════════════════════════════════════════════════════════════
 # ── APA-style number formatting ──────────────────────────────────────────────
 # APA convention: statistics that cannot exceed 1 in absolute value
 # (standardised coefficients, correlations, p-values) are reported without
@@ -476,3 +308,31 @@ def annotate_fit_index(name: str, value: Optional[float]) -> str:
         f"{rule['label']} = {_apa_num(value, 3)}, which is {label} "
         f"({symbol} {_apa_num(threshold, 2)}; {rule['citation']})."
     )
+
+
+if __name__ == "__main__":
+    # Lightweight self-test — not a substitute for real unit tests once
+    # merged, but confirms the functions run and match the ticket's example.
+    s1 = annotate_indirect_effect(0.14, 0.06, 0.23)
+    print(s1)
+    assert s1 == (
+        "This indirect effect (b = .14) is significant: the 95% bootstrap "
+        "CI [.06, .23] excludes zero."
+    ), "Does not match the ticket's example sentence"
+
+    print(annotate_indirect_effect(0.03, -0.02, 0.09))
+    print(annotate_indirect_effect(0.14, None, None))
+    print()
+    print(annotate_path_coefficient(0.42, se=0.05, p_value=0.0001))
+    print(annotate_path_coefficient(-0.07, se=0.09, p_value=0.44))
+    print(annotate_path_coefficient(0.25, se=None, p_value=None))
+    print()
+    for nm, val in [("CFI", 0.97), ("CFI", 0.92), ("CFI", 0.80),
+                     ("RMSEA", 0.04), ("RMSEA", 0.07), ("RMSEA", 0.15),
+                     ("SRMR", 0.061), ("R2", 0.61), ("r_squared", 0.10),
+                     ("Q2", -0.02), ("f2", 0.18), ("AVE", 0.44),
+                     ("VIF", 2.1), ("VIF", 8.4), ("HTMT", 0.95),
+                     ("CE-FDH d", 0.38), ("made_up_index", 1.23)]:
+        print(annotate_fit_index(nm, val))
+
+    print("\nAll self-checks passed.")

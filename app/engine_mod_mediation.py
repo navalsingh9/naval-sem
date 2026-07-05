@@ -381,6 +381,44 @@ def run_mod_mediation(
               f"  {x_var}→{m_var}→{y_var}: "
               f"IMM={imm_pt:.4f}  sig={_sig(imm_lo, imm_hi)}")
 
+    # Detect chains with both a-path and b-path moderation and append combined entry
+    chain_map: dict = {}
+    for _p in mm_paths:
+        chain_map.setdefault((_p.x, _p.m, _p.y), {})[_p.moderated_path] = _p
+
+    for _chain_key, _path_dict in chain_map.items():
+        if "a" not in _path_dict or "b" not in _path_dict:
+            continue
+        _x, _m, _y = _chain_key
+        _pa, _pb = _path_dict["a"], _path_dict["b"]
+        _a3 = _pa.a3_interaction or 0.0
+        _b3 = _pb.b3_interaction or 0.0
+        _combined_conds = []
+        for _ce in _pa.conditional_effects:
+            _lvl = _ce.moderator_value
+            _ie_both = (_pa.a_path + _a3 * _lvl) * (_pa.b_path + _b3 * _lvl)
+            _combined_conds.append(ConditionalIndirectEffect(
+                moderator_level=_ce.moderator_level,
+                moderator_value=_lvl,
+                indirect_effect=round(_ie_both, 6),
+                ci_lower_95=None, ci_upper_95=None, significant=False,
+            ))
+        _imm_both = round(_a3 * _pa.b_path + _pa.a_path * _b3, 6)
+        mm_paths.append(ModMediationPath(
+            x=_x, m=_m, y=_y, w=_pa.w,
+            moderated_path="both",
+            a_path=_pa.a_path, b_path=_pa.b_path, c_prime=_pa.c_prime,
+            a3_interaction=_a3, b3_interaction=_b3,
+            imm=_imm_both,
+            imm_ci_lower_95=None, imm_ci_upper_95=None, imm_significant=False,
+            conditional_effects=_combined_conds,
+        ))
+        warnings.append(
+            f"Both-path moderation detected for {_x}->{_m}->{_y}: combined entry "
+            "(moderated_path='both') uses IE(w)=(a+a3w)(b+b3w) [Hayes 2018 Model 58/59]. "
+            "CIs are None because simultaneous a/b bootstrap is not yet implemented."
+        )
+
     if not mm_paths:
         raise ValueError(
             "ModMediation: no valid X→M→Y chain could be resolved from the "

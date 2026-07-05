@@ -6,6 +6,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+**Formative construct (Mode B) support — PLS-SEM**
+- Added `<~` lavaan-style operator for formative measurement blocks (e.g. `Quality <~ q1 + q2 + q3`), alongside the existing `=~` reflective operator. Checked before `=~` in `parse_lavaan()`'s operator chain so `<~` lines aren't swallowed by the plain `~` branch; `preprocess_lavaan()` now also treats a trailing `<~` as a line-continuation marker for multi-line formative blocks.
+- `parse_lavaan()` returns two new keys: `formative_lvs` (LVs declared with `<~`) and `construct_modes` (`{lv: "A"|"B"}` for every LV in the model, defaulting to `"A"` when a construct has no formative declaration).
+- `PLSEstimator`'s outer-weight update now branches per construct on `construct_modes`: Mode B blocks solve `w = (X'X + ridge·I)⁻¹ X'η_inner` (ridge = 1e-4, falling back to the unregularised solve only if that raises `LinAlgError`), normalised so `Var(η) = 1`; Mode A blocks are unchanged. `PLSResult` gains a `construct_modes` field carrying the per-LV mode through to the response.
+- Affects `app/parser.py`, `app/pls.py`.
+
+### Changed
+
+- **`compute_vif()` now skips Mode A (reflective) constructs** — VIF/multicollinearity is only a meaningful diagnostic for formative blocks; reflective indicators are expected to correlate highly since they share a common cause. Models composed entirely of reflective constructs now return an empty VIF list instead of one entry per indicator. Affects `app/engine.py`.
+
+### Fixed
+
+- **Gaussian Copula bootstrap CI always `None` / `copula_significant` always `False`** — in `compute_gaussian_copula()`, the bootstrap loop computed the resampled copula coefficient (`c_bs`) on every iteration but never appended it to `bs_cop_coef`, so `_ci_from_bootstrap()` always received an empty list. Added the missing `bs_cop_coef.append(float(c_bs[-1]))`. Affects `app/engine.py`.
+- **Fornell-Larcker off-diagonal used mean indicator correlation instead of LV composite correlation** — `_compute_fornell_larcker()` computed each off-diagonal cell as the mean of all cross-indicator correlations between two LV blocks rather than the Pearson r between LV composite scores required by Fornell & Larcker (1981). Added an optional `composites` parameter and a `_phi()` helper that correlates composite scores directly when supplied, falling back to the previous mean-cross-indicator behaviour otherwise; `_compute_measurement_validity()` now builds composites via `_build_composites()` and passes them through. Affects `app/engine.py`.
+- **Both-paths (Hayes Model 58/59) combined indirect effect never computed** — when a model had both an a-path interaction (`X*W`) and a b-path interaction (`M*W`) for the same `X→M→Y` chain, each was returned as a separate `ModMediationPath` entry and the combined conditional indirect effect was never computed. `run_mod_mediation()` now detects such chains and appends a `moderated_path="both"` entry using `IE(w) = (a + a₃w)(b + b₃w)` and `imm = a₃b + ab₃`; CIs on this combined entry are `None` pending a simultaneous a/b bootstrap. Affects `app/engine_mod_mediation.py`.
+
+---
+
 ## [v1.0.0] — 2026-06-27 · fsQCA + Reporting (Release Gate)
 
 ### Added

@@ -16,6 +16,7 @@ APA 7th formatting applied:
 
 from __future__ import annotations
 
+import base64
 import io
 import math
 from collections import defaultdict
@@ -49,13 +50,13 @@ def _get(obj: Any, *keys: str, default: Any = None) -> Any:
                 return v
         except Exception:  # nosec B110 — intentional: try multiple access patterns
             pass
-        # Dict        # Dict-key access (serialised payloads)
+        # Dict-key access (serialised payloads)
         try:
             if isinstance(obj, dict) and key in obj:
                 return obj[key]
         except Exception:  # nosec B110 — intentional: try multiple access patterns
             pass
-    return default    return default
+    return default
 
 
 def _first(*vals: Any) -> Any:
@@ -292,6 +293,42 @@ def _add_apa_note(doc: Document, text: str) -> None:
     run.italic    = True
     p.paragraph_format.space_before = Pt(3)
     p.paragraph_format.space_after  = Pt(12)
+
+
+def _add_figure_label(doc: Document, n: int, title: str) -> None:
+    """
+    Insert two paragraphs above a figure per APA 7th (figures and tables
+    are numbered independently: "Figure 1", "Figure 2", ... alongside
+    "Table 1", "Table 2", ...):
+      Line 1 — italic "Figure N"
+      Line 2 — bold  "Figure title"
+    Visual style mirrors _add_table_label exactly.
+    """
+    p_label = doc.add_paragraph()
+    r_label = p_label.add_run(f"Figure {n}")
+    r_label.font.name = _BODY_FONT
+    r_label.font.size = _BODY_PT
+    r_label.italic    = True
+    r_label.bold      = False
+    p_label.paragraph_format.space_before = Pt(12)
+    p_label.paragraph_format.space_after  = Pt(0)
+
+    p_title = doc.add_paragraph()
+    r_title = p_title.add_run(title)
+    r_title.font.name = _BODY_FONT
+    r_title.font.size = _BODY_PT
+    r_title.bold      = True
+    r_title.italic    = False
+    p_title.paragraph_format.space_before = Pt(0)
+    p_title.paragraph_format.space_after  = Pt(6)
+
+
+def _add_picture_centered(doc: Document, png_bytes: bytes) -> None:
+    """Insert a PNG image, scaled to the page's content width, and center it."""
+    section    = doc.sections[0]
+    avail_w    = section.page_width - section.left_margin - section.right_margin
+    doc.add_picture(io.BytesIO(png_bytes), width=avail_w)
+    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -667,12 +704,105 @@ def _build_indirect_effects(
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  Table N / Figure N — Importance-Performance Analysis  (v1.1 / S6, B2)
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _build_ipma_section(
+    doc: Document,
+    ipma_result: Any,
+    table_n: int,
+    fig_n: int,
+) -> int:
+    """
+    New "Importance-Performance Analysis" section:
+      Table N  — predictor importance / performance
+                 (mirrors export_pdf._build_ipma_section's table).
+      Figure N — the indicator-level quadrant chart from
+                 IPMAResult.chart_png, when present
+                 (produced by engine_ipma._generate_ipma_chart, B2).
+
+    Included only when ipma_result is not None and has at least one entry.
+    Source: ipma_result.entries / ipma_result.chart_png.
+
+    Returns
+    -------
+    int — number of figures embedded (0 or 1), so the caller only advances
+    its figure counter when a figure was actually added.
+    """
+    entries = _get(ipma_result, "entries") or []
+    if not entries:
+        return 0
+
+    target = _get(ipma_result, "target_lv", default="?") or "?"
+
+    headers = ["Predictor", "Importance", "Performance"]
+    n_rows  = 1 + len(entries)
+
+    _add_table_label(doc, table_n, "Importance-Performance Analysis (IPMA)")
+
+    p_target = doc.add_paragraph()
+    r_target = p_target.add_run(f"Target construct: {target}")
+    r_target.font.name = _BODY_FONT
+    r_target.font.size = _TABLE_PT
+    r_target.italic    = True
+    p_target.paragraph_format.space_after = Pt(4)
+
+    table = doc.add_table(rows=n_rows, cols=len(headers))
+    table.style = "Table Grid"
+
+    for ci, h in enumerate(headers):
+        _cell_write(table.cell(0, ci), h, bold=True, align="center")
+
+    for ri, e in enumerate(entries, start=1):
+        lv  = _get(e, "lv", default="?") or "?"
+        imp = _fmt(_get(e, "importance"), 3)
+        prf = _fmt(_get(e, "performance"), 1)
+        _cell_write(table.cell(ri, 0), lv,  align="left")
+        _cell_write(table.cell(ri, 1), imp, align="center")
+        _cell_write(table.cell(ri, 2), prf, align="center")
+
+    _apply_apa_borders(table, n_rows, len(headers))
+    _add_apa_note(
+        doc,
+        "Note. Importance = total effect (direct + indirect) of the "
+        "predictor on the target construct. Performance = mean composite "
+        "score rescaled to a 0\u2013100 range.",
+    )
+
+    # ── Chart (B2) — embed only if chart_png is present and decodable ──────
+    chart_png_b64 = _get(ipma_result, "chart_png")
+    if not chart_png_b64:
+        return 0
+
+    try:
+        png_bytes = base64.b64decode(chart_png_b64)
+        _add_figure_label(
+            doc, fig_n,
+            f"Indicator-Level Importance-Performance Map (Target: {target})",
+        )
+        _add_picture_centered(doc, png_bytes)
+        _add_apa_note(
+            doc,
+            "Note. Dashed lines mark the mean importance and mean "
+            "performance across plotted indicators, dividing the map into "
+            "the four standard IPMA quadrants (Martilla & James, 1977; "
+            "Hair et al., 2022, Ch. 7).",
+        )
+        return 1
+    except Exception:
+        # Corrupt/undecodable image data — keep the table, skip the figure
+        # rather than failing the whole report.
+        return 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  Public entry point
 # ═════════════════════════════════════════════════════════════════════════════
 
 def generate_docx(
     result: Any,
     indirect_result: Optional[Any] = None,
+    ipma_result: Optional[Any] = None,
 ) -> io.BytesIO:
     """
     Build an APA 7th-edition Word report and return it as a seeked BytesIO.
@@ -682,6 +812,9 @@ def generate_docx(
     result          : ModelResult (Pydantic object or equivalent dict).
     indirect_result : IndirectResult or equivalent dict; pass None to omit
                       Table 4.
+    ipma_result     : IPMAResult or equivalent dict; pass None to omit the
+                      Importance-Performance Analysis section (table +,
+                      when chart_png is present, the quadrant-map figure).
 
     Returns
     -------
@@ -705,13 +838,19 @@ def generate_docx(
 
     # ── Tables ────────────────────────────────────────────────────────────
     tbl_n = 1
+    fig_n = 1
 
     _build_measurement_model(doc, result, tbl_n);   tbl_n += 1
     _build_discriminant_validity(doc, result, tbl_n); tbl_n += 1
     _build_structural_model(doc, result, tbl_n);    tbl_n += 1
 
     if indirect_result is not None:
-        _build_indirect_effects(doc, indirect_result, tbl_n)
+        _build_indirect_effects(doc, indirect_result, tbl_n); tbl_n += 1
+
+    if ipma_result is not None:
+        n_figs_added = _build_ipma_section(doc, ipma_result, tbl_n, fig_n)
+        tbl_n += 1
+        fig_n += n_figs_added
 
     # ── Serialise to buffer ───────────────────────────────────────────────
     buf = io.BytesIO()
@@ -763,9 +902,33 @@ if __name__ == "__main__":
                    f2=0.208, r_squared=0.306),
         ]
 
-    buf    = generate_docx(_ResultStub())
-    length = len(buf.getvalue())
+    # --- IPMA stub (v1.1 / S6, B2) ---
 
-    print(f"[SMOKE TEST]  generate_docx() → BytesIO length = {length:,} bytes")
-    assert length > 0, "generate_docx() returned an empty buffer!"  # nosec B101 — smoke test only, never runs in production
-    print("[SMOKE TEST]  Non-empty BytesIO confirmed. All assertions passed. ✓")
+    class _IPMAEntryStub:
+        def __init__(self, lv, importance, performance):
+            self.lv, self.importance, self.performance = lv, importance, performance
+
+    class _IPMAResultStub:
+        target_lv = "Loyalty"
+        entries = [
+            _IPMAEntryStub("Satisfaction", 0.553, 68.4),
+            _IPMAEntryStub("Service",      0.221, 74.1),
+        ]
+        # 1x1 transparent PNG — a real chart isn't needed to smoke-test the
+        # embedding path itself (base64.b64decode + doc.add_picture).
+        chart_png = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+            "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+
+    buf_no_ipma = generate_docx(_ResultStub())
+    buf_ipma    = generate_docx(_ResultStub(), ipma_result=_IPMAResultStub())
+
+    len_no_ipma = len(buf_no_ipma.getvalue())
+    len_ipma    = len(buf_ipma.getvalue())
+
+    print(f"[SMOKE TEST]  generate_docx() w/o IPMA  → {len_no_ipma:,} bytes")
+    print(f"[SMOKE TEST]  generate_docx() w/  IPMA  → {len_ipma:,} bytes")
+    assert len_no_ipma > 0, "generate_docx() returned an empty buffer!"  # nosec B101 — smoke test only, never runs in production
+    assert len_ipma > len_no_ipma, "IPMA section (table + image) did not add any content!"  # nosec B101
+    print("[SMOKE TEST]  Non-empty BytesIO + IPMA section confirmed. All assertions passed. ✓")

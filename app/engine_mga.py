@@ -53,6 +53,78 @@ from app.schemas import (
 
 logger = logging.getLogger("naval_sem.mga")
 
+MGA_METHODS = ("bootstrap", "henseler", "parametric")
+
+
+def _henseler_p_value(bs_a, bs_b):
+    """
+    Henseler et al. (2009) non-parametric MGA test.
+
+    p_one_sided = P(beta_A_draw > beta_B_draw), estimated as the proportion
+    of all (i, j) bootstrap-draw pairs where draw i of group A exceeds draw
+    j of group B. The two-tailed p-value is 2 * min(p_one_sided, 1 - p_one_sided).
+
+    Implemented via a sorted-array search (O(n log n)) rather than the naive
+    O(n_A * n_B) double loop.
+    """
+    if len(bs_a) < 10 or len(bs_b) < 10:
+        return None
+    a = np.asarray(bs_a, dtype=float)
+    b_sorted = np.sort(np.asarray(bs_b, dtype=float))
+    n_b = len(b_sorted)
+    n_exceeded = np.searchsorted(b_sorted, a, side="left")
+    p_one_sided = float(n_exceeded.sum()) / (len(a) * n_b)
+    p_two_sided = 2.0 * min(p_one_sided, 1.0 - p_one_sided)
+    return round(float(min(max(p_two_sided, 0.0), 1.0)), 6)
+
+
+def _welch_satterthwaite_test(beta_a, beta_b, bs_a, bs_b, n_a, n_b):
+    """
+    Parametric PLS-MGA test (Sarstedt, Henseler & Ringle 2011), correcting
+    for unequal group variances and sample sizes via Welch-Satterthwaite.
+
+        t  = (beta_A - beta_B) / sqrt(SE_A^2 + SE_B^2)
+        df = (SE_A^2 + SE_B^2)^2 / [ SE_A^4/(n_A - 1) + SE_B^4/(n_B - 1) ]
+
+    SE_A / SE_B are the bootstrap standard errors (std of the bootstrap
+    coefficient distribution) for each group.
+
+    Returns (p_value, df) — both None if there is insufficient bootstrap
+    data or the groups are too small (n <= 1) to form a Welch df.
+    """
+    if len(bs_a) < 10 or len(bs_b) < 10 or n_a <= 1 or n_b <= 1:
+        return None, None
+    from scipy.stats import t as _t_dist
+    se_a = float(np.std(bs_a, ddof=1))
+    se_b = float(np.std(bs_b, ddof=1))
+    denom = np.sqrt(se_a ** 2 + se_b ** 2)
+    if denom <= 1e-12:
+        return None, None
+    t_stat = (beta_a - beta_b) / denom
+    num = (se_a ** 2 + se_b ** 2) ** 2
+    den = (se_a ** 4) / (n_a - 1) + (se_b ** 4) / (n_b - 1)
+    if den <= 1e-18:
+        return None, None
+    df = num / den
+    p = float(2 * (1 - _t_dist.cdf(abs(t_stat), df)))
+    return round(min(max(p, 0.0), 1.0), 6), round(float(df), 3)
+
+
+def _bootstrap_p_value(diffs, diff_obs):
+    """
+    Two-tailed empirical p-value for the existing bootstrap percentile-CI
+    test: the proportion of bootstrap diff draws on the opposite side of
+    zero from the observed diff, doubled.
+    """
+    if len(diffs) < 10:
+        return None
+    arr = np.asarray(diffs, dtype=float)
+    if diff_obs >= 0:
+        p_tail = float(np.mean(arr <= 0.0))
+    else:
+        p_tail = float(np.mean(arr >= 0.0))
+    return round(float(min(max(2.0 * p_tail, 0.0), 1.0)), 6)
+
 
 # ── Module-level helpers ───────────────────────────────────────────────────────
 
@@ -415,6 +487,7 @@ def run_mga(
     bootstrap_n: int = 500,
     n_permutations: int = 500,
     run_micom_test: bool = True,
+    mga_method: str = "bootstrap",
     log_fn: Optional[Callable] = None,
     seed: int = 42,
 ) -> MGAResult:
@@ -450,6 +523,13 @@ def run_mga(
         Permutations passed to ``run_micom()`` when ``run_micom_test=True``.
     run_micom_test : bool
         Whether to run MICOM before MGA (strongly recommended).
+    mga_method : str
+        ``"bootstrap"`` (default) | ``"henseler"`` | ``"parametric"``.
+        All three group-comparison methods are *always* computed and every
+        MGAPathDiff carries all three p-values (p_value_bootstrap,
+        p_value_henseler, p_value_parametric) so the analyst can compare
+        them. This only selects which method's significance call is used
+        for ``MGAPathDiff.significant`` (v1.1, S1).
     log_fn : callable, optional
         SSE logging callback.
     seed : int
@@ -459,6 +539,13 @@ def run_mga(
     -------
     MGAResult
     """
+    if mga_method not in MGA_METHODS:
+        raise ValueError(
+            f"mga_method must be one of {MGA_METHODS}; got '{mga_method}'. "
+            "All three methods are always computed and reported — this only "
+            "selects which one sets MGAPathDiff.significant."
+        )
+
     _emit(log_fn, "step", "MGA: parsing model syntax")
     parsed   = parse_lavaan(model_syntax)
     syntax   = build_semopy_syntax(parsed)
@@ -590,6 +677,13 @@ def run_mga(
         bs_diffs: dict[tuple[str, str], list[float]] = {
             (rel["rhs"], rel["lhs"]): [] for rel in structural
         }
+        # Per-group bootstrap coefficients, for the PLS-MGA parametric SE (Henseler 2007)
+        bs_coefs_a: dict[tuple[str, str], list[float]] = {
+            (rel["rhs"], rel["lhs"]): [] for rel in structural
+        }
+        bs_coefs_b: dict[tuple[str, str], list[float]] = {
+            (rel["rhs"], rel["lhs"]): [] for rel in structural
+        }
         converged_bs = 0
 
         for bi in range(bootstrap_n):
@@ -611,6 +705,8 @@ def run_mga(
                     bb = paths_b.get(key)
                     if ba is not None and bb is not None:
                         bs_diffs[key].append(ba - bb)
+                        bs_coefs_a[key].append(ba)
+                        bs_coefs_b[key].append(bb)
                         ok = True
                 if ok:
                     converged_bs += 1
@@ -646,6 +742,24 @@ def run_mga(
                     f"({g_a_str} vs {g_b_str}) — CI set to point estimate."
                 )
 
+            # v1.1 (S1) — run all three group-comparison methods; report all
+            # three p-values regardless of which one is "primary" below.
+            _bs_a = bs_coefs_a.get(key, [])
+            _bs_b = bs_coefs_b.get(key, [])
+
+            _p_boot = _bootstrap_p_value(bs, diff_obs)
+            _p_henseler = _henseler_p_value(_bs_a, _bs_b)
+            _p_param, _df_welch = _welch_satterthwaite_test(
+                beta_a, beta_b, _bs_a, _bs_b, len(df_a), len(df_b)
+            )
+
+            _sig_by_method = {
+                "bootstrap":  not (ci_lo <= 0.0 <= ci_hi),
+                "henseler":   (_p_henseler is not None and _p_henseler < 0.05),
+                "parametric": (_p_param is not None and _p_param < 0.05),
+            }
+            _significant = _sig_by_method[mga_method]
+
             path_differences.append(MGAPathDiff(
                 lhs=lhs,
                 rhs=rhs,
@@ -656,7 +770,11 @@ def run_mga(
                 diff=round(diff_obs, 6),
                 ci_lower_95=round(ci_lo, 6),
                 ci_upper_95=round(ci_hi, 6),
-                significant=not (ci_lo <= 0.0 <= ci_hi),
+                significant=_significant,
+                p_value_bootstrap=_p_boot,
+                p_value_henseler=_p_henseler,
+                p_value_parametric=_p_param,
+                df_welch=_df_welch,
             ))
 
     _emit(log_fn, "ok",
@@ -670,6 +788,7 @@ def run_mga(
         group_results=group_results,
         path_differences=path_differences,
         micom=micom_result,
+        mga_method=mga_method,
         warnings=warnings,
     )
 

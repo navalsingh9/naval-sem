@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 # ── Top-level imports (moved from inside compute_nca to fix TC-26 / TC-49) ────
-from app.engine_utils import _build_composites, _emit, _safe_float
+from app.engine_utils import _build_composites, _emit, _safe_float, annotate_fit_index
 from app.parser import parse_lavaan
 from app.schemas import NCAEntry, NCAResult
 
@@ -336,10 +336,38 @@ def compute_nca(
 
         # ── CE-FDH ──────────────────────────────────────────────────────────
         try:
-            ce_d, ceil_x_raw, ceil_y_raw, _ = _ce_fdh(x_c, y_c)
+            ce_d, ceil_x_raw, ceil_y_raw, ceil_pts = _ce_fdh(x_c, y_c)
         except Exception as exc:
             warnings.append(f"NCA CE-FDH failed for {iv}→{dv}: {exc}")
-            ce_d, ceil_x_raw, ceil_y_raw = 0.0, [], []
+            ce_d, ceil_x_raw, ceil_y_raw, ceil_pts = 0.0, [], [], []
+
+        # ── Bottleneck table (Dul, 2016) ───────────────────────────────────
+        from app.schemas import NCABottleneckRow as _BNRow
+        _bt_rows: list = []
+        try:
+            _y_min_s, _y_max_s = float(y_c.min()), float(y_c.max())
+            _x_max_s = float(x_c.max())
+            for _pct in [10, 20, 30, 40, 50, 60, 70, 80, 90]:
+                _y_target = _y_min_s + (_pct / 100) * (_y_max_s - _y_min_s)
+                # Find minimum X at which the CE-FDH ceiling first reaches _y_target
+                # ceil_pts is sorted ascending by x; ceiling is a step function
+                _x_req = _x_max_s   # default: need max X
+                for (_cx, _cy) in reversed(ceil_pts):  # scan right-to-left
+                    if _cy >= _y_target:
+                        _x_req = _cx
+                    else:
+                        break
+                # Percentile of x_req in observed X
+                _x_pct = round(float(np.mean(x_c <= _x_req) * 100), 1)
+                _bt_rows.append(_BNRow(
+                    y_percentile=float(_pct),
+                    y_value=round(_y_target, 4),
+                    x_required=round(_x_req, 4),
+                    x_percentile=_x_pct,
+                ))
+        except Exception as exc:
+            warnings.append(f"NCA bottleneck table failed for {iv}→{dv}: {exc}")
+            _bt_rows = []
 
         # ── CR-FDH ──────────────────────────────────────────────────────────
         try:
@@ -405,6 +433,7 @@ def compute_nca(
             scatter_y=sc_y,
             ceiling_x=ceil_x_out,
             ceiling_y=ceil_y_out,
+            bottleneck_table=_bt_rows,
         ))
 
         _emit(log_fn, "ok",
@@ -422,8 +451,16 @@ def compute_nca(
     _emit(log_fn, "ok",
           f"NCA complete — {len(entries)} pair(s) analysed")
 
+    # A17: up to two plain-English sentences per NCAEntry — CE-FDH d then
+    # CR-FDH d, in that order — describing the ceiling-line effect size.
+    nca_annotations: list[str] = []
+    for e in entries:
+        nca_annotations.append(annotate_fit_index("CE-FDH d", e.ce_fdh_d))
+        nca_annotations.append(annotate_fit_index("CR-FDH d", e.cr_fdh_d))
+
     return NCAResult(
         entries=entries,
         n_permutations=n_permutations,
         warnings=warnings,
+        annotations=nca_annotations,
     )
