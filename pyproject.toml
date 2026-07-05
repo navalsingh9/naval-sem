@@ -28,7 +28,7 @@ dependencies = [
     # at module level by main.py — so its absence stops the whole server
     # from starting, not just the /ipma endpoint.
     "matplotlib==3.11.0",
-    "mpmath==1.4.1",
+    "mpmath==1.3.0",
     "narwhals==2.22.1",
     "numdifftools==0.9.42",
     "numpy==2.4.6",
