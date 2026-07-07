@@ -103,6 +103,36 @@ SECURITY.md
 
 ---
 
+# 🏆 Community Recognition
+
+NAVAL-SEM is an open-source research project, and every meaningful contribution helps improve the software for researchers worldwide.
+
+Outstanding contributors are recognized here.
+
+## 🥇 Bug Hunter #001
+
+![Bug Hunter #001](docs/community/badges/bughunter-001-yang.png)
+
+**Yang**
+
+🇰🇷 South Korea
+
+Contribution:
+- First verified community bug report
+
+Issue:
+- Builder "Draw Arrow" regression
+
+Resolved in:
+- NAVAL-SEM v1.1.1
+
+Thank you for helping make NAVAL-SEM better for everyone.
+
+---
+
+Future contributors may be recognized here for significant bug reports, feature contributions, testing, documentation, or community support.
+
+
 # Project status
 
 NAVAL-SEM is under active development and APIs/UI behaviour may evolve rapidly during early releases.
