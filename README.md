@@ -10,6 +10,17 @@
 
 ---
 
+## 🏆 Community Recognition
+
+NAVAL-SEM is built with the help of researchers and practitioners around the world.
+
+Special thanks to our community members who report bugs, test new releases, suggest features, and help improve the project.
+
+➡️ **Meet our contributors and Community Hall of Fame:**  
+https://github.com/navalsingh9/naval-sem/blob/master/CONTRIBUTING.md#community-recognition
+
+---
+
 ## Release Roadmap
 
 ![Roadmap](https://github.com/navalsingh9/naval-sem/blob/master/Product%20Roadmap.png?raw=true)
