@@ -111,7 +111,7 @@ Outstanding contributors are recognized here.
 
 ## 🥇 Bug Hunter #001
 
-![Bug Hunter #001](docs/community/badges/bughunter-001-yang.png)
+(![Bug Hunter #001](docs/community/badges/bughunter-001-yang.png))
 
 **Yang**
 
