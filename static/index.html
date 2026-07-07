@@ -2906,7 +2906,14 @@ function _d3Render(){
       .on('end',  (ev,d)=>{ if(dragMoved&&dragStartState){ undoStack.push(dragStartState); redoStack=[]; } })
     )
     .on('click',(ev,d)=>{
-      if(arrowStart){
+      if(tool==='arrow'){
+        ev.stopPropagation();
+        if(!arrowStart){
+          // Start arrow draw
+          arrowStart=d;
+          _d3Render();
+          return;
+        }
         // Complete arrow draw
         if(arrowStart.id!==d.id){
           saveState();
@@ -2962,7 +2969,13 @@ function _d3Render(){
       .on('end',  (ev,d)=>{ if(dragMoved&&dragStartState){ undoStack.push(dragStartState); redoStack=[]; } })
     )
     .on('click',(ev,d)=>{
-      if(arrowStart){
+      if(tool==='arrow'){
+        ev.stopPropagation();
+        if(!arrowStart){
+          arrowStart=d;
+          _d3Render();
+          return;
+        }
         if(arrowStart.id!==d.id){
           saveState();
           edges.push({from:arrowStart.id,to:d.id,type:'measurement',id:uid()});

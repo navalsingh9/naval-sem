@@ -73,7 +73,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         # Exclude heavy stuff we don't need
-        "tkinter", "matplotlib", "IPython",
+        "tkinter", "IPython",
         "jupyter", "notebook", "test", "tests",
     ],
     win_no_prefer_redirects=False,
