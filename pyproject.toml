@@ -79,7 +79,7 @@ dependencies = [
     "threadpoolctl==3.6.0",
     "typing-extensions==4.15.0",
     "typing-inspection==0.4.2",
-    "tzdata==2026.2",
+    "tzdata==2026.3",
     "uvicorn[standard]==0.51.0",
     "watchfiles==1.2.0",
     "websockets==16.0",
