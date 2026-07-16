@@ -82,7 +82,7 @@ dependencies = [
     "tzdata==2026.3",
     "uvicorn[standard]==0.51.0",
     "watchfiles==1.2.0",
-    "websockets==16.0",
+    "websockets==16.1",
     "xlrd==2.0.2",
 ]
 
