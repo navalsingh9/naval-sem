@@ -41,7 +41,6 @@ dependencies = [
     "proxy-tools==0.1.0",
     "pycparser==3.0",
     "pydantic==2.13.4",
-    "pydantic-core==2.47.0",
     "pyinstaller==6.21.0",
     "pyinstaller-hooks-contrib==2026.6",
     # pyreadstat powers SPSS .sav file uploads (parser.parse_spss). Lazily
