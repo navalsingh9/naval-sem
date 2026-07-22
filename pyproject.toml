@@ -76,7 +76,7 @@ dependencies = [
     "statsmodels==0.14.6",
     "sympy==1.14.0",
     "threadpoolctl==3.6.0",
-    "typing-extensions==4.15.0",
+    "typing-extensions==4.16.0",
     "typing-inspection==0.4.2",
     "tzdata==2026.3",
     "uvicorn[standard]==0.51.0",
