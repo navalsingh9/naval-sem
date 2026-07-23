@@ -27,7 +27,7 @@ dependencies = [
     # engine_ipma imports matplotlib at module level and is itself imported
     # at module level by main.py — so its absence stops the whole server
     # from starting, not just the /ipma endpoint.
-    "matplotlib==3.11.0",
+    "matplotlib==3.11.1",
     "mpmath==1.3.0",
     "narwhals==2.24.0",
     "numdifftools==0.9.42",
