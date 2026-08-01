@@ -1840,42 +1840,65 @@ def _run_diagnostics(
         extra_warnings.append(f"Could not compute outer weight significance: {e}")
 
     # ── Bootstrap significance back-fill ─────────────────────────────────────
-    # Triggers when bootstrap was run AND any structural path has no real
-    # p-value (p == 1.0 sentinel). Covers PLS-SEM (no analytical p),
+    # Triggers when bootstrap was run AND any hypothesis-tested parameter has
+    # no real p-value (p == 1.0 sentinel). Covers PLS-SEM (no analytical p),
     # PLS falling back to CB-SEM, and estimators where semopy returns NaN/None.
+    #
+    # BUGFIX: this used to only look at structural ("~") parameters when
+    # deciding whether a back-fill was needed, and — even when it ran — it
+    # only ever wrote `significant`, `p_value`, and CI bounds onto the
+    # matched parameters. Measurement/loading ("=~") parameters, including
+    # higher-order construct loadings (e.g. "x1 =~ g"), were therefore never
+    # flagged for back-fill and never received the bootstrap standard error
+    # or z-value, so they kept the PLS point-estimate placeholders (SE=0.0,
+    # z=0.0, p=1.0) in the report forever, no matter how large bootstrap_n
+    # was. Both the trigger condition and the back-fill body now cover any
+    # hypothesis-tested parameter (op in {"~", "=~"}; "~~" covariance rows
+    # are never hypothesis-tested and stay excluded), and std_error/z_value
+    # are populated from the bootstrap resampling distribution alongside
+    # significance and CI bounds.
     if parameters is not None and parsed is not None and bootstrap_n > 0:
-        structural_vars_set = (
-            {r["lhs"] for r in parsed.get("structural", [])} |
-            {r["rhs"] for r in parsed.get("structural", [])}
-        )
-        structural_params = [
-            p for p in parameters
-            if p.op == "~" and p.lhs in structural_vars_set and p.rhs in structural_vars_set
-        ]
-        missing_pvals = any(p.p_value is None for p in structural_params)
+        testable_params = [p for p in parameters if p.op in ("~", "=~")]
+        missing_pvals = any(p.p_value is None for p in testable_params)
 
         if missing_pvals or use_pls:
             try:
                 bs_result_tmp = run_bootstrap(df, model_syntax, n=bootstrap_n,
                                               algorithm=algorithm)
-                bs_sig_map: dict[tuple[str, str, str], tuple[bool, float, float]] = {}
+                bs_stat_map: dict[tuple[str, str, str], tuple[bool, float, float, float, float]] = {}
                 for bp in bs_result_tmp.parameters:
                     key = (bp.lhs, bp.op, bp.rhs)
-                    bs_sig_map[key] = (
+                    bs_stat_map[key] = (
                         bool(bp.significant),
                         float(bp.ci_lower_95),
                         float(bp.ci_upper_95),
+                        float(bp.bs_se),
+                        float(bp.estimate),
                     )
+                unmatched: list[str] = []
                 for param in parameters:
                     key = (param.lhs, param.op, param.rhs)
-                    if key in bs_sig_map:
-                        sig, ci_lo, ci_hi = bs_sig_map[key]
+                    if key in bs_stat_map:
+                        sig, ci_lo, ci_hi, bs_se, bs_est = bs_stat_map[key]
                         param.significant = sig
                         param.p_value     = None   # bootstrap provides CIs, not analytic p-values
                         if param.ci_lower is None:
                             param.ci_lower = round(ci_lo, 6)
                         if param.ci_upper is None:
                             param.ci_upper = round(ci_hi, 6)
+                        # Populate SE / t-z from the bootstrap resampling
+                        # distribution instead of leaving the 0.0 placeholder.
+                        if bs_se > 0:
+                            param.std_error = round(bs_se, 6)
+                            param.z_value   = round(bs_est / bs_se, 4)
+                    elif param.op in ("~", "=~"):
+                        unmatched.append(f"{param.lhs} {param.op} {param.rhs}")
+                if unmatched:
+                    extra_warnings.append(
+                        "Bootstrap back-fill: no matching bootstrap estimate found for "
+                        f"{len(unmatched)} parameter(s) (e.g. '{unmatched[0]}'); "
+                        "these keep point-estimate placeholders (SE/z/p unavailable)."
+                    )
             except Exception as e:
                 extra_warnings.append(f"Could not back-fill significance from bootstrap: {e}")
 
