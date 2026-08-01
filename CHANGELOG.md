@@ -8,6 +8,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [v1.1.3] — 2026-08-01 · Bootstrap Back-Fill Fix
+
 ### Added
 
 **Formative construct (Mode B) support — PLS-SEM**
@@ -22,6 +28,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **HOC / measurement (`=~`) loadings never received bootstrap SE, z, or CI when `bootstrap_n > 0`** — the bootstrap significance back-fill in `_run_diagnostics()` previously only scanned structural (`~`) parameters when deciding whether a back-fill was needed, and only wrote `significant`/`p_value`/CI onto matched parameters. Measurement loadings — including higher-order construct loadings produced by the repeated-indicator HOC expansion (e.g. `x1 =~ g`) — were never flagged for back-fill and kept the PLS point-estimate placeholders (`std_error=0.0`, `z_value=0.0`, `p_value=1.0`) in every report regardless of `bootstrap_n`. The trigger condition and the back-fill body now cover any hypothesis-tested parameter (`op` in `{"~", "=~"}`; `"~~"` covariance rows stay excluded, since they are never hypothesis-tested), and `std_error`/`z_value` are populated from the bootstrap resampling distribution alongside significance and CI bounds. Affects `app/engine.py`.
 - **Gaussian Copula bootstrap CI always `None` / `copula_significant` always `False`** — in `compute_gaussian_copula()`, the bootstrap loop computed the resampled copula coefficient (`c_bs`) on every iteration but never appended it to `bs_cop_coef`, so `_ci_from_bootstrap()` always received an empty list. Added the missing `bs_cop_coef.append(float(c_bs[-1]))`. Affects `app/engine.py`.
 - **Fornell-Larcker off-diagonal used mean indicator correlation instead of LV composite correlation** — `_compute_fornell_larcker()` computed each off-diagonal cell as the mean of all cross-indicator correlations between two LV blocks rather than the Pearson r between LV composite scores required by Fornell & Larcker (1981). Added an optional `composites` parameter and a `_phi()` helper that correlates composite scores directly when supplied, falling back to the previous mean-cross-indicator behaviour otherwise; `_compute_measurement_validity()` now builds composites via `_build_composites()` and passes them through. Affects `app/engine.py`.
 - **Both-paths (Hayes Model 58/59) combined indirect effect never computed** — when a model had both an a-path interaction (`X*W`) and a b-path interaction (`M*W`) for the same `X→M→Y` chain, each was returned as a separate `ModMediationPath` entry and the combined conditional indirect effect was never computed. `run_mod_mediation()` now detects such chains and appends a `moderated_path="both"` entry using `IE(w) = (a + a₃w)(b + b₃w)` and `imm = a₃b + ab₃`; CIs on this combined entry are `None` pending a simultaneous a/b bootstrap. Affects `app/engine_mod_mediation.py`.
