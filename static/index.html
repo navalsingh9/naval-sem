@@ -5941,18 +5941,51 @@ function _buildSVGDiagram(syntax, parameters) {
   const lvDefs = [], obsMap = {}, edges = [], covEdges = [];
   const lines = syntax.split('\n').map(l => l.replace(/#.*/,'').trim()).filter(Boolean);
 
+  // Pass 1: collect every declared latent variable (lhs of any "=~" line) up
+  // front, and stash each measurement line's raw RHS for pass 2. Collecting
+  // all LV names first — instead of resolving each line as it's encountered —
+  // means a higher-order construct's declaration order relative to its
+  // first-order constructs (HOC before or after its FOCs) doesn't matter.
+  const measureLines = [];
   lines.forEach(line => {
-    const mLV  = line.match(/^(\w+)\s*=~\s*(.+)/);
-    const mStr = line.match(/^(\w+)\s*~\s*(.+)/);
-    const mCov = line.match(/^(\w+)\s*~~\s*(.+)/);
+    const mLV = line.match(/^(\w+)\s*=~\s*(.+)/);
     if (mLV) {
       const lv = mLV[1];
       if (!lvDefs.find(l => l === lv)) lvDefs.push(lv);
-      mLV[2].split('+').map(s => s.trim()).filter(Boolean).forEach(ind => {
+      measureLines.push({ lv, rhsRaw: mLV[2] });
+    }
+  });
+  const lvNameSet = new Set(lvDefs);
+
+  // Pass 2: split each measurement line's indicators into true manifest
+  // indicators vs. higher-order construct (HOC) relationships.
+  //
+  // BUGFIX: this used to push every RHS token into obsMap[lv] unconditionally,
+  // so for a higher-order construct like `g =~ visual + textual + speed` the
+  // first-order constructs (visual/textual/speed) were drawn as if they were
+  // g's own manifest indicator boxes — identical to how x1/x2/x3 are drawn
+  // under `visual`. That both duplicated visual/textual/speed as boxes AND
+  // never created an edge connecting them to `g`, which is why `g` ended up
+  // dropped from the rendered diagram entirely. Now, any RHS token that is
+  // itself a declared latent variable is treated as a second-order edge
+  // (FOC → HOC), rendered the same way structural paths are, so the full
+  // g → {visual, textual, speed} → {x1..x9} hierarchy survives in the diagram.
+  measureLines.forEach(({ lv, rhsRaw }) => {
+    rhsRaw.split('+').map(s => s.trim()).filter(Boolean).forEach(ind => {
+      if (lvNameSet.has(ind) && ind !== lv) {
+        edges.push({ from: ind, to: lv, hoc: true });
+      } else {
         if (!obsMap[lv]) obsMap[lv] = [];
         obsMap[lv].push(ind);
-      });
-    } else if (mStr) {
+      }
+    });
+  });
+
+  lines.forEach(line => {
+    if (/^(\w+)\s*=~\s*(.+)/.test(line)) return; // handled in pass 2 above
+    const mStr = line.match(/^(\w+)\s*~\s*(.+)/);
+    const mCov = line.match(/^(\w+)\s*~~\s*(.+)/);
+    if (mStr) {
       const lhs = mStr[1];
       mStr[2].split('+').map(s => s.trim()).filter(Boolean).forEach(rhs => {
         edges.push({ from: rhs, to: lhs });
@@ -6152,6 +6185,7 @@ function _buildSVGDiagram(syntax, parameters) {
     const stroke  = isSig ? '#34d399' : (hasEst ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.40)');
     const mkr     = isSig ? 'url(#arrS)' : 'url(#arrNS)';
     const sw      = isSig ? '2.2' : '1.5';
+    const dash    = e.hoc ? ' stroke-dasharray="5,3"' : ''; // higher-order (FOC → HOC) edge
 
     // Bezier control: bow upward for same-column edges, straight-ish for cross-column
     const dx = tp.x - fp.x, dy = tp.y - fp.y;
@@ -6160,7 +6194,7 @@ function _buildSVGDiagram(syntax, parameters) {
     const mx = (fp.x + tp.x) / 2, my = (fp.y + tp.y) / 2 - bow;
 
     svg += `<path d="M${fp.x},${fp.y} Q${mx},${my} ${tp.x},${tp.y}"
-      fill="none" stroke="${stroke}" stroke-width="${sw}" marker-end="${mkr}"/>`;
+      fill="none" stroke="${stroke}" stroke-width="${sw}" marker-end="${mkr}"${dash}/>`;
 
     if (hasEst) {
       const label = Number(p.est).toFixed(3) + (isSig ? '' : ' ns');
