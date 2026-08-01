@@ -7,7 +7,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "altgraph==0.17.5",
     "annotated-doc==0.0.4",
-    "annotated-types==0.7.0",
+    "annotated-types==0.8.0",
     "anyio==4.14.2",
     "bottle==0.13.4",
     "cffi==2.1.0",
