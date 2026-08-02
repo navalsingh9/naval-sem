@@ -12,6 +12,14 @@ _Nothing yet._
 
 ---
 
+## [v1.1.5] — 2026-08-02 · Report Diagram Theme-Refresh Fix
+
+### Fixed
+- **Exported report diagrams could show a stale theme even after switching themes.** `buildReport()` (which generates the diagram, among the rest of the report) only runs when the Report tab is opened or reopened — `downloadReport()` deliberately skips rebuilding the whole card to preserve in-place edits (report note, metadata). If a theme was applied *after* the Report tab was last built, the diagram markup already sitting in the DOM still had the previous theme's colors baked directly into its SVG `fill`/`stroke`/`background` attributes, so no export-time backgroundColor option could correct it — the v1.1.4 html2canvas fix was correct but never got exercised, since the SVG itself was already wrong before capture. `downloadReport()` now regenerates the diagram from `_buildSVGFromBuilderNodes()` (which reads the live `window._CT` theme object) immediately before capturing, so the export always reflects whichever theme is active at that moment, regardless of when the Report tab was last opened. Affects `static/index.html`.
+- **A second, independent copy of the v1.1.4 HOC-blind rank-layout bug**, inside `_buildSVGFromBuilderNodes()`'s overlap-recovery path (triggers only when a loaded snapshot's nodes are already overlapping, e.g. a `results.json` saved before v1.1.4). Given the same HOC-aware rank fix as the primary layout algorithm, so it can't silently reintroduce the single-column stacking bug via this fallback path. Affects `static/index.html`.
+
+---
+
 ## [v1.1.4] — 2026-08-02 · Diagram Layout & Export Theme Fix
 
 ### Fixed
