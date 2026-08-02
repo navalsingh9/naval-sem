@@ -5680,14 +5680,28 @@ function _buildSVGFromBuilderNodes(nodesSnapIn, edgesSnapIn) {
   }
 
   if (overlapping) {
-    // 1. Compute topological rank (longest-path from source) for each LV
+    // 1. Compute topological rank (longest-path from source) for each LV.
+    // LV-to-LV measurement edges (HOC constructs, e.g. "g =~ visual") count
+    // too, reversed in direction, so a higher-order construct always ranks
+    // after the first-order constructs feeding into it — see the matching
+    // fix in _topoLayout() for the full explanation.
     const structEdges = edgesSnap.filter(e => e.type !== 'measurement');
+    const hocEdgesSnap = edgesSnap.filter(e => {
+      if (e.type !== 'measurement') return false;
+      const fNode = nodesSnap.find(n => n.id === e.from);
+      const tNode = nodesSnap.find(n => n.id === e.to);
+      return fNode && tNode && fNode.type === 'lv' && tNode.type === 'lv';
+    });
+    const rankEdgesSnap = [
+      ...structEdges,
+      ...hocEdgesSnap.map(e => ({ from: e.to, to: e.from })),
+    ];
     const rankOf = {};
     lvNodes.forEach(n => { rankOf[n.id] = 0; });
     let changed = true;
     for (let pass = 0; pass < lvNodes.length + 1 && changed; pass++) {
       changed = false;
-      structEdges.forEach(e => {
+      rankEdgesSnap.forEach(e => {
         if (!(e.from in rankOf) || !(e.to in rankOf)) return;
         const nr = rankOf[e.from] + 1;
         if (nr > rankOf[e.to]) { rankOf[e.to] = nr; changed = true; }
@@ -7315,6 +7329,26 @@ async function downloadReport(fmt){
   // Flush any unsaved field values into the report WITHOUT rebuilding the whole card
   updateReportNote();
   updateReportMeta();
+
+  // Re-render just the diagram from the CURRENT theme before export. buildReport()
+  // is only re-invoked when the Report tab is (re)opened, so if the theme changed
+  // since then, #rpt-diagram-img still held old, stale-themed markup — no amount of
+  // html2canvas backgroundColor tweaking fixes that, since the SVG/PNG itself was
+  // already baked with the previous _CT colors. _buildSVGFromBuilderNodes /
+  // _buildSVGDiagram both read window._CT live, so regenerating right here always
+  // reflects whatever theme is active at export time.
+  (function _refreshReportDiagramForExport(){
+    const holder = document.getElementById('rpt-diagram-img');
+    const snap = _reportSnapshot;
+    if (!holder || !snap) return;
+    const freshSvg = _buildSVGFromBuilderNodes(snap.nodes, snap.edges)
+                  || _buildSVGDiagram(snap.syntax, (results && results.parameters) || []);
+    if (freshSvg && holder.parentNode) {
+      holder.parentNode.innerHTML = `<div id="rpt-diagram-img" style="width:100%">${freshSvg}</div>`;
+    }
+    // If neither SVG builder produced output, leave the existing raster/placeholder
+    // markup as-is — there's nothing fresher available to swap in.
+  })();
 
   const spinner = document.getElementById('rpt-spinner');
   const msg     = document.getElementById('rpt-spinner-msg');
