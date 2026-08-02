@@ -12,6 +12,18 @@ _Nothing yet._
 
 ---
 
+## [v1.1.4] — 2026-08-02 · Diagram Layout & Export Theme Fix
+
+### Fixed
+- **HOC model canvas auto-layout stacked every construct into a single overlapping column.** `_topoLayout()` computed each latent variable's column position by walking only `structural` (`~`) edges. A higher-order construct spec such as `g =~ visual + textual + speed` uses a measurement (`=~`) edge, not a structural one, so every LV's rank stayed at 0 and `visual`/`textual`/`speed`/`g` were all placed in the same column, on top of each other. LV-to-LV measurement edges (HOC relationships) are now folded into the rank computation, reversed in direction so first-order constructs rank before the higher-order construct they feed into. Affects `static/index.html`.
+- **Indicator-clustering step could misfile a first-order construct as an "indicator" of its own higher-order construct.** The same layout pass re-clusters observed indicators (`x1`, `x2`, ...) around their construct using measurement edges, but didn't distinguish an LV-to-LV edge (e.g. `g =~ visual`) from a genuine indicator edge (e.g. `visual =~ x1`) — so `visual` itself could get pulled into a small indicator slot next to `g`. LV-to-LV edges are now excluded from this step. Affects `static/index.html`.
+- **Report/diagram exports always rendered with a hardcoded dark background (`#13151a`), regardless of the active theme.** Both the PNG export and the PDF path-diagram rasterization in `downloadReport()` ignored whatever theme (including a custom-uploaded light theme) was active in the UI. Both now read the live `--bg` CSS variable at export time, falling back to the previous dark value only if it isn't set. Affects `static/index.html`.
+
+### Removed
+- **Dead force-simulation code.** `_d3sim` (a `d3.forceSimulation` with link/charge/collide forces and a tick handler) was declared, configured, and immediately stopped, but never given nodes/links or restarted anywhere — so it never ran. Removed; the actual auto-layout is the rank/column algorithm above. Affects `static/index.html`.
+
+---
+
 ## [v1.1.3] — 2026-08-01 · Bootstrap Back-Fill Fix
 
 ### Added
