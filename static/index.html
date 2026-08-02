@@ -2555,13 +2555,31 @@ function generateCanvasFromSyntax(syntax) {
     if (lvNodes.length < 2) return;
     const structEdges = edges.filter(e => e.type === 'structural');
 
+    // Higher-order construct edges: measurement ('=~') edges where BOTH ends
+    // are latent variables, e.g. "g =~ visual + textual + speed". These are
+    // stored as { from: g, to: visual } (LHS -> RHS), but rank should flow
+    // the other way — visual/textual/speed are first-order and should rank
+    // *before* g. Without this, every LV (including g) stayed at rank 0 and
+    // got dumped into a single column, stacking visual/textual/speed/g
+    // vertically on top of each other instead of branching g out to the side.
+    const hocEdges = edges.filter(e => {
+      if (e.type !== 'measurement') return false;
+      const fNode = nodes.find(n => n.id === e.from);
+      const tNode = nodes.find(n => n.id === e.to);
+      return fNode && tNode && fNode.type === 'lv' && tNode.type === 'lv';
+    });
+    const rankEdges = [
+      ...structEdges,
+      ...hocEdges.map(e => ({ from: e.to, to: e.from })), // reversed for rank purposes
+    ];
+
     // 1. Longest-path rank for each LV
     const rankOf = {};
     lvNodes.forEach(n => { rankOf[n.id] = 0; });
     let changed = true;
     for (let pass = 0; pass < lvNodes.length + 1 && changed; pass++) {
       changed = false;
-      structEdges.forEach(e => {
+      rankEdges.forEach(e => {
         if (!(e.from in rankOf) || !(e.to in rankOf)) return;
         const nr = rankOf[e.from] + 1;
         if (nr > rankOf[e.to]) { rankOf[e.to] = nr; changed = true; }
@@ -2589,6 +2607,11 @@ function generateCanvasFromSyntax(syntax) {
       const fNode = nodes.find(n => n.id === e.from);
       const tNode = nodes.find(n => n.id === e.to);
       if (!fNode || !tNode) return;
+      // HOC edges (both ends are LV, e.g. "g =~ visual") are handled by the
+      // column/rank layout above, not indicator clustering — skip them here
+      // so a first-order construct never gets treated as an "indicator" of
+      // its higher-order construct.
+      if (fNode.type === 'lv' && tNode.type === 'lv') return;
       const lvId  = fNode.type === 'lv' ? e.from : (tNode.type === 'lv' ? e.to : null);
       const obsId = lvId === e.from ? e.to : e.from;
       if (lvId && obsId) obsLVMap[obsId] = lvId;
@@ -2685,7 +2708,7 @@ let prevTool='lv';
 // block and strand every variable declared below (W, results, csvColumns …)
 // in the Temporal Dead Zone.  The app requires d3 to function; the try/catch
 // gives a clear console error rather than a cascade of cryptic TDZ errors.
-let _d3svg, _d3vp, _d3eL, _d3eLbl, _d3nL, _d3prev, _d3zoom, _d3sim;
+let _d3svg, _d3vp, _d3eL, _d3eLbl, _d3nL, _d3prev, _d3zoom;
 try {
   _d3svg  = d3.select('#sem-canvas');
   _d3vp   = _d3svg.select('#d3-viewport');
@@ -2712,16 +2735,6 @@ try {
       _d3UpdateMinimap();
     });
   _d3svg.call(_d3zoom);
-
-  // Force simulation — used only for auto-layout; disabled during manual editing
-  _d3sim = d3.forceSimulation()
-    .force('link', d3.forceLink().id(d=>d.id)
-      .distance(e => e.type==='measurement' ? 110 : 200)
-      .strength(e => e.type==='measurement' ? 0.8 : 0.6))
-    .force('charge', d3.forceManyBody().strength(d => d.type==='lv' ? -900 : -280))
-    .force('collide', d3.forceCollide().radius(d => d.type==='lv' ? 72 : 44).strength(0.85))
-    .on('tick', () => { _d3Render(); _d3UpdateMinimap(); })
-    .stop();
 } catch(e) {
   console.error('[NAVAL-SEM] D3 initialisation failed:', e.message);
   console.error('Ensure vendor/d3.min.js is present. Download it from:\n' +
@@ -7330,11 +7343,16 @@ async function downloadReport(fmt){
       // is always a sane aspect ratio regardless of the panel's current width.
       if(msg) msg.textContent = 'Rendering…';
       const EXPORT_W = 900;
+      // Read the currently active theme's background instead of assuming
+      // dark — previously this was hardcoded to '#13151a', so exports always
+      // came out dark even when a custom light theme was active in the UI.
+      const _exportBg = (getComputedStyle(document.documentElement)
+        .getPropertyValue('--bg').trim()) || '#13151a';
       const clone = card.cloneNode(true);
       clone.style.cssText = [
         'position:fixed','left:-9999px','top:0',
         `width:${EXPORT_W}px`,`max-width:${EXPORT_W}px`,
-        'background:#13151a','padding:24px 32px','box-sizing:border-box',
+        `background:${_exportBg}`,'padding:24px 32px','box-sizing:border-box',
         'z-index:-1'
       ].join(';');
       document.body.appendChild(clone);
@@ -7344,7 +7362,7 @@ async function downloadReport(fmt){
       let cvs;
       try {
         cvs = await html2canvas(clone, {
-          backgroundColor: '#13151a',
+          backgroundColor: _exportBg,
           scale: 2,
           useCORS: true, allowTaint: true, logging: false, imageTimeout: 0,
           scrollX: 0, scrollY: 0,
@@ -7373,8 +7391,10 @@ async function downloadReport(fmt){
         const diagEl = document.getElementById('rpt-diagram-img');
         if(diagEl){
           await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const _diagBg = (getComputedStyle(document.documentElement)
+            .getPropertyValue('--bg').trim()) || '#13151a';
           const diagCanvas = await html2canvas(diagEl, {
-            backgroundColor: '#13151a',
+            backgroundColor: _diagBg,
             scale: 2,
             useCORS: true, allowTaint: true, logging: false, imageTimeout: 0,
             scrollX: 0, scrollY: 0,
