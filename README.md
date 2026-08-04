@@ -82,7 +82,7 @@ Fastest way to get the newest stable release.
 
 NAVAL-SEM is a **structural equation modelling desktop app** that runs entirely on your machine. Load your dataset, draw your model in the visual canvas, and get bootstrapped path coefficients, HTMT, AVE, and fit indices — without an internet connection, a licence key, or your data leaving the machine.
 
-**v1.0.0 LTS** — released 27 June 2026 — is the long-term support milestone. All public API schemas are frozen: no field removals or renames in patch or minor releases. This is the build to cite in your methods section.
+**v1.1.5 LTS** — released 2 August 2026 — is the long-term support milestone. All public API schemas are frozen: no field removals or renames in patch or minor releases. This is the build to cite in your methods section.
 
 Built for:
 - **PhD students** who need full PLS-SEM without a SmartPLS subscription
@@ -246,8 +246,8 @@ If you use NAVAL-SEM in published research, please cite:
 
 ```
 Singh, N. (2026). NAVAL-SEM: Free offline structural equation modelling
-desktop application [Software, v1.0.0 LTS].
-https://doi.org/10.5281/zenodo.20124108
+desktop application [Software, v1.1.5].
+https://doi.org/10.5281/zenodo.21754468
 ```
 
 ```bibtex
@@ -255,9 +255,9 @@ https://doi.org/10.5281/zenodo.20124108
   author  = {Singh, Naval},
   title   = {{NAVAL-SEM}: Free offline structural equation modelling desktop application},
   year    = {2026},
-  doi     = {10.5281/zenodo.20124108},
+  doi     = {10.5281/zenodo.21754468},
   url     = {https://github.com/navalsingh9/naval-sem},
-  version = {1.0.0},
+  version = {1.1.5},
   license = {CC BY-NC-ND 4.0}
 }
 ```
@@ -270,7 +270,13 @@ A `CITATION.cff` is included in the repository root for APA 7, BibTeX, and RIS e
 
 | Version | Date | Additions |
 |---------|------|-----------|
-| **v1.0.0 LTS** | 27 Jun 2026 | fsQCA (Quine-McCluskey), APA 7 Word export, schema freeze, 174 tests |
+| **v1.1.5** |	2 Aug 2026 |	Report export rebuilds diagram from live theme before capture — fixes stale-theme exports |
+| v1.1.4 |	2 Aug 2026 |	Fixed HOC diagram auto-layout (single-column stacking) and hardcoded dark export background |
+| v1.1.3 |	1 Aug 2026 |	Formative (Mode B) PLS-SEM via <~ operator; bootstrap SE/CI back-fill for HOC measurement loadings |
+| v1.1.2 |	1 Aug 2026 |	HOC bootstrap significance back-fill and second-order diagram rendering fix |
+| v1.1.1 |	7 Jul 2026 |	Fixed pywebview startup and the Builder arrow tool |
+| v1.1.0 |	5 Jul 2026 |	Pinned mpmath to resolve a sympy dependency conflict |
+| v1.0.0 LTS | 27 Jun 2026 | fsQCA (Quine-McCluskey), APA 7 Word export, schema freeze, 174 tests |
 | v0.9.0 | 22 Jun 2026 | CVI, EFA, Nomological validity, Measurement invariance (MICOM), NCA-ESSE |
 | v0.8.0 | 14 Jun 2026 | FIMIX-PLS, PLS-POS, PDF export |
 | v0.7.0 | 8 Jun 2026 | Moderation, IPMA, NCA, Conditional process (Hayes PROCESS Models 7/14/58/59) |
