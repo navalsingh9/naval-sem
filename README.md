@@ -286,8 +286,6 @@ A `CITATION.cff` is included in the repository root for APA 7, BibTeX, and RIS e
 | v0.3.0 | 11 May 2026 | AVE, CR, Cronbach's α, Fornell-Larcker, Validity tab |
 | v0.2.0 | 7 May 2026 | Initial release — PLS/CB-SEM, HTMT, visual builder |
 
-→ [Full CHANGELOG](CHANGELOG.md)
-
 ---
 
 ## Troubleshooting
