@@ -10,6 +10,16 @@
 
 ---
 
+## 🏆 Awards & Recognition
+
+[![SourceForge Rising Star](https://a.fsdn.com/con/badges/oss-rising-star-white)](https://sourceforge.net/projects/naval-sem/)
+
+NAVAL-SEM has been recognized with the **SourceForge Rising Star Award (2026)**.
+
+
+
+---
+
 ## 🏆 Community Recognition
 
 NAVAL-SEM is built with the help of researchers and practitioners around the world.
