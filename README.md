@@ -12,6 +12,11 @@
 
 ## 🏆 Awards & Recognition
 
+
+<p>
+<img src="https://github.com/navalsingh9/naval-sem/blob/master/docs/community/badges/oss-rising-star-black.png" width="130" alt="SourceForge Rising Star Award">
+</p>
+
 [![SourceForge Rising Star](https://img.shields.io/badge/SourceForge-Rising%20Star%20Award-orange)](https://sourceforge.net/projects/naval-sem/)
 
 NAVAL-SEM has been recognized with the **SourceForge Rising Star Award (2026)**.
