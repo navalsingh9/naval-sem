@@ -19,6 +19,16 @@ _Nothing yet._
 
 ---
 
+## [v1.1.6] — 2026-08-07 · Column Pill Scroll Fix
+
+### Fixed
+- **Dataset column pills didn't scroll horizontally and instead overflowed the upload bar.** `#col-pills-wrap` (Model tab), `#mga-col-pills` (MGA tab), and `#hoc-col-pills` (HOC tab) are each a `flex: 1` item inside a `display: flex` parent (`.upbar`) with `overflow-x: auto` set directly on them. Flex items default to `min-width: auto`, which floors an item's width at its own content size regardless of `flex` or `overflow` settings — so the pill row was never allowed to shrink to the container's width, and the intended internal scroll never had anything to scroll within; it just spilled past the visible edge of the bar instead. Added `min-width: 0` to all three containers so they now shrink to the available space and scroll as intended.
+- **Even after the row could scroll, a plain vertical mouse wheel still did nothing.** `overflow-x: auto` only responds natively to Shift+wheel or a trackpad's horizontal swipe gesture — no code translated an ordinary vertical wheel scroll into horizontal movement, so the row was still practically unreachable with a standard mouse. Added a `wheel` listener on all three containers that scrolls them horizontally on plain vertical wheel input (skipped when the row has nothing to scroll, or when the input is already horizontal). Also added a right-edge fade (`.col-pill-scroll`, matching the existing `.model-pill` pattern) that clears on hover, since the scrollbar itself is intentionally hidden (`scrollbar-width: none`) and gave no visual cue that more columns existed.
+
+Affects `static/index.html`.
+
+---
+
 ## [v1.1.5] — 2026-08-02 · Report Diagram Theme-Refresh Fix
 
 ### Fixed
@@ -224,7 +234,7 @@ Variable naming convention.
 - Refactored v0.7 functionality into dedicated analysis engines.
 - Removed legacy engine_v07.py.
 - Updated frontend (static/index.html) to support new workflows and reporting views.
-- Version bumped to  .7.0.
+- Version bumped to 0.7.0.
 ---
 
 ## [0.6.1] — 2026-06-03
