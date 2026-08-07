@@ -11,6 +11,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 _Nothing yet._
 
 ---
+## [v1.1.6] — 2026-08-07 · Column Pill Scroll Fix
+
+### Fixed
+
+-**Dataset column pills didn't scroll horizontally and instead overflowed the upload bar**. #col-pills-wrap (Model tab), #mga-col-pills (MGA tab), and #hoc-col-pills (HOC tab) are each a flex: 1 item inside a display: flex parent (.upbar) with overflow-x: auto set directly on them. Flex items default to min-width: auto, which floors an item's width at its own content size regardless of flex or overflow settings — so the pill row was never allowed to shrink to the container's width, and the intended internal scroll never had anything to scroll within; it just spilled past the visible edge of the bar instead. Added min-width: 0 to all three containers so they now shrink to the available space and scroll as intended. Affects static/index.html.
+
+---
 
 ## [v1.1.5] — 2026-08-02 · Report Diagram Theme-Refresh Fix
 
