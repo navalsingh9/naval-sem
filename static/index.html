@@ -615,6 +615,15 @@ button { cursor: pointer; }
 }
 .cpill:hover { border-color: rgba(59,130,246,.38); color: var(--accent-text); }
 .cpill.gp { border-color: rgba(52,211,153,.32); color: var(--green-text); background: var(--green-soft); }
+/* horizontally-scrolling column-pill rows (Model / MGA / HOC tabs): fade the
+   right edge to hint there's more content, since the scrollbar itself is
+   hidden (scrollbar-width:none). Fade clears on hover so nothing is masked
+   while the user is actually interacting with the row. */
+.col-pill-scroll {
+  -webkit-mask-image: linear-gradient(to right, white 92%, transparent 100%);
+  mask-image: linear-gradient(to right, white 92%, transparent 100%);
+}
+.col-pill-scroll:hover { -webkit-mask-image: none; mask-image: none; }
 .finfo { font-size: 10px; color: var(--t3); margin-left: auto; font-family: var(--mono); white-space: nowrap; }
 
 /* info note */
@@ -1288,7 +1297,7 @@ button { cursor: pointer; }
           onclick="document.getElementById('json-results-input').click()"
           title="Load an exported results JSON to review offline — no server needed"
           style="border-style:dotted;color:var(--purple-text);border-color:rgba(167,139,250,.35)">📂 Load results.json</button>
-        <div id="col-pills-wrap" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+        <div id="col-pills-wrap" class="col-pill-scroll" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch">
           <div class="col-pills" id="col-pills" style="display:flex;flex-wrap:nowrap;gap:4px"></div>
         </div>
       </div>
@@ -1618,7 +1627,7 @@ button { cursor: pointer; }
       </div>
       <!-- column pills — file auto-populated from Model tab -->
       <div class="upbar">
-        <div class="col-pills" id="mga-col-pills" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0;scrollbar-width:none"></div>
+        <div class="col-pills col-pill-scroll" id="mga-col-pills" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0;scrollbar-width:none"></div>
       </div>
 
       <!-- ② workflow step guide (no duplicate model display — global formula bar above shows live model) -->
@@ -1704,7 +1713,7 @@ button { cursor: pointer; }
       </div>
       <!-- column pills — file auto-populated from Model tab -->
       <div class="upbar">
-        <div class="col-pills" id="hoc-col-pills"
+        <div class="col-pills col-pill-scroll" id="hoc-col-pills"
           style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0"></div>
       </div>
       <div class="infonote">
@@ -3293,6 +3302,25 @@ function toggleColPills(){
   wrap.style.display = hidden ? '' : 'none';
   if(btn) btn.textContent = hidden ? '▾' : '▸';
 }
+
+// ── Column pill rows: map plain vertical mouse-wheel to horizontal scroll ──
+// overflow-x:auto alone only responds to Shift+wheel or a trackpad's native
+// horizontal gesture — a normal mouse wheel does nothing on these rows
+// without this, even though the row can scroll. Applies to all three pill
+// rows (Model / MGA / HOC tabs).
+(function initColPillWheelScroll(){
+  const ids = ['col-pills-wrap', 'mga-col-pills', 'hoc-col-pills'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('wheel', function(e){
+      if(e.deltaY === 0) return; // already a horizontal gesture — let it through natively
+      if(el.scrollWidth <= el.clientWidth) return; // nothing to scroll
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    }, { passive: false });
+  });
+})();
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 document.addEventListener('keydown',e=>{
