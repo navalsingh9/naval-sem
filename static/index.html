@@ -1297,8 +1297,8 @@ button { cursor: pointer; }
           onclick="document.getElementById('json-results-input').click()"
           title="Load an exported results JSON to review offline — no server needed"
           style="border-style:dotted;color:var(--purple-text);border-color:rgba(167,139,250,.35)">📂 Load results.json</button>
-        <div id="col-pills-wrap" class="col-pill-scroll" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch">
-          <div class="col-pills" id="col-pills" style="display:flex;flex-wrap:nowrap;gap:4px"></div>
+        <div id="col-pills-wrap" style="display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0">
+          <div class="col-pills" id="col-pills" style="display:flex;flex-wrap:wrap;gap:4px"></div>
         </div>
       </div>
     </div>
@@ -1627,7 +1627,7 @@ button { cursor: pointer; }
       </div>
       <!-- column pills — file auto-populated from Model tab -->
       <div class="upbar">
-        <div class="col-pills col-pill-scroll" id="mga-col-pills" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0;scrollbar-width:none"></div>
+        <div class="col-pills" id="mga-col-pills" style="display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0"></div>
       </div>
 
       <!-- ② workflow step guide (no duplicate model display — global formula bar above shows live model) -->
@@ -1713,8 +1713,8 @@ button { cursor: pointer; }
       </div>
       <!-- column pills — file auto-populated from Model tab -->
       <div class="upbar">
-        <div class="col-pills col-pill-scroll" id="hoc-col-pills"
-          style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;flex:1;min-width:0"></div>
+        <div class="col-pills" id="hoc-col-pills"
+          style="display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0"></div>
       </div>
       <div class="infonote">
         HOC is detected automatically — define any latent variable whose indicators include other LV names.&nbsp;·&nbsp;
@@ -3461,8 +3461,7 @@ async function handleUpload(input){
       const d=await r.json();
       csvColumns=d.columns;
       document.getElementById('col-pills').innerHTML=
-        d.columns.slice(0,16).map(h=>`<span class="col-pill" title="${esc(h)}" onclick="usePill('${escJs(h)}')">${esc(h)}</span>`).join('')+
-        (d.columns.length>16?`<span class="col-pill" style="opacity:.5">+${d.columns.length-16}</span>`:'');
+        d.columns.map(h=>`<span class="col-pill" title="${esc(h)}" onclick="usePill('${escJs(h)}')">${esc(h)}</span>`).join('');
       validateNodeLabel();
     }
   } catch {
@@ -3471,7 +3470,7 @@ async function handleUpload(input){
       reader.onload=ev=>{
         const hs=ev.target.result.trim().split('\n')[0].split(',').map(h=>h.trim().replace(/"/g,''));
         csvColumns=hs;
-        document.getElementById('col-pills').innerHTML=hs.slice(0,16).map(h=>`<span class="col-pill" onclick="usePill('${escJs(h)}')">${esc(h)}</span>`).join('');
+        document.getElementById('col-pills').innerHTML=hs.map(h=>`<span class="col-pill" onclick="usePill('${escJs(h)}')">${esc(h)}</span>`).join('');
         validateNodeLabel();
       };
       reader.readAsText(file);
