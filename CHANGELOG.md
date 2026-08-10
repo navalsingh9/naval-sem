@@ -11,6 +11,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 _Nothing yet._
 
 ---
+## [v1.1.9] — 2026-08-11 · UI/UX Improvements
+
+### Added
+
+- **HOC syntax auto-detection and user guidance** — When a model contains Higher-Order Constructs (HOC) and the user runs Main Run, the app now detects this from the syntax and displays a helpful warning message directing the user to the Analyse → HOC tab. The HOC tab in the results drawer is also automatically unhidden when HOC is detected, making it easier for users to find the correct analysis method. Detection works for both measurement model syntax (`HOC =~ FOC1 + FOC2`) and structural model syntax (`TL == IB + IA + IM`).
+
+### Changed
+
+- **Downloads tab label** — The confusing download arrow icon (⬇) in both the results drawer and core results panel has been replaced with the clearer text label "Outputs" to make it obvious what the tab contains.
+
+### Fixed
+
+- **User confusion with HOC models** — Previously, users with HOC syntax who ran Main Run would get no output without understanding why. Now they receive clear guidance to use the HOC analysis tab instead.
+
+---
+## [v1.1.8] — 2026-08-07 · Better UI
 ## [v1.1.6] — 2026-08-07 · Column Pill Scroll Fix
 
 ### Fixed

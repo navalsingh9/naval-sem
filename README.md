@@ -270,6 +270,7 @@ A `CITATION.cff` is included in the repository root for APA 7, BibTeX, and RIS e
 
 | Version | Date | Additions |
 |---------|------|-----------|
+| **v1.1.9** | 11 Aug 2026 | HOC syntax auto-detection with user guidance; Downloads tab renamed to Outputs |
 | **v1.1.5** |	2 Aug 2026 |	Report export rebuilds diagram from live theme before capture — fixes stale-theme exports |
 | v1.1.4 |	2 Aug 2026 |	Fixed HOC diagram auto-layout (single-column stacking) and hardcoded dark export background |
 | v1.1.3 |	1 Aug 2026 |	Formative (Mode B) PLS-SEM via <~ operator; bootstrap SE/CI back-fill for HOC measurement loadings |
