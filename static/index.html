@@ -1499,7 +1499,7 @@ button { cursor: pointer; }
           <button class="rtab"     data-tab="params"     onclick="showRes('params')">Params</button>
           <button class="rtab"     data-tab="mga"        onclick="showRes('mga')" id="drawer-mga-tab" style="display:none">MGA ✦</button>
           <button class="rtab"     data-tab="hoc"        onclick="showRes('hoc')" id="drawer-hoc-tab" style="display:none">HOC ✦</button>
-          <button class="rtab"     data-tab="downloads"  onclick="showRes('downloads')">⬇</button>
+          <button class="rtab"     data-tab="downloads"  onclick="showRes('downloads')">Outputs</button>
         </div>
       </div>
       <div class="res-body" id="res-body">
@@ -1603,7 +1603,7 @@ button { cursor: pointer; }
         <button class="rtab"     data-ctab="effects"    onclick="showCoreRes('effects')">Effects</button>
         <button class="rtab"     data-ctab="predictive" onclick="showCoreRes('predictive')">Predict</button>
         <button class="rtab"     data-ctab="params"     onclick="showCoreRes('params')">Params</button>
-        <button class="rtab"     data-ctab="downloads"  onclick="showCoreRes('downloads')">⬇</button>
+        <button class="rtab"     data-ctab="downloads"  onclick="showCoreRes('downloads')">Outputs</button>
       </div>
       <div class="res-body res-scroll" id="core-res-body" style="display:none;flex:1;overflow-y:auto">
         <div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>
@@ -3637,6 +3637,17 @@ async function runAnalysis(){
     if(!r.ok){document.getElementById('canvas-error').textContent='✗ '+(data.detail||'Server error');return;}
     results=normalizeResults(data);
     _okRunRecord(data);   // record success — elapsed captured, result stored
+    
+    // Check if syntax contains HOC but user ran Main Run
+    const syntax = fd.get('model') || '';
+    if (detectHOCFromSyntax(syntax) && !data.hoc_type && !data.is_hoc) {
+      // Show a warning in the canvas error area
+      const errorEl = document.getElementById('canvas-error');
+      if (errorEl) {
+        errorEl.textContent = 'ℹ Your model contains Higher-Order Constructs (HOC). For proper analysis, go to Analyse tab → HOC and click "Run HOC".';
+        errorEl.style.color = 'var(--amber)';
+      }
+    }
     const labeledEdgeIds = new Set();
 
     if (data.outer_weights && data.outer_weights.length) {
@@ -3737,6 +3748,19 @@ async function runFromSyntax(){
     if(!r.ok){_errRunRecord(data.detail||'Server error');alert(data.detail||'Error');return;}
     results = normalizeResults(data);
     _okRunRecord(data);
+    
+    // Check if syntax contains HOC but user ran Main Run
+    const syntax = fd.get('model') || '';
+    if (detectHOCFromSyntax(syntax) && !data.hoc_type && !data.is_hoc) {
+      const errorEl = document.getElementById('canvas-error');
+      if (errorEl) {
+        errorEl.textContent = 'ℹ Your model contains Higher-Order Constructs (HOC). For proper analysis, go to Analyse tab → HOC and click "Run HOC".';
+        errorEl.style.color = 'var(--amber)';
+      }
+      // Also unhide the HOC tab in the results drawer so user knows it's available
+      const hocDrawerTab = document.getElementById('drawer-hoc-tab');
+      if (hocDrawerTab) hocDrawerTab.style.display = '';
+    }
 
     edges.forEach(e => e.label = null);
 
@@ -3903,7 +3927,16 @@ function renderResults(tab){
   resTab=tab;
   document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
   const body=document.getElementById('res-body');
-  if(!results && tab !== 'mga' && tab !== 'hoc'){body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';return;}
+  if(!results && tab !== 'mga' && tab !== 'hoc'){
+    const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+    const hasHOC = detectHOCFromSyntax(syntax);
+    if (hasHOC && tab === 'fit') {
+      body.innerHTML='<div class="no-data">No results generated.<em>Your model contains Higher-Order Constructs (HOC). Please go to the Analyse tab, select HOC, and click "Run HOC" to analyze this model.</em></div>';
+    } else {
+      body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';
+    }
+    return;
+  }
 
   if(tab==='hoc'){
     const res = typeof _hocResult !== 'undefined' ? _hocResult : null;
@@ -4781,7 +4814,16 @@ function renderCoreResults(tab) {
   const body = document.getElementById('core-res-body');
   if (!body) return;
   document.querySelectorAll('#core-rtab-bar .rtab').forEach(b=>b.classList.toggle('on', b.dataset.ctab===tab));
-  if(!results){body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';return;}
+  if(!results){
+    const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+    const hasHOC = detectHOCFromSyntax(syntax);
+    if (hasHOC && tab === 'fit') {
+      body.innerHTML='<div class="no-data">No results generated.<em>Your model contains Higher-Order Constructs (HOC). Please go to the Analyse tab, select HOC, and click "Run HOC" to analyze this model.</em></div>';
+    } else {
+      body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';
+    }
+    return;
+  }
 
   if(tab==='fit'){
     const f=results.fit;
@@ -8021,6 +8063,68 @@ let _invarianceResult   = null;
 let _efaResult          = null;
 let _cviResult          = null;
 let _modMediationResult = null;
+
+// Detect if syntax contains HOC (Higher-Order Constructs)
+// HOC is present when a latent variable's indicators include other LV names
+// e.g., HOC =~ FOC1 + FOC2, or TL == IB + IA + IM (structural with LV on RHS)
+function detectHOCFromSyntax(syntax) {
+  if (!syntax || typeof syntax !== 'string') return false;
+  
+  const lines = syntax.split('\n');
+  const lvDefs = [];
+  
+  // Pass 1: collect all LV names from both measurement (=~) and structural (== or ~) lines
+  lines.forEach(line => {
+    // Measurement model: LV =~ indicators
+    const mLV = line.match(/^(\w+)\s*=~\s*(.+)/);
+    if (mLV) {
+      const lv = mLV[1];
+      if (!lvDefs.find(l => l === lv)) lvDefs.push(lv);
+      return;
+    }
+    // Structural model: LV1 == LV2 + LV3 or LV1 ~ LV2 + LV3
+    const mStr = line.match(/^(\w+)\s*(==|~)\s*(.+)/);
+    if (mStr) {
+      const lv = mStr[1];
+      if (!lvDefs.find(l => l === lv)) lvDefs.push(lv);
+    }
+  });
+  
+  const lvNameSet = new Set(lvDefs);
+  
+  // Pass 2: check if any measurement or structural line has LVs on RHS that are themselves LVs
+  for (const line of lines) {
+    // Check measurement lines: LV =~ indicators
+    const mLV = line.match(/^(\w+)\s*=~\s*(.+)/);
+    if (mLV) {
+      const lv = mLV[1];
+      const rhsRaw = mLV[2];
+      const indicators = rhsRaw.split('+').map(s => s.trim()).filter(Boolean);
+      
+      for (const ind of indicators) {
+        if (lvNameSet.has(ind) && ind !== lv) {
+          return true; // HOC detected
+        }
+      }
+    }
+    
+    // Check structural lines: LV1 == LV2 + LV3 or LV1 ~ LV2 + LV3
+    const mStr = line.match(/^(\w+)\s*(==|~)\s*(.+)/);
+    if (mStr) {
+      const lv = mStr[1];
+      const rhsRaw = mStr[3];
+      const indicators = rhsRaw.split('+').map(s => s.trim()).filter(Boolean);
+      
+      for (const ind of indicators) {
+        if (lvNameSet.has(ind) && ind !== lv) {
+          return true; // HOC detected
+        }
+      }
+    }
+  }
+  
+  return false; // No HOC detected
+}
 
 function _hocSetRunnable(ok) {
   const btn = document.getElementById('hoc-run-btn');
