@@ -82,7 +82,7 @@ Fastest way to get the newest stable release.
 
 NAVAL-SEM is a **structural equation modelling desktop app** that runs entirely on your machine. Load your dataset, draw your model in the visual canvas, and get bootstrapped path coefficients, HTMT, AVE, and fit indices — without an internet connection, a licence key, or your data leaving the machine.
 
-**v1.1.5 LTS** — released 2 August 2026 — is the long-term support milestone. All public API schemas are frozen: no field removals or renames in patch or minor releases. This is the build to cite in your methods section.
+**v1.1.9** — released 11 August 2026 — is the latest stable release. **v1.1.5 LTS** — released 2 August 2026 — is the long-term support milestone with frozen public API schemas: no field removals or renames in patch or minor releases. This is the build to cite in your methods section.
 
 Built for:
 - **PhD students** who need full PLS-SEM without a SmartPLS subscription
@@ -246,7 +246,7 @@ If you use NAVAL-SEM in published research, please cite:
 
 ```
 Singh, N. (2026). NAVAL-SEM: Free offline structural equation modelling
-desktop application [Software, v1.1.5].
+desktop application [Software, v1.1.9].
 https://doi.org/10.5281/zenodo.21754468
 ```
 
@@ -257,7 +257,7 @@ https://doi.org/10.5281/zenodo.21754468
   year    = {2026},
   doi     = {10.5281/zenodo.21754468},
   url     = {https://github.com/navalsingh9/naval-sem},
-  version = {1.1.5},
+  version = {1.1.9},
   license = {CC BY-NC-ND 4.0}
 }
 ```
