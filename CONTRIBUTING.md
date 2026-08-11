@@ -145,6 +145,9 @@ Suggestion:
 Submitted in:
 - NAVAL-SEM v1.1.1
 
+Resolved in:
+- NAVAL-SEM v1.1.10
+
 Thank you for helping make NAVAL-SEM more reliable for higher-order modelling.
 
 ---
