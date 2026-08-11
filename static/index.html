@@ -1525,7 +1525,7 @@ button { cursor: pointer; }
 
       <div class="ans">Multi-group</div>
       <div class="ani" onclick="showAna(this,'mga')">MGA <span class="nbadge nb-v">v0.6</span></div>
-      <div class="ani" onclick="showAna(this,'hoc')">HOC <span class="nbadge nb-v">v0.6</span></div>
+      <div class="ani" id="ana-nav-hoc" onclick="showAna(this,'hoc')">HOC <span class="nbadge nb-v">v0.6</span></div>
 
       <div class="ans">Advanced</div>
       <div class="ani" onclick="showAna(this,'moderation')">Moderation <span class="nbadge nb-07">v0.7</span></div>
@@ -3170,7 +3170,7 @@ _d3svg.on('mousemove.arrowprev', function(ev){
     .attr('stroke','rgba(240,168,64,0.55)').attr('stroke-width',1.5)
     .attr('stroke-dasharray','6 3').attr('marker-end','url(#d3-arr-struct-sel)');
 });
-let results=null,resTab='fit';
+let results=null,resTab='fit',_lastRunError=null;
 let _lastDiagramDataUrl=null; // cached after each run so report works from any tab
 let _reportSnapshot=null;     // frozen at analysis time — report always reads from this
 let W=0,H=0,uploadedFile=null;
@@ -3634,7 +3634,19 @@ async function runAnalysis(){
   try{
     const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();hideCoreSpinner();
-    if(!r.ok){document.getElementById('canvas-error').textContent='✗ '+(data.detail||'Server error');return;}
+    if(!r.ok){
+      _lastRunError = data.detail || 'Server error';
+      results = null;
+      document.getElementById('canvas-error').textContent='✗ '+_lastRunError;
+      _errRunRecord(_lastRunError);
+      // Refresh the Main-run results panel itself (not just canvas-error,
+      // which lives on the Model tab and isn't visible from here) so a
+      // failed run is never silently indistinguishable from "haven't run
+      // yet" — this is what renders the HOC hint below when relevant.
+      renderCoreResults('fit');
+      return;
+    }
+    _lastRunError = null;
     results=normalizeResults(data);
     _okRunRecord(data);   // record success — elapsed captured, result stored
     
@@ -3745,7 +3757,16 @@ async function runFromSyntax(){
   try{
     const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();
-    if(!r.ok){_errRunRecord(data.detail||'Server error');alert(data.detail||'Error');return;}
+    if(!r.ok){
+      _lastRunError = data.detail || 'Server error';
+      results = null;
+      _errRunRecord(_lastRunError);
+      renderResults('fit');   // refresh so the panel reflects the failure (and
+                               // any HOC hint) instead of stale/placeholder content
+      alert(_lastRunError);
+      return;
+    }
+    _lastRunError = null;
     results = normalizeResults(data);
     _okRunRecord(data);
     
@@ -3928,13 +3949,7 @@ function renderResults(tab){
   document.querySelectorAll('.rtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
   const body=document.getElementById('res-body');
   if(!results && tab !== 'mga' && tab !== 'hoc'){
-    const syntax = (document.getElementById('syntax-area')?.value || '').trim();
-    const hasHOC = detectHOCFromSyntax(syntax);
-    if (hasHOC && tab === 'fit') {
-      body.innerHTML='<div class="no-data">No results generated.<em>Your model contains Higher-Order Constructs (HOC). Please go to the Analyse tab, select HOC, and click "Run HOC" to analyze this model.</em></div>';
-    } else {
-      body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';
-    }
+    body.innerHTML = _noResultsMarkup(tab);
     return;
   }
 
@@ -4815,13 +4830,7 @@ function renderCoreResults(tab) {
   if (!body) return;
   document.querySelectorAll('#core-rtab-bar .rtab').forEach(b=>b.classList.toggle('on', b.dataset.ctab===tab));
   if(!results){
-    const syntax = (document.getElementById('syntax-area')?.value || '').trim();
-    const hasHOC = detectHOCFromSyntax(syntax);
-    if (hasHOC && tab === 'fit') {
-      body.innerHTML='<div class="no-data">No results generated.<em>Your model contains Higher-Order Constructs (HOC). Please go to the Analyse tab, select HOC, and click "Run HOC" to analyze this model.</em></div>';
-    } else {
-      body.innerHTML='<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';
-    }
+    body.innerHTML = _noResultsMarkup(tab);
     return;
   }
 
@@ -8064,66 +8073,115 @@ let _efaResult          = null;
 let _cviResult          = null;
 let _modMediationResult = null;
 
-// Detect if syntax contains HOC (Higher-Order Constructs)
-// HOC is present when a latent variable's indicators include other LV names
-// e.g., HOC =~ FOC1 + FOC2, or TL == IB + IA + IM (structural with LV on RHS)
-function detectHOCFromSyntax(syntax) {
-  if (!syntax || typeof syntax !== 'string') return false;
-  
-  const lines = syntax.split('\n');
-  const lvDefs = [];
-  
-  // Pass 1: collect all LV names from both measurement (=~) and structural (== or ~) lines
-  lines.forEach(line => {
-    // Measurement model: LV =~ indicators
-    const mLV = line.match(/^(\w+)\s*=~\s*(.+)/);
-    if (mLV) {
-      const lv = mLV[1];
-      if (!lvDefs.find(l => l === lv)) lvDefs.push(lv);
-      return;
+// Detect Higher-Order Constructs (HOC) in lavaan-style model syntax.
+//
+// Mirrors detect_hoc() in app/parser.py exactly: a HOC is any latent
+// variable — defined via =~ or <~ — whose indicator list names ANOTHER
+// latent variable defined elsewhere in the same syntax, e.g.:
+//   HOC  =~ FOC1 + FOC2
+//   FOC1 =~ x1 + x2
+// Only measurement/formative blocks are inspected. Earlier versions of this
+// function also flagged plain structural paths (Y ~ X between two ordinary
+// LVs) as a HOC signal, which is wrong — a structural path between two
+// latent variables is completely normal SEM and is not a HOC — and meant
+// this returned true for almost every multi-construct model.
+//
+// Returns { hocName: [focName, ...], ... }; an empty object means no HOC.
+function detectHOCMap(syntax) {
+  if (!syntax || typeof syntax !== 'string') return {};
+
+  // Join line-continuations the same way the backend's preprocess_lavaan()
+  // does, so a block split across lines (trailing '+' or an operator) is
+  // read as a single line before matching.
+  const rawLines = syntax.split('\n');
+  const lines = [];
+  let buf = '';
+  for (const raw of rawLines) {
+    const stripped = raw.trim();
+    if (!stripped || stripped.startsWith('#')) {
+      if (buf) { lines.push(buf); buf = ''; }
+      continue;
     }
-    // Structural model: LV1 == LV2 + LV3 or LV1 ~ LV2 + LV3
-    const mStr = line.match(/^(\w+)\s*(==|~)\s*(.+)/);
-    if (mStr) {
-      const lv = mStr[1];
-      if (!lvDefs.find(l => l === lv)) lvDefs.push(lv);
-    }
-  });
-  
-  const lvNameSet = new Set(lvDefs);
-  
-  // Pass 2: check if any measurement or structural line has LVs on RHS that are themselves LVs
-  for (const line of lines) {
-    // Check measurement lines: LV =~ indicators
-    const mLV = line.match(/^(\w+)\s*=~\s*(.+)/);
-    if (mLV) {
-      const lv = mLV[1];
-      const rhsRaw = mLV[2];
-      const indicators = rhsRaw.split('+').map(s => s.trim()).filter(Boolean);
-      
-      for (const ind of indicators) {
-        if (lvNameSet.has(ind) && ind !== lv) {
-          return true; // HOC detected
-        }
-      }
-    }
-    
-    // Check structural lines: LV1 == LV2 + LV3 or LV1 ~ LV2 + LV3
-    const mStr = line.match(/^(\w+)\s*(==|~)\s*(.+)/);
-    if (mStr) {
-      const lv = mStr[1];
-      const rhsRaw = mStr[3];
-      const indicators = rhsRaw.split('+').map(s => s.trim()).filter(Boolean);
-      
-      for (const ind of indicators) {
-        if (lvNameSet.has(ind) && ind !== lv) {
-          return true; // HOC detected
-        }
-      }
-    }
+    buf = buf ? (buf + ' ' + stripped) : stripped;
+    if (!(buf.endsWith('+') || buf.endsWith('~'))) { lines.push(buf); buf = ''; }
   }
-  
-  return false; // No HOC detected
+  if (buf) lines.push(buf);
+
+  // Collect every LV's measurement/formative indicator list: { lv: [ind, ...] }
+  const measurement = {};
+  lines.forEach(line => {
+    const m = line.match(/^(\w+)\s*(?:<~|=~)\s*(.+)$/);
+    if (!m) return;
+    const lv   = m[1];
+    const inds = m[2].split('+').map(s => s.trim()).filter(Boolean);
+    measurement[lv] = (measurement[lv] || []).concat(inds);
+  });
+
+  const lvSet  = new Set(Object.keys(measurement));
+  const hocMap = {};
+  Object.keys(measurement).forEach(lv => {
+    const focs = measurement[lv].filter(ind => lvSet.has(ind) && ind !== lv);
+    if (focs.length) hocMap[lv] = focs;
+  });
+  return hocMap;
+}
+
+// Back-compat boolean wrapper — existing call sites only need yes/no.
+function detectHOCFromSyntax(syntax) {
+  return Object.keys(detectHOCMap(syntax)).length > 0;
+}
+
+// Jump straight to the HOC tab (Analyse → HOC), from wherever the person is
+// (Model tab or Analyse tab) — used by the "no results" HOC hint below so
+// they don't have to go hunting for the right tab themselves.
+function goToHOCTab() {
+  if (typeof showView === 'function') showView('analyse');
+  const hocNav = document.getElementById('ana-nav-hoc');
+  if (typeof showAna === 'function') showAna(hocNav, 'hoc');
+}
+
+// Shared empty-state markup for both results panels (the Model tab's
+// #res-body via renderResults(), and the Analyse tab's #core-res-body via
+// renderCoreResults()). Centralised so a run failure — HOC-related or not —
+// reads the same way everywhere, and a run's actual error (_lastRunError)
+// is never silently dropped just because the person is looking at a
+// results panel instead of the model canvas.
+function _noResultsMarkup(tab) {
+  if (tab !== 'fit') {
+    return '<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';
+  }
+
+  const syntax = (document.getElementById('syntax-area')?.value || '').trim();
+  const hocMap = detectHOCMap(syntax);
+  const hasHOC = Object.keys(hocMap).length > 0;
+
+  if (hasHOC) {
+    const hocList = Object.keys(hocMap)
+      .map(hoc => `<span style="color:var(--t0)">${esc(hoc)}</span> ← ${hocMap[hoc].map(esc).join(', ')}`)
+      .join('<br>');
+    const serverNote = _lastRunError
+      ? `<div style="margin-top:10px;font-size:10px;font-family:var(--mono);color:var(--t3)">Server said: "${esc(_lastRunError)}"</div>`
+      : '';
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center;font-family:var(--font)">
+        <div style="font-size:20px;color:var(--amber);margin-bottom:10px">⚠</div>
+        <div style="max-width:480px;text-align:left;background:var(--amber-soft);border:.5px solid rgba(251,191,36,.28);border-radius:var(--r-sm);padding:14px 16px">
+          <div style="font-size:12px;font-weight:600;color:var(--amber-text);margin-bottom:6px">This model needs the HOC tab, not Main run</div>
+          <div style="font-size:11px;line-height:1.7;color:var(--t1);font-family:var(--mono)">
+            Main run fits indicators straight from your dataset, so it can't estimate a Higher-Order Construct on its own. Your syntax defines:<br>
+            ${hocList}<br><br>
+            Go to <b>Analyse&nbsp;→&nbsp;HOC</b> and click <b>Run&nbsp;HOC</b> — it expands this automatically (repeated-indicator or two-stage).
+          </div>
+          <button onclick="goToHOCTab()" style="margin-top:12px;padding:6px 16px;border-radius:var(--pill);background:var(--accent-soft);border:.5px solid var(--accent-text);color:var(--accent-text);font-size:11px;font-family:var(--font);cursor:pointer">Go to HOC tab →</button>
+        </div>
+        ${serverNote}
+      </div>`;
+  }
+
+  if (_lastRunError) {
+    return `<div class="no-data">✗ Run failed.<em>${esc(_lastRunError)}</em></div>`;
+  }
+  return '<div class="no-data">No results yet.<em>Upload a dataset and run the model to see output here.</em></div>';
 }
 
 function _hocSetRunnable(ok) {

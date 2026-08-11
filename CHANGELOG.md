@@ -8,7 +8,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **HOC guidance in Main Run never actually reached the user (v1.1.9 follow-up)** — v1.1.9 added HOC syntax detection and a guidance message for Main Run, but two bugs meant it never fired for the case it was meant to catch:
+  - A model with an un-expanded HOC block (e.g. `HOC =~ FOC1 + FOC2`) always fails `/run` — `FOC1`/`FOC2` are latent-variable names, not dataset columns, so `fit_model()` rejects them as missing columns. The v1.1.9 HOC check only ran *after a successful run*, so for the one case it existed for, it was unreachable. The failure itself was written only to `#canvas-error` on the Model tab, which is invisible while looking at Analyse → Main run — so the panel there just kept showing a stale "No results yet." with no sign anything had happened. Reported by a user whose customer thought the app was broken.
+  - `detectHOCFromSyntax()` treated *any* structural path between two ordinary latent variables (`Y ~ X`) as if it were a HOC signal, alongside genuine `HOC =~ FOC1 + FOC2`-style measurement blocks. That's normal SEM, not a HOC — the bug would have produced a false "your model contains HOC" warning on most ordinary multi-construct models the moment it was surfaced anywhere visible.
+
+  Fixed by rewriting the detector to match the backend's own `detect_hoc()` (measurement/formative blocks only), and by having both `#core-res-body` (Analyse → Main run) and `#res-body` (Model tab) actually re-render on a failed run instead of only touching `#canvas-error`. A failed run whose missing columns are explained by an un-expanded HOC now shows which construct(s) are involved and a **Go to HOC tab** button that jumps straight there; other failures show the real error instead of a silent "no results yet". `fit_model()` also now raises a specific, actionable message for this case (rather than a generic "columns not found") so it's clear from the `/run` response directly, independent of the UI.
+
+  Affects `app/engine.py`, `static/index.html`.
 
 ---
 ## [v1.1.9] — 2026-08-11 · UI/UX Improvements
