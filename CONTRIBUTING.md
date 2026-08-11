@@ -130,6 +130,25 @@ Thank you for helping make NAVAL-SEM better for everyone.
 
 ---
 
+## 🥈 Feature Request #001
+
+**Nitin**
+
+🇮🇳 India
+
+Contribution:
+- First community feature request
+
+Suggestion:
+- Warning/prompt when running Higher-Order Component (HOC) models, so researchers can confirm whether to proceed with or without HOC
+
+Submitted in:
+- NAVAL-SEM v1.1.1
+
+Thank you for helping make NAVAL-SEM more reliable for higher-order modelling.
+
+---
+
 Future contributors may be recognized here for significant bug reports, feature contributions, testing, documentation, or community support.
 
 
