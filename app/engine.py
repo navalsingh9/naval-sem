@@ -21,7 +21,7 @@ from app.engine_utils import (
     _emit, _safe_float, _p_to_sig, _build_composites, _build_coef_map,
     annotate_path_coefficient, annotate_indirect_effect, annotate_fit_index,
 )  # A17: plain-English annotation helpers
-from app.parser import parse_lavaan, build_semopy_syntax
+from app.parser import parse_lavaan, build_semopy_syntax, detect_hoc
 from app.schemas import (
     ModelResult, PathParameter, FitIndices,
     BootstrapResult, BootstrapParameter, HTMTResult, HTMTEntry,
@@ -1947,6 +1947,32 @@ def fit_model(
 
     missing_cols = [v for v in parsed["observed_vars"] if v not in df.columns]
     if missing_cols:
+        # A frequent cause of "missing columns" is a Higher-Order Construct
+        # (HOC) written as e.g. `HOC =~ FOC1 + FOC2`, where FOC1/FOC2 are
+        # themselves latent variables (see detect_hoc()), not raw data
+        # columns. fit_model() has no HOC-expansion step — it fits indicators
+        # straight from the dataframe — so this case always lands here. Give
+        # a specific, actionable message instead of a generic column error;
+        # the fix is fit_hoc_repeated_indicator() / fit_hoc_two_stage() in
+        # engine_mga.py (exposed via the /hoc endpoint and the HOC tab).
+        hoc_map = detect_hoc(parsed)
+        hoc_related = {
+            hoc: focs for hoc, focs in hoc_map.items()
+            if set(focs) & set(missing_cols)
+        }
+        if hoc_related:
+            hoc_desc = "; ".join(
+                f"{hoc} =~ {' + '.join(focs)}" for hoc, focs in hoc_related.items()
+            )
+            raise ValueError(
+                "This model defines a Higher-Order Construct (HOC) — "
+                f"{hoc_desc} — whose indicators are other latent variables, "
+                "not raw data columns. The Main Run path fits indicators "
+                "directly from the dataset and does not expand HOCs. Use the "
+                "HOC tab (or POST /hoc) instead, which fits this via the "
+                "repeated-indicator or two-stage approach. "
+                f"[Columns not found in data: {missing_cols}.]"
+            )
         raise ValueError(
             f"Columns not found in data: {missing_cols}. "
             f"Available: {df.columns.tolist()}"
