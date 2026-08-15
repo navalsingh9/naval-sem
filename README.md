@@ -69,7 +69,8 @@ Fastest way to get the newest stable release.
 |----------|------|-------|
 | **Windows** | `NAVAL-SEM-Setup.msi` | Recommended — Start Menu integration + uninstall |
 | **Windows** | `NAVAL-SEM.exe` | Portable — no installation required |
-| **macOS** | `NAVAL-SEM.dmg` | Drag into Applications |
+| **macOS (Apple Silicon)** | `NAVAL-SEM-arm64.dmg` | M1/M2/M3/M4 Macs — drag into Applications |
+| **macOS (Intel)** | `NAVAL-SEM-x86_64.dmg` | Intel Macs — drag into Applications |
 | **Linux** | `naval-sem_*.deb` | Debian / Ubuntu installer |
 | **Linux** | `NAVAL-SEM` | Portable binary |
 
