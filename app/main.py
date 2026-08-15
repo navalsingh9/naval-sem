@@ -495,6 +495,20 @@ async def stream_logs(run_id: str):
     """
     _validate_run_id(run_id)
     async def event_gen():
+        # ── WebKit/Safari SSE buffering workaround ──────────────────────────
+        # WKWebView (Safari's engine, also what pywebview uses on macOS) does
+        # not dispatch EventSource messages incrementally like Chrome/Firefox
+        # do — it buffers the whole response internally and only releases
+        # data once ~2KB has accumulated (or the connection closes). Without
+        # this, the live-log panel appears to receive nothing for the entire
+        # run on macOS desktop builds, then (if anything) dumps everything at
+        # once at the very end. A single oversized leading SSE *comment* line
+        # (":" + padding — ignored by EventSource, never surfaced as a
+        # message) pushes past that threshold immediately so real messages
+        # start flowing right away. See:
+        # https://github.com/EventSource/eventsource/issues/72
+        yield ":" + " " * 2048 + "\n\n"
+
         wait_time = 0.0
         while True:
             with _run_store_lock:
@@ -505,6 +519,7 @@ async def stream_logs(run_id: str):
             wait_time += 0.5
         last = 0
         elapsed = 0.0
+        last_heartbeat = 0.0
         while elapsed < 14400:
             with _run_store_lock:
                 run = _run_store.get(run_id)
@@ -521,6 +536,13 @@ async def stream_logs(run_id: str):
                 return
             await asyncio.sleep(0.2)
             elapsed += 0.2
+            # Keep the connection actively flushing even during quiet stretches
+            # (e.g. a long bootstrap loop between log lines) so WebKit doesn't
+            # sit on a half-full buffer waiting for more bytes.
+            last_heartbeat += 0.2
+            if last_heartbeat >= 10.0:
+                yield ": heartbeat\n\n"
+                last_heartbeat = 0.0
         yield f"data: {json.dumps({'level': 'warn', 'msg': 'Live log closed after 4 h — computation still running in background. Results will appear when complete.'})}\n\n"
 
     return StreamingResponse(

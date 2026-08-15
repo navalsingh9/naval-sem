@@ -3224,6 +3224,17 @@ function showNodeStylePanel(node){
   if(fc) fc.value=node.fillColor||defFill;
   if(bc) bc.value=node.borderColor||defBorder;
   if(tc) tc.value=node.textColor||_CT.text;
+  // FIX: sync the Node Label box + its CSV validation to the node that was
+  // just clicked on the canvas. Previously this box kept showing whatever
+  // text was last typed for *placing a new node*, and validateNodeLabel()
+  // kept validating against the currently-active draw tool rather than the
+  // selected node's actual type — so clicking an existing node could show a
+  // stale/misleading "not in CSV" warning with no visible connection to
+  // what's selected, and the Canvas Tools highlight never reflected the
+  // clicked node either.
+  const labelInput=document.getElementById('node-label');
+  if(labelInput) labelInput.value=node.label;
+  validateNodeLabel(node.type);
 }
 function showEdgeStylePanel(edge){
   const p=document.getElementById('style-panel');
@@ -3518,14 +3529,31 @@ async function handleJsonResultsFile(input) {
 }
 
 // ── label validation ────────────────────────────────────────────────────────
-function validateNodeLabel(){
+function validateNodeLabel(overrideType){
   const input=document.getElementById('node-label');
   const hint=document.getElementById('label-hint');
   const label=(input.value||'').trim();
   if(!hint)return;
 
+  // FIX: if a node on the canvas is currently selected, typing in this box
+  // renames that node live (it used to only pre-fill the label for the
+  // *next new* node, so editing it while an existing node was selected did
+  // nothing to the node and validated against the wrong thing).
+  if(selected){
+    const node=nodes.find(n=>n.id===selected);
+    if(node && label){
+      node.label=label;
+      updateSyntax();
+      if(typeof _d3Render==='function') _d3Render();
+    }
+  }
+
+  // Validate against the selected node's type when one is selected,
+  // otherwise against whichever draw tool is currently active.
+  const effType = overrideType || (selected ? (nodes.find(n=>n.id===selected)||{}).type : tool);
+
   // Only validate for observed nodes when columns are known
-  if(tool!=='obs'||csvColumns.length===0||!label){
+  if(effType!=='obs'||csvColumns.length===0||!label){
     input.style.borderColor='';hint.style.display='none';return;
   }
 
