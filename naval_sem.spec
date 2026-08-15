@@ -40,6 +40,13 @@ hiddenimports = [
     "anyio", "anyio._backends._asyncio",
     # email validator used by pydantic
     "email_validator",
+    # matplotlib — imported lazily inside app/engine_ipma.py (not at module
+    # level) to avoid blocking server startup on its first-run font-cache
+    # build. Listed explicitly here rather than relying on PyInstaller's
+    # static analyzer to find it, since matplotlib.use("Agg") loads its
+    # backend by string name (matplotlib.backends.backend_agg), which is
+    # exactly the kind of dynamic import static analysis can miss.
+    "matplotlib", "matplotlib.backends.backend_agg", "matplotlib.font_manager",
     # ReportLab
     "reportlab",
     "reportlab.platypus",
