@@ -50,26 +50,60 @@ else
   pyinstaller naval_sem.spec --clean --noconfirm
 fi
 
-# naval_sem.spec is shared across all 3 platforms and only defines an EXE()
-# (single-file) target, not a BUNDLE() — so on macOS it produces a plain
-# dist/NAVAL-SEM binary, never dist/NAVAL-SEM.app. This mirrors the same
-# fallback the CI job already relies on (.github/workflows/release.yml,
-# build-macos job): rebuild straight from launcher.py with --windowed,
-# which does produce a real .app bundle.
+# naval_sem.spec is shared across all 3 platforms and now includes a
+# platform-guarded BUNDLE() step (see naval_sem.spec) so that on macOS it
+# produces a real dist/NAVAL-SEM.app, not just the plain dist/NAVAL-SEM
+# binary EXE() alone would give you. The fallback below only exists as a
+# safety net for cases where that still fails for some other reason.
+# naval_sem.spec now includes a macOS BUNDLE() step (see spec file), so this
+# should produce dist/NAVAL-SEM.app directly and the block below should be a
+# no-op safety net, not the primary path.
 if [ ! -d "dist/NAVAL-SEM.app" ]; then
   echo " No .app found from the spec — rebuilding with --windowed..."
+  echo " WARNING: this fallback path is not kept in sync with naval_sem.spec's"
+  echo " hiddenimports/datas and has previously shipped broken builds. Prefer"
+  echo " fixing the spec over relying on this."
   if command -v uv &>/dev/null; then
     uv run pyinstaller launcher.py \
       --name "NAVAL-SEM" \
       --windowed \
       --clean --noconfirm \
-      --osx-bundle-identifier "io.naval-sem.app"
+      --osx-bundle-identifier "io.naval-sem.app" \
+      --add-data "static:static" \
+      --add-data "app:app" \
+      --add-data "fonts:fonts" \
+      --hidden-import "fastapi" \
+      --hidden-import "starlette" \
+      --hidden-import "uvicorn" \
+      --hidden-import "uvicorn.logging" \
+      --hidden-import "uvicorn.loops.auto" \
+      --hidden-import "uvicorn.protocols.http.auto" \
+      --hidden-import "uvicorn.protocols.websockets.auto" \
+      --hidden-import "uvicorn.lifespan.on" \
+      --hidden-import "pydantic" \
+      --hidden-import "pydantic_core" \
+      --hidden-import "multipart" \
+      --hidden-import "semopy" \
+      --hidden-import "scipy" \
+      --hidden-import "numpy" \
+      --hidden-import "pandas" \
+      --hidden-import "pyreadstat" \
+      --hidden-import "webview" \
+      --hidden-import "h11" \
+      --hidden-import "anyio._backends._asyncio" \
+      --hidden-import "email_validator" \
+      --hidden-import "reportlab" \
+      --hidden-import "app.main"
   else
     pyinstaller launcher.py \
       --name "NAVAL-SEM" \
       --windowed \
       --clean --noconfirm \
-      --osx-bundle-identifier "io.naval-sem.app"
+      --osx-bundle-identifier "io.naval-sem.app" \
+      --add-data "static:static" \
+      --add-data "app:app" \
+      --add-data "fonts:fonts" \
+      --hidden-import "app.main"
   fi
 fi
 
