@@ -86,7 +86,7 @@ def start_server(port: int):
 
 
 # ── Wait until server accepts connections ─────────────────────────────────────
-def wait_for_server(port: int, timeout: float = 20.0) -> bool:
+def wait_for_server(port: int, timeout: float = 60.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -182,7 +182,7 @@ def main():
         )
         server_thread.start()
 
-        if not wait_for_server(port, timeout=20):
+        if not wait_for_server(port, timeout=60):
             logging.error("Server failed to start — opening browser anyway")
             webbrowser.open(f"http://127.0.0.1:{port}")
             _keep_alive()
