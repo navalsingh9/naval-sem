@@ -554,6 +554,16 @@ async def check_updates():
     Checks GitHub Releases for a version newer than APP_VERSION.
     Returns update_available=True/False (or status='offline' on network error).
     Uses only stdlib — no extra deps, no API key required.
+
+    NOTE: the actual HTTP request is offloaded to a worker thread via
+    run_in_executor (same pattern used by every other blocking/CPU-heavy
+    call in this file, e.g. /run). This endpoint used to call urlopen()
+    directly inline, which blocks the single asyncio event loop uvicorn
+    runs on for up to the full 8s timeout — freezing every other request
+    in flight at the same time, including the /logs/{run_id} SSE stream
+    (making the live log appear to hang) and any results/tab data fetch
+    the frontend was mid-request on (making the UI feel broadly sluggish/
+    unresponsive right around the 4s-after-load automatic update check).
     """
     import json as _json
     from urllib.request import urlopen, Request
@@ -567,7 +577,7 @@ async def check_updates():
         except ValueError:
             return (0,)
 
-    try:
+    def _fetch_latest_release():
         req = Request(
             api_url,
             headers={
@@ -576,7 +586,10 @@ async def check_updates():
             },
         )
         with urlopen(req, timeout=8) as resp:  # nosec B310 – URL is a compile-time https:// constant, not user-supplied
-            data = _json.loads(resp.read())
+            return _json.loads(resp.read())
+
+    try:
+        data = await asyncio.get_running_loop().run_in_executor(None, _fetch_latest_release)
 
         latest_tag  = data.get("tag_name", "").lstrip("v")
         release_url = data.get("html_url", f"https://github.com/{_GITHUB_REPO}/releases")
