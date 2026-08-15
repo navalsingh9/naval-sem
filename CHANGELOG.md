@@ -8,6 +8,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [v1.1.11] — 2026-08-15 · macOS Build and previous [v1.1.10] HOC Fix 
+
 ### Fixed
 
 - **HOC guidance in Main Run never actually reached the user (v1.1.9 follow-up)** — v1.1.9 added HOC syntax detection and a guidance message for Main Run, but two bugs meant it never fired for the case it was meant to catch:
@@ -17,6 +21,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   Fixed by rewriting the detector to match the backend's own `detect_hoc()` (measurement/formative blocks only), and by having both `#core-res-body` (Analyse → Main run) and `#res-body` (Model tab) actually re-render on a failed run instead of only touching `#canvas-error`. A failed run whose missing columns are explained by an un-expanded HOC now shows which construct(s) are involved and a **Go to HOC tab** button that jumps straight there; other failures show the real error instead of a silent "no results yet". `fit_model()` also now raises a specific, actionable message for this case (rather than a generic "columns not found") so it's clear from the `/run` response directly, independent of the UI.
 
   Affects `app/engine.py`, `static/index.html`.
+
+- **macOS build was missing a local entry point and wasn't using a checked-in script in CI** — `docs/building.md` documented `./build_macos.sh` as the local macOS build command, but the script didn't exist in the repo. Meanwhile the `build-macos` job in `.github/workflows/release.yml` duplicated the same PyInstaller/`create-dmg` packaging logic directly inline instead of delegating to a script, unlike the Linux job, which already ran `build_linux.sh`. Added `build_macos.sh` (builds `dist/NAVAL-SEM.app` via PyInstaller, falling back to a direct `--windowed` build since `naval_sem.spec` only defines an `EXE()` target and never produces a `.app` bundle on its own, then packages `dist/NAVAL-SEM.dmg` with `create-dmg`), and pointed the CI job at it so local and CI builds now share one source of truth. Affects `build_macos.sh` (new), `.github/workflows/release.yml`.
 
 ---
 ## [v1.1.9] — 2026-08-11 · UI/UX Improvements
