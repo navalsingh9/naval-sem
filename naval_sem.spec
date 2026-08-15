@@ -108,3 +108,21 @@ exe = EXE(
     # Windows icon (place a naval_sem.ico in the project root)
     icon="naval_sem.ico" if Path("naval_sem.ico").exists() else None,
 )
+
+# ── macOS .app bundle ─────────────────────────────────────────────────────────
+# Without this BUNDLE() step, EXE() alone produces a bare Unix executable on
+# macOS, not a double-clickable .app — which used to make build_macos.sh fall
+# back to a second, hand-rolled `pyinstaller launcher.py ...` invocation that
+# carried none of the hiddenimports/datas above (notably the app/ and static/
+# folders), silently shipping a build whose backend could never start.
+if sys.platform == "darwin":
+    app = BUNDLE(
+        exe,
+        name="NAVAL-SEM.app",
+        icon="naval_sem.icns" if Path("naval_sem.icns").exists() else None,
+        bundle_identifier="io.naval-sem.app",
+        info_plist={
+            "NSHighResolutionCapable": True,
+            "LSApplicationCategoryType": "public.app-category.education",
+        },
+    )
