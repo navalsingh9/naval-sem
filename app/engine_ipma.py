@@ -27,9 +27,6 @@ import io
 import logging
 from typing import Callable, Optional
 
-import matplotlib
-matplotlib.use("Agg")  # headless — must be set before pyplot is imported (B2)
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -39,6 +36,16 @@ from app.parser import parse_lavaan
 from app.schemas import IPMAEntry, IPMAIndicatorEntry, IPMAResult, PathParameter
 
 logger = logging.getLogger("naval_sem.ipma")
+
+# matplotlib is intentionally NOT imported at module level. Importing
+# matplotlib.pyplot triggers a one-time font-cache build on first run
+# (matplotlib.font_manager scanning every system font), which has been
+# observed to take 60-75+ seconds on some Macs. Since main.py imports this
+# module at startup, an eager import here used to block the whole server
+# from binding its socket until that scan finished — the server looked
+# "hung"/unreachable for over a minute on first launch. Importing lazily,
+# only inside _generate_ipma_chart, means the slow first-time cost is paid
+# once by whichever request first triggers an IPMA chart, not by startup.
 
 
 # ── chart generation (B2) ────────────────────────────────────────────────────
@@ -86,6 +93,10 @@ def _generate_ipma_chart(
     points = [(ind, x, y) for ind, x, y in points if x is not None and y is not None]
     if not points:
         return None, None
+
+    import matplotlib
+    matplotlib.use("Agg")  # headless — must be set before pyplot is imported (B2)
+    import matplotlib.pyplot as plt
 
     xs = [p[1] for p in points]
     ys = [p[2] for p in points]
