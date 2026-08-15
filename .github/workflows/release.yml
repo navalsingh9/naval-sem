@@ -107,31 +107,10 @@ jobs:
           sed -i "" "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${VERSION}\"/" app/version.py
           echo "Injected APP_VERSION=${VERSION}"
 
-      - name: Build .app
+      - name: Build .app + DMG
         run: |
-          uv run pyinstaller naval_sem.spec --clean --noconfirm
-
-          # If spec produced a binary instead of .app bundle, rebuild as windowed
-          if [ ! -d "dist/NAVAL-SEM.app" ]; then
-            echo "No .app found, rebuilding with --windowed..."
-
-            uv run pyinstaller launcher.py \
-              --name "NAVAL-SEM" \
-              --windowed \
-              --clean --noconfirm \
-              --osx-bundle-identifier "io.naval-sem.app"
-          fi
-
-      - name: Create DMG
-        run: |
-          create-dmg \
-            --volname "NAVAL-SEM" \
-            --window-pos 200 120 \
-            --window-size 600 400 \
-            --icon-size 100 \
-            --app-drop-link 425 190 \
-            dist/NAVAL-SEM.dmg \
-            "dist/NAVAL-SEM.app"
+          chmod +x build_macos.sh
+          bash build_macos.sh
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
