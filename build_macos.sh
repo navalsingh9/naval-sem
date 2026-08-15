@@ -55,9 +55,6 @@ fi
 # produces a real dist/NAVAL-SEM.app, not just the plain dist/NAVAL-SEM
 # binary EXE() alone would give you. The fallback below only exists as a
 # safety net for cases where that still fails for some other reason.
-# naval_sem.spec now includes a macOS BUNDLE() step (see spec file), so this
-# should produce dist/NAVAL-SEM.app directly and the block below should be a
-# no-op safety net, not the primary path.
 if [ ! -d "dist/NAVAL-SEM.app" ]; then
   echo " No .app found from the spec — rebuilding with --windowed..."
   echo " WARNING: this fallback path is not kept in sync with naval_sem.spec's"

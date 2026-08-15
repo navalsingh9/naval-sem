@@ -3884,7 +3884,7 @@ async function triggerPredict(){
     const r=await fetch(API+'/predict',{method:'POST',body:fd});
     if(!r.ok)return;
     predictiveData=await r.json();
-    if(document.querySelector('.rtab[data-tab="predictive"]')?.classList.contains('active')){
+    if(document.querySelector('.rtab[data-tab="predictive"]')?.classList.contains('on')){
       renderResults('predictive');
     }
     if (document.querySelector('#core-rtab-bar .rtab[data-ctab="predictive"]')
@@ -3904,7 +3904,7 @@ async function triggerCmb(){
     const r=await fetch(API+'/cmb',{method:'POST',body:fd});
     if(!r.ok){cmbData={error:(await r.json()).detail||'CMB error'};return;}
     cmbData=await r.json();
-    if(document.querySelector('.rtab[data-tab="predictive"]')?.classList.contains('active')){
+    if(document.querySelector('.rtab[data-tab="predictive"]')?.classList.contains('on')){
       renderResults('predictive');
     }
     if (document.querySelector('#core-rtab-bar .rtab[data-ctab="predictive"]')
@@ -3921,7 +3921,7 @@ async function triggerHtmt(){
     if(!r.ok)return;
     htmtData=await r.json();
     // Refresh panel if HTMT tab is currently active
-    if(document.querySelector('.rtab[data-tab="htmt"]')?.classList.contains('active')){
+    if(document.querySelector('.rtab[data-tab="htmt"]')?.classList.contains('on')){
       renderResults('htmt');
     }
     if (document.querySelector('#core-rtab-bar .rtab[data-ctab="htmt"]')
