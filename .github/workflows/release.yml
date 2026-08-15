@@ -77,8 +77,15 @@ jobs:
 
   # ── macOS ──────────────────────────────────────────────────────────────────
   build-macos:
-    name: macOS .app + DMG
-    runs-on: macos-14
+    name: macOS .app + DMG (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-14   # Apple Silicon
+            arch: arm64
+          - runner: macos-13   # Intel
+            arch: x86_64
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -111,12 +118,13 @@ jobs:
         run: |
           chmod +x build_macos.sh
           bash build_macos.sh
+          mv dist/NAVAL-SEM.dmg "dist/NAVAL-SEM-${{ matrix.arch }}.dmg"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: macos-dmg
-          path: dist/NAVAL-SEM.dmg
+          name: macos-dmg-${{ matrix.arch }}
+          path: dist/NAVAL-SEM-${{ matrix.arch }}.dmg
 
   # ── Linux ──────────────────────────────────────────────────────────────────
   build-linux:
@@ -267,7 +275,8 @@ jobs:
             echo "|---|---|---|"
             echo "| Windows | \`NAVAL-SEM-Setup.msi\` | Recommended — installs with Start Menu + uninstall |"
             echo "| Windows | \`NAVAL-SEM.exe\` | Portable — drop anywhere and run |"
-            echo "| macOS | \`NAVAL-SEM.dmg\` | Drag to Applications |"
+            echo "| macOS (Apple Silicon) | \`NAVAL-SEM-arm64.dmg\` | M1/M2/M3/M4 Macs — drag to Applications |"
+            echo "| macOS (Intel) | \`NAVAL-SEM-x86_64.dmg\` | Intel Macs — drag to Applications |"
             echo "| Linux | \`naval-sem_*.deb\` | Debian/Ubuntu installer |"
             echo "| Linux | \`NAVAL-SEM\` | Portable binary |"
             echo ""
@@ -302,6 +311,7 @@ jobs:
           files: |
             release-assets/NAVAL-SEM.exe
             release-assets/NAVAL-SEM-Setup.msi
-            release-assets/NAVAL-SEM.dmg
+            release-assets/NAVAL-SEM-arm64.dmg
+            release-assets/NAVAL-SEM-x86_64.dmg
             release-assets/NAVAL-SEM
             release-assets/naval-sem_*.deb
