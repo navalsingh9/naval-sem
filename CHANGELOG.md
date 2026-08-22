@@ -6,7 +6,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [2.0.0] - 2026-08-22
+
+### ⚠ BREAKING
+
+- **`POST /nomological` response shape changed from a bare JSON array to a wrapped object.** Was `List[NomologicalResult]` (e.g. `[{"construct": "Y", "r_squared": 0.42, ...}]`); now `NomologicalBatchResult` (`{"entries": [...], "warnings": [...], "fingerprint": "...", "anchor_status": null}`). **This does not change any analysis output** — `compute_nomological_validity()` and the per-item `NomologicalResult` fields (`construct`, `r_squared`, `benchmark`, `passed`, `interpretation`) are byte-for-byte unchanged; the numbers you get are identical. What breaks is purely mechanical: any caller doing `response[0].r_squared` or `response.map(...)` needs to change to `response.entries[0].r_squared` / `response.entries.map(...)`, since the top-level JSON is now an object instead of an array. Necessary because a bare array cannot carry a top-level `fingerprint` — see the fingerprint/provenance entry below.
 
 ### Added
 
