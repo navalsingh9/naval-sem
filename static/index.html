@@ -64,6 +64,7 @@
   --glass-active:   rgba(255,255,255,0.12);
   --line:           rgba(255,255,255,0.09);
   --line-strong:    rgba(255,255,255,0.18);
+  --table-border:   rgba(255,255,255,0.14);
   --blur:           blur(28px) saturate(180%);
   --blur-sm:        blur(14px) saturate(160%);
 
@@ -669,9 +670,9 @@ button { cursor: pointer; }
 .vc-a { background: var(--amber-soft); border: .5px solid rgba(251,191,36,.28); color: var(--amber); }
 
 /* General tables */
-.gtable { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4px; }
-.gtable th { text-align: left; padding: 5px 7px; color: var(--t3); font-weight: 400; font-size: 10px; letter-spacing: .5px; border-bottom: .5px solid var(--line); font-family: var(--mono); }
-.gtable td { padding: 7px 7px; color: var(--t2); border-bottom: .5px solid var(--row-line); font-family: var(--mono); font-size: 11px; }
+.gtable { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4px; border: .5px solid var(--table-border); }
+.gtable th { text-align: left; padding: 5px 7px; color: var(--t3); font-weight: 400; font-size: 10px; letter-spacing: .5px; border: .5px solid var(--table-border); font-family: var(--mono); }
+.gtable td { padding: 7px 7px; color: var(--t2); border: .5px solid var(--table-border); font-family: var(--mono); font-size: 11px; }
 .gtable tr:hover td { background: var(--glass); }
 .tg { color: var(--green-text); } .tb { color: var(--accent-text); }
 .tv2 { color: var(--t1); font-weight: 500; } .tci { font-size: 10px; }
@@ -683,18 +684,18 @@ button { cursor: pointer; }
 .res-tbl {
   width: 100%; border-collapse: collapse;
   font-family: var(--mono); font-size: 11px;
-  margin-bottom: 4px;
+  margin-bottom: 4px; border: .5px solid var(--table-border);
 }
 .res-tbl th {
   text-align: left; padding: 5px 12px;
   color: var(--t3); font-weight: 500; font-size: 10px;
   letter-spacing: .5px; text-transform: uppercase;
-  border-bottom: .5px solid var(--line);
+  border: .5px solid var(--table-border);
   white-space: nowrap;
 }
 .res-tbl td {
   padding: 7px 12px; color: var(--t1);
-  border-bottom: .5px solid var(--row-line);
+  border: .5px solid var(--table-border);
   white-space: nowrap;
 }
 .res-tbl tr:hover td { background: var(--glass); }
@@ -1245,6 +1246,11 @@ button { cursor: pointer; }
     <button id="global-live-btn" onclick="toggleGlobalLiveLog()" title="Live engine log — click to monitor any run from any tab">
       <span class="glo-dot idle" id="glo-dot"></span>Live log
     </button>
+    <label id="global-anchor-toggle" style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t2);font-family:var(--mono);cursor:pointer;white-space:nowrap;margin-left:10px;padding:0 8px"
+      title="Off by default — NAVAL-SEM never contacts any blockchain unless this is checked. Applies to every analysis method (Main run, MGA, fsQCA, etc.). Uses Bitcoin's distributed ledger purely as an immutable timestamp record — no cryptocurrency is bought, held, traded, or mined. When checked, submits only the SHA-256 fingerprint (no data) to free public OpenTimestamps calendar servers, which batch it into a Bitcoin transaction someone else pays for. No wallet, no cost. Requires internet. Download the .ots proof promptly — it is not stored permanently on the server.">
+      <input type="checkbox" id="anchor-chk" style="margin:0;cursor:pointer">
+      ₿ Timestamp
+    </label>
     <div class="topbar-right">
       <span class="ver-badge" id="ver-badge">v…</span>
       <button id="theme-btn" class="upd-btn" onclick="openThemeModal()" title="Apply a Firefox or Chrome browser theme">
@@ -1455,6 +1461,15 @@ button { cursor: pointer; }
               <button onclick="downloadAuditJSON()" style="font-size:9px;padding:4px 12px;background:var(--accent-soft);border:.5px solid var(--accent-text);border-radius:var(--pill);color:var(--accent-text);cursor:pointer">⬇ Audit JSON</button>
             </div>
             <div style="margin-top:6px;font-size:9px;color:var(--t3);font-family:var(--mono)">Fingerprint covers: syntax · data hash · environment · results.</div>
+            <div id="live-anchor-row" style="display:none;margin-top:10px;padding-top:10px;border-top:.5px solid var(--line)">
+              <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:6px">Bitcoin Timestamp (OpenTimestamps)</div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span id="live-anchor-status" style="font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:6px"></span>
+                <button id="live-anchor-proof-btn" onclick="downloadAnchorProof()" style="display:none;font-size:9px;padding:4px 12px;background:var(--accent-soft);border:.5px solid var(--accent-text);border-radius:var(--pill);color:var(--accent-text);cursor:pointer">⬇ .ots Proof</button>
+                <button id="live-anchor-check-btn" onclick="checkAnchorUpgrade()" style="display:none;font-size:9px;padding:4px 12px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer">↻ Check confirmation</button>
+              </div>
+              <div style="margin-top:6px;font-size:9px;color:var(--t3);font-family:var(--mono)">Off by default, opt-in only. Uses Bitcoin's distributed ledger purely as a timestamp — no cryptocurrency bought, held, or traded. Free public calendar servers batch this hash into a Bitcoin transaction — no wallet, no mining. Download the .ots proof to keep it — it is not stored permanently on the server. Verification does not require trusting NAVAL-SEM.</div>
+            </div>
           </div>
           <!-- ── Saved Log Panel ── -->
           <div id="saved-log-panel" style="flex-shrink:0;border-top:.5px solid var(--line);background:var(--panel-bg-70);display:flex;flex-direction:column;max-height:38vh;min-height:0">
@@ -1493,12 +1508,12 @@ button { cursor: pointer; }
         <div class="rtab-bar" id="res-tabs-row" style="flex:1;border-bottom:none">
           <button class="rtab on"  data-tab="fit"        onclick="showRes('fit')">Fit</button>
           <button class="rtab"     data-tab="validity"   onclick="showRes('validity')">Validity</button>
-          <button class="rtab"     data-tab="htmt"       onclick="showRes('htmt')">HTMT</button>
+          <button class="rtab"     data-tab="htmt"       onclick="showRes('htmt')" title="Heterotrait-Monotrait Ratio — a discriminant validity test comparing between-construct and within-construct correlations.">HTMT</button>
           <button class="rtab"     data-tab="effects"    onclick="showRes('effects')">Effects</button>
           <button class="rtab"     data-tab="predictive" onclick="showRes('predictive')">Predict</button>
           <button class="rtab"     data-tab="params"     onclick="showRes('params')">Params</button>
-          <button class="rtab"     data-tab="mga"        onclick="showRes('mga')" id="drawer-mga-tab" style="display:none">MGA ✦</button>
-          <button class="rtab"     data-tab="hoc"        onclick="showRes('hoc')" id="drawer-hoc-tab" style="display:none">HOC ✦</button>
+          <button class="rtab"     data-tab="mga"        onclick="showRes('mga')" id="drawer-mga-tab" style="display:none" title="Multi-Group Analysis — tests whether path coefficients differ significantly across subgroups.">MGA ✦</button>
+          <button class="rtab"     data-tab="hoc"        onclick="showRes('hoc')" id="drawer-hoc-tab" style="display:none" title="Higher-Order Construct — a second-order latent variable composed of first-order constructs.">HOC ✦</button>
           <button class="rtab"     data-tab="downloads"  onclick="showRes('downloads')">Outputs</button>
         </div>
       </div>
@@ -1521,38 +1536,38 @@ button { cursor: pointer; }
     <!-- Left nav -->
     <nav class="ana-nav">
       <div class="ans">Core</div>
-      <div class="ani on" onclick="showAna(this,'core')">Main run</div>
+      <div class="ani on" onclick="showAna(this,'core')" title="Main structural equation model fit — the primary run.">Main run</div>
 
       <div class="ans">Multi-group</div>
-      <div class="ani" onclick="showAna(this,'mga')">MGA <span class="nbadge nb-v">v0.6</span></div>
-      <div class="ani" id="ana-nav-hoc" onclick="showAna(this,'hoc')">HOC <span class="nbadge nb-v">v0.6</span></div>
+      <div class="ani" onclick="showAna(this,'mga')" title="Multi-Group Analysis — tests whether path coefficients differ significantly across subgroups (e.g. gender, region).">MGA <span class="nbadge nb-v">v0.6</span></div>
+      <div class="ani" id="ana-nav-hoc" onclick="showAna(this,'hoc')" title="Higher-Order Construct — estimates a second-order latent variable composed of first-order constructs (e.g. repeated indicators, two-stage).">HOC <span class="nbadge nb-v">v0.6</span></div>
 
       <div class="ans">Advanced</div>
-      <div class="ani" onclick="showAna(this,'moderation')">Moderation <span class="nbadge nb-07">v0.7</span></div>
-      <div class="ani" onclick="showAna(this,'ipma')">IPMA <span class="nbadge nb-07">v0.7</span></div>
-      <div class="ani" onclick="showAna(this,'nca')">NCA <span class="nbadge nb-07">v0.7</span></div>
-      <div class="ani" onclick="showAna(this,'mod_mediation')">Mod. mediation <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'moderation')" title="Moderation analysis — tests whether a third variable changes the strength or direction of a path (interaction effects).">Moderation <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'ipma')" title="Importance-Performance Map Analysis — plots each construct's total effect (importance) against its average score (performance) to prioritise improvement.">IPMA <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'nca')" title="Necessary Condition Analysis — tests whether a condition is necessary (not just sufficient) for an outcome using ceiling-line techniques.">NCA <span class="nbadge nb-07">v0.7</span></div>
+      <div class="ani" onclick="showAna(this,'mod_mediation')" title="Moderated Mediation — conditional process analysis combining mediation (indirect effects) with moderation (interaction effects) in one model.">Mod. mediation <span class="nbadge nb-07">v0.7</span></div>
 
       <div class="andiv"></div>
       <div class="ans">Segmentation</div>
-      <div class="ani" onclick="showAna(this,'fimix')">FIMIX <span class="nbadge nb-08">v0.8</span></div>
-      <div class="ani" onclick="showAna(this,'plspos')">PLS-POS <span class="nbadge nb-08">v0.8</span></div>
+      <div class="ani" onclick="showAna(this,'fimix')" title="Finite Mixture PLS — detects unobserved heterogeneity by estimating the optimal number of latent segments in your data.">FIMIX <span class="nbadge nb-08">v0.8</span></div>
+      <div class="ani" onclick="showAna(this,'plspos')" title="PLS Prediction-Oriented Segmentation — assigns cases to segments that maximise within-group model fit, often refining FIMIX results.">PLS-POS <span class="nbadge nb-08">v0.8</span></div>
 
       <div class="andiv"></div>
       <div class="ans">Robustness</div>
-      <div class="ani" onclick="showAna(this,'copula')">Gaussian Copula <span class="nbadge nb-08">v0.8</span></div>
-      <div class="ani" onclick="showAna(this,'nca_esse')">NCA-ESSE <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'copula')" title="Gaussian Copula approach — tests for and corrects endogeneity bias without needing an instrumental variable.">Gaussian Copula <span class="nbadge nb-08">v0.8</span></div>
+      <div class="ani" onclick="showAna(this,'nca_esse')" title="Necessary Condition Analysis — Effect Size Sensitivity Extension — stress-tests NCA effect sizes against random-data benchmarks.">NCA-ESSE <span class="nbadge nb-09">v0.9</span></div>
 
       <div class="andiv"></div>
       <div class="ans">Validity</div>
-      <div class="ani" onclick="showAna(this,'nomological')">Nomological <span class="nbadge nb-09">v0.9</span></div>
-      <div class="ani" onclick="showAna(this,'invariance')">Invariance <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'nomological')" title="Nomological Validity — checks whether a construct's relationships with other variables match established theory.">Nomological <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'invariance')" title="Measurement Invariance — tests whether a construct is measured equivalently across groups (configural, metric, scalar invariance) before comparing means.">Invariance <span class="nbadge nb-09">v0.9</span></div>
 
       <div class="andiv"></div>
       <div class="ans">Scale dev</div>
-      <div class="ani" onclick="showAna(this,'efa')">EFA <span class="nbadge nb-09">v0.9</span></div>
-      <div class="ani" onclick="showAna(this,'cvi')">CVI <span class="nbadge nb-09">v0.9</span></div>
-      <div class="ani" onclick="showAna(this,'fsqca')" style="display:flex;align-items:center">fsQCA <span class="nbadge nb-09" style="margin-right:4px">v1.0</span><span class="new-badge" id="fsqca-new-badge">New</span></div>
+      <div class="ani" onclick="showAna(this,'efa')" title="Exploratory Factor Analysis — uncovers the underlying factor structure of a set of items with no predefined model, using KMO/Bartlett diagnostics and rotation.">EFA <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'cvi')" title="Content Validity Index — quantifies expert agreement on how well items represent the construct they're meant to measure.">CVI <span class="nbadge nb-09">v0.9</span></div>
+      <div class="ani" onclick="showAna(this,'fsqca')" style="display:flex;align-items:center" title="Fuzzy-Set Qualitative Comparative Analysis — set-theoretic method identifying necessary and sufficient configurations of conditions that produce an outcome.">fsQCA <span class="nbadge nb-09" style="margin-right:4px">v1.0</span><span class="new-badge" id="fsqca-new-badge">New</span></div>
     </nav>
 
     <!-- Core analysis -->
@@ -1599,7 +1614,7 @@ button { cursor: pointer; }
       <div class="rtab-bar" id="core-rtab-bar" style="display:none;border-top:.5px solid var(--line)">
         <button class="rtab on"  data-ctab="fit"        onclick="showCoreRes('fit')">Fit</button>
         <button class="rtab"     data-ctab="validity"   onclick="showCoreRes('validity')">Validity</button>
-        <button class="rtab"     data-ctab="htmt"       onclick="showCoreRes('htmt')">HTMT</button>
+        <button class="rtab"     data-ctab="htmt"       onclick="showCoreRes('htmt')" title="Heterotrait-Monotrait Ratio — a discriminant validity test comparing between-construct and within-construct correlations.">HTMT</button>
         <button class="rtab"     data-ctab="effects"    onclick="showCoreRes('effects')">Effects</button>
         <button class="rtab"     data-ctab="predictive" onclick="showCoreRes('predictive')">Predict</button>
         <button class="rtab"     data-ctab="params"     onclick="showCoreRes('params')">Params</button>
@@ -2175,22 +2190,23 @@ button { cursor: pointer; }
       <div class="rni"     data-rni="measurement" onclick="repNavClick(this,'measurement')">Measurement model</div>
       <div class="rni"     data-rni="structural"  onclick="repNavClick(this,'structural')">Structural paths</div>
       <div class="rns">Advanced</div>
-      <div class="rni rni-locked" data-rni="mga"         onclick="repNavClick(this,'mga')">MGA results</div>
-      <div class="rni rni-locked" data-rni="moderation"  onclick="repNavClick(this,'moderation')">Moderation</div>
-      <div class="rni rni-locked" data-rni="modmed"      onclick="repNavClick(this,'modmed')">Mod. mediation</div>
-      <div class="rni rni-locked" data-rni="ipma"        onclick="repNavClick(this,'ipma')">IPMA chart</div>
-      <div class="rni rni-locked" data-rni="nca"         onclick="repNavClick(this,'nca')">NCA</div>
-      <div class="rni rni-locked" data-rni="fimix"       onclick="repNavClick(this,'fimix')">FIMIX-PLS</div>
-      <div class="rni rni-locked" data-rni="plspos"      onclick="repNavClick(this,'plspos')">PLS-POS</div>
-      <div class="rni rni-locked" data-rni="copula"      onclick="repNavClick(this,'copula')">Gaussian Copula</div>
-      <div class="rni rni-locked" data-rni="ncaesse"     onclick="repNavClick(this,'ncaesse')">NCA-ESSE</div>
-      <div class="rni rni-locked" data-rni="nomological" onclick="repNavClick(this,'nomological')">Nomological</div>
-      <div class="rni rni-locked" data-rni="invariance"  onclick="repNavClick(this,'invariance')">Invariance</div>
-      <div class="rni rni-locked" data-rni="efa"         onclick="repNavClick(this,'efa')">EFA</div>
-      <div class="rni rni-locked" data-rni="cvi"         onclick="repNavClick(this,'cvi')">CVI</div>
+      <div class="rni rni-locked" data-rni="mga"         onclick="repNavClick(this,'mga')" title="Multi-Group Analysis — tests whether path coefficients differ significantly across subgroups.">MGA results</div>
+      <div class="rni rni-locked" data-rni="moderation"  onclick="repNavClick(this,'moderation')" title="Moderation analysis — tests whether a third variable changes the strength or direction of a path.">Moderation</div>
+      <div class="rni rni-locked" data-rni="modmed"      onclick="repNavClick(this,'modmed')" title="Moderated Mediation — conditional process analysis combining mediation with moderation in one model.">Mod. mediation</div>
+      <div class="rni rni-locked" data-rni="ipma"        onclick="repNavClick(this,'ipma')" title="Importance-Performance Map Analysis — plots each construct's total effect against its average score.">IPMA chart</div>
+      <div class="rni rni-locked" data-rni="nca"         onclick="repNavClick(this,'nca')" title="Necessary Condition Analysis — tests whether a condition is necessary (not just sufficient) for an outcome.">NCA</div>
+      <div class="rni rni-locked" data-rni="fimix"       onclick="repNavClick(this,'fimix')" title="Finite Mixture PLS — detects unobserved heterogeneity by estimating the optimal number of latent segments.">FIMIX-PLS</div>
+      <div class="rni rni-locked" data-rni="plspos"      onclick="repNavClick(this,'plspos')" title="PLS Prediction-Oriented Segmentation — assigns cases to segments that maximise within-group model fit.">PLS-POS</div>
+      <div class="rni rni-locked" data-rni="copula"      onclick="repNavClick(this,'copula')" title="Gaussian Copula approach — tests for and corrects endogeneity bias without needing an instrumental variable.">Gaussian Copula</div>
+      <div class="rni rni-locked" data-rni="ncaesse"     onclick="repNavClick(this,'ncaesse')" title="Necessary Condition Analysis — Effect Size Sensitivity Extension — stress-tests NCA effect sizes against random-data benchmarks.">NCA-ESSE</div>
+      <div class="rni rni-locked" data-rni="nomological" onclick="repNavClick(this,'nomological')" title="Nomological Validity — checks whether a construct's relationships with other variables match established theory.">Nomological</div>
+      <div class="rni rni-locked" data-rni="invariance"  onclick="repNavClick(this,'invariance')" title="Measurement Invariance — tests whether a construct is measured equivalently across groups before comparing means.">Invariance</div>
+      <div class="rni rni-locked" data-rni="efa"         onclick="repNavClick(this,'efa')" title="Exploratory Factor Analysis — uncovers the underlying factor structure of a set of items with no predefined model.">EFA</div>
+      <div class="rni rni-locked" data-rni="cvi"         onclick="repNavClick(this,'cvi')" title="Content Validity Index — quantifies expert agreement on how well items represent the construct they're meant to measure.">CVI</div>
+      <div class="rni rni-locked" data-rni="fsqca"       onclick="repNavClick(this,'fsqca')" title="Fuzzy-Set Qualitative Comparative Analysis — set-theoretic method identifying necessary and sufficient configurations of conditions that produce an outcome.">fsQCA</div>
       <div class="rns">Export</div>
-      <div class="rni"     data-rni="apa"         onclick="repNavClick(this,'apa')">APA tables</div>
-      <div class="rni rni-locked" data-rni="docx"        onclick="repNavClick(this,'docx')">Full .docx</div>
+      <div class="rni"     data-rni="apa"         onclick="repNavClick(this,'apa')" title="American Psychological Association style — standardised statistical reporting tables.">APA tables</div>
+      <div class="rni rni-locked" data-rni="docx"        onclick="repNavClick(this,'docx')" title="Microsoft Word document, APA 7th edition formatted.">Full .docx</div>
       <div class="rns" style="margin-top:6px">Session</div>
       <div class="rni" data-rni="history" onclick="repNavClick(this,'history')">Run history &nbsp;<span id="rh-badge" class="nbadge nb-v" style="display:none">0</span></div>
       <div style="flex:1"></div>
@@ -3659,6 +3675,7 @@ async function runAnalysis(){
   fd.append('bootstrap_n',document.getElementById('bs-sel').value);
   fd.append('missing',document.getElementById('missing-sel').value);
   fd.append('run_id',_rid);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try{
     const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();hideCoreSpinner();
@@ -3782,6 +3799,7 @@ async function runFromSyntax(){
   fd.append('bootstrap_n',document.getElementById('bs-sel').value);
   fd.append('missing',document.getElementById('missing-sel').value);
   fd.append('run_id',_rid2);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try{
     const r=await fetch(API+'/run',{method:'POST',body:fd,signal:_currentAbortController?.signal});
     const data=await r.json();hideSpinner();
@@ -3908,6 +3926,7 @@ async function triggerPredict(){
   fd.append('file',uploadedFile);fd.append('model',syntax);
   fd.append('omission_distance','7');fd.append('k_folds','10');
   fd.append('missing',document.getElementById('missing-sel').value);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try{
     const r=await fetch(API+'/predict',{method:'POST',body:fd});
     if(!r.ok)return;
@@ -3928,6 +3947,7 @@ async function triggerCmb(){
   fd.append('file',uploadedFile);fd.append('model',syntax);
   fd.append('marker_variable',marker);
   fd.append('missing',document.getElementById('missing-sel').value);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try{
     const r=await fetch(API+'/cmb',{method:'POST',body:fd});
     if(!r.ok){cmbData={error:(await r.json()).detail||'CMB error'};return;}
@@ -3944,6 +3964,7 @@ async function triggerHtmt(){
   if(!uploadedFile)return;
   const syntax=document.getElementById('syntax-area').value.trim();if(!syntax)return;
   const fd=new FormData();fd.append('file',uploadedFile);fd.append('model',syntax);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try{
     const r=await fetch(API+'/htmt',{method:'POST',body:fd});
     if(!r.ok)return;
@@ -4579,9 +4600,70 @@ function renderResults(tab){
       item('Python / semopy (.py)','code-py','Paste into Python to replicate')+
       item('JASP syntax (.lav)','code-lav','Compatible with JASP, jamovi, R lavaan'));
 
+
+    // Reproducibility & Provenance — fingerprint always present; the
+    // Bitcoin timestamp row only appears if "Timestamp on Bitcoin" was
+    // checked before this run.
+    cards += _provenanceCardHtml(results);
     body.innerHTML=`<div class="dl-grid">${cards}</div>`;
   }
 }
+// Shared provenance footer for every exported artifact (CSV/JSON/code/etc.)
+// so the fingerprint — and Bitcoin timestamp status, if requested — travels
+// with any output that leaves the app, not just the in-app Downloads tab.
+const _ANCHOR_STATUS_LABELS = {
+  pending:     'Pending Bitcoin confirmation (submitted to public OpenTimestamps calendars)',
+  confirmed:   'Confirmed on Bitcoin via OpenTimestamps',
+  failed:      'Timestamping attempted but failed',
+  timeout:     'Timestamping attempted — no calendar server responded',
+  unavailable: 'Timestamping unavailable on the server that generated this file',
+};
+
+function _provenanceCsvLines(){
+  if(!results || !results.fingerprint) return [];
+  const lines = ['', '"Provenance","Field","Value"'];
+  lines.push(`"Provenance","Run fingerprint (SHA-256)","${results.fingerprint}"`);
+  if(results.anchor_status){
+    const label = _ANCHOR_STATUS_LABELS[results.anchor_status] || results.anchor_status;
+    lines.push(`"Provenance","Bitcoin timestamp (OpenTimestamps)","${label}"`);
+  } else {
+    lines.push('"Provenance","Bitcoin timestamp (OpenTimestamps)","Not requested for this run"');
+  }
+  return lines;
+}
+
+function _provenanceJsonBlock(){
+  if(!results || !results.fingerprint) return null;
+  return {
+    fingerprint: results.fingerprint,
+    anchor_status: results.anchor_status || null,
+    anchor_status_label: results.anchor_status
+      ? (_ANCHOR_STATUS_LABELS[results.anchor_status] || results.anchor_status)
+      : 'Not requested for this run',
+    note: 'Only the fingerprint hash (never data, syntax, or results) is submitted to ' +
+          'OpenTimestamps calendar servers when Bitcoin timestamping is requested. ' +
+          'Recompute this fingerprint from the Audit JSON to verify this file has not been altered.',
+  };
+}
+
+function _provenanceCodeComment(commentChar){
+  if(!results || !results.fingerprint) return '';
+  const c = commentChar;
+  let lines = [
+    `${c} ── Provenance ──────────────────────────────────────────────`,
+    `${c} Run fingerprint (SHA-256): ${results.fingerprint}`,
+  ];
+  if(results.anchor_status){
+    const label = _ANCHOR_STATUS_LABELS[results.anchor_status] || results.anchor_status;
+    lines.push(`${c} Bitcoin timestamp (OpenTimestamps): ${label}`);
+  } else {
+    lines.push(`${c} Bitcoin timestamp (OpenTimestamps): not requested for this run`);
+  }
+  lines.push(`${c} Recompute from the Audit JSON to verify this file has not been altered.`);
+  lines.push('');
+  return lines.join('\n') + '\n';
+}
+
 function downloadResults(kind){
   if(!results)return;
   const f=results.fit;
@@ -4703,7 +4785,8 @@ function downloadResults(kind){
     fetch('/export',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:syntax,algorithm:algo,format:fmtMap[kind]})})
       .then(r=>r.text()).then(code=>{
-        _dlText(code, `naval_sem_model.${extMap[kind]}`, 'text/plain');
+        // R, Python, and lavaan syntax all use '#' for comments.
+        _dlText(_provenanceCodeComment('#') + code, `naval_sem_model.${extMap[kind]}`, 'text/plain');
       }).catch(()=>alert('Export failed.'));
     return;
   }
@@ -4721,6 +4804,25 @@ function downloadResults(kind){
   }
 
   if(!content&&mime==='text/csv') return;
+
+  // Append provenance (fingerprint + Bitcoin timestamp status, if any) to
+  // every CSV/JSON export that leaves the app, not just the Downloads tab.
+  if(content){
+    if(mime==='text/csv'){
+      const prov = _provenanceCsvLines();
+      if(prov.length) content += '\n' + prov.join('\n');
+    } else if(mime==='application/json'){
+      const prov = _provenanceJsonBlock();
+      if(prov){
+        try{
+          const obj = JSON.parse(content);
+          obj.provenance = prov;
+          content = JSON.stringify(obj, null, 2);
+        }catch(e){ /* leave content as-is if it wasn't valid JSON */ }
+      }
+    }
+  }
+
   _dlText(content, filename, mime);
 }
 
@@ -5329,6 +5431,11 @@ function renderCoreResults(tab) {
       item('Python / semopy (.py)','code-py','Paste into Python to replicate')+
       item('JASP syntax (.lav)','code-lav','Compatible with JASP, jamovi, R lavaan'));
 
+
+    // Reproducibility & Provenance — fingerprint always present; the
+    // Bitcoin timestamp row only appears if "Timestamp on Bitcoin" was
+    // checked before this run.
+    cards += _provenanceCardHtml(results);
     body.innerHTML=`<div class="dl-grid">${cards}</div>`;
   }
 }
@@ -5633,14 +5740,142 @@ function toggleGlobalLiveLog(){
   }
 }
 
+// Shared by both Downloads tab renderers (renderResults + renderCoreResults).
+function _provenanceCardHtml(res){
+  if(!res || !res.fingerprint) return '';
+  const fpShort = res.fingerprint.slice(0,16) + '…' + res.fingerprint.slice(-8);
+  let inner = `
+    <div class="dl-item">
+      <div class="dl-info">
+        <div class="dl-label">Run fingerprint (SHA-256)</div>
+        <div class="dl-note" style="font-family:var(--mono)">${fpShort}</div>
+      </div>
+      <button class="dl-btn" onclick="downloadAuditJSON()">⬇ Audit JSON</button>
+    </div>`;
+
+  const st = res.anchor_status;
+  if(st){
+    const labels = {
+      pending:     '⏳ Pending Bitcoin confirmation',
+      confirmed:   '✓ Confirmed on Bitcoin',
+      failed:      '✗ Timestamping failed',
+      timeout:     '✗ No calendar server responded',
+      unavailable: '— Timestamping unavailable on this server',
+    };
+    const hasProof = st === 'pending' || st === 'confirmed';
+    inner += `
+      <div class="dl-item">
+        <div class="dl-info">
+          <div class="dl-label">Bitcoin timestamp (OpenTimestamps)</div>
+          <div class="dl-note">${labels[st] || st}${hasProof ? ' — download the .ots proof now; it is only kept in memory for this server session, not stored permanently.' : ''}</div>
+        </div>
+        ${hasProof ? `<button class="dl-btn" onclick="downloadAnchorProof()">⬇ .ots Proof</button>` : ''}
+      </div>`;
+    if(st === 'pending'){
+      inner += `
+      <div class="dl-item">
+        <div class="dl-info">
+          <div class="dl-label">Re-check confirmation</div>
+          <div class="dl-note">Bitcoin confirmation usually takes a few hours</div>
+        </div>
+        <button class="dl-btn" onclick="checkAnchorUpgrade()">↻ Check</button>
+      </div>`;
+    }
+  } else {
+    inner += `
+      <div class="dl-item">
+        <div class="dl-info">
+          <div class="dl-label">Bitcoin timestamp (OpenTimestamps)</div>
+          <div class="dl-note">Off by default — not requested for this run. Check "Timestamp on Bitcoin" before running to get one; no blockchain is ever contacted otherwise.</div>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="dl-card">
+      <div class="dl-card-title">Reproducibility &amp; Provenance</div>
+      <div class="dl-items">${inner}</div>
+    </div>`;
+}
+
 function downloadAuditJSON(){
   if(!_liveAuditData) return;
   _dlText(JSON.stringify(_liveAuditData, null, 2), `naval_sem_audit_${(_liveRunId||'run').slice(0,8)}.json`, 'application/json');
 }
 
+// ── Optional Bitcoin timestamp UI (OpenTimestamps) ──────────────────────────
+// Only ever populated when the user checked "Timestamp on Bitcoin" before
+// running — for a normal offline run this row stays hidden entirely.
+// Drives both the live run panel (live-*) and the persistent global overlay
+// (glo-*), since a run's fingerprint bar is mirrored into both places.
+function _renderAnchorStatus(status){
+  const styles = {
+    pending:     {bg:'var(--accent-soft)', fg:'var(--accent-text)', label:'⏳ Pending Bitcoin confirmation'},
+    confirmed:   {bg:'var(--green-soft)',  fg:'var(--green-text)',  label:'✓ Confirmed on Bitcoin'},
+    failed:      {bg:'var(--red-soft, rgba(220,80,80,.12))', fg:'var(--red-text, #d66)', label:'✗ Timestamping failed'},
+    timeout:     {bg:'var(--red-soft, rgba(220,80,80,.12))', fg:'var(--red-text, #d66)', label:'✗ No calendar server responded (offline?)'},
+    unavailable: {bg:'var(--panel-bg-60)', fg:'var(--t3)',         label:'— Timestamping unavailable on this server'},
+  };
+  const s = status ? (styles[status] || {bg:'var(--panel-bg-60)', fg:'var(--t3)', label:status}) : null;
+  const hasProof = status === 'pending' || status === 'confirmed';
+
+  for(const prefix of ['live', 'glo']){
+    const row      = document.getElementById(`${prefix}-anchor-row`);
+    const statusEl = document.getElementById(`${prefix}-anchor-status`);
+    const proofBtn = document.getElementById(`${prefix}-anchor-proof-btn`);
+    const checkBtn = document.getElementById(`${prefix}-anchor-check-btn`);
+    if(!row || !statusEl) continue;
+    if(!status){ row.style.display = 'none'; continue; }
+    row.style.display = 'block';
+    statusEl.textContent = s.label;
+    statusEl.style.background = s.bg;
+    statusEl.style.color = s.fg;
+    if(proofBtn) proofBtn.style.display = hasProof ? 'inline-block' : 'none';
+    if(checkBtn) checkBtn.style.display = status === 'pending' ? 'inline-block' : 'none';
+  }
+}
+
+function downloadAnchorProof(){
+  const rid = (results && results.run_id) || _liveRunId;
+  if(!rid) return;
+  const a = document.createElement('a');
+  a.href = API + `/fingerprint/${rid}/proof`;
+  a.download = `naval_sem_${rid.slice(0,8)}.txt.ots`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+async function checkAnchorUpgrade(){
+  const rid = (results && results.run_id) || _liveRunId;
+  if(!rid) return;
+  const btns = [document.getElementById('live-anchor-check-btn'), document.getElementById('glo-anchor-check-btn')]
+    .filter(Boolean);
+  const prevLabels = btns.map(b => b.textContent);
+  btns.forEach(b => { b.textContent = 'Checking…'; b.disabled = true; });
+  try{
+    const r = await fetch(API + `/fingerprint/${rid}/upgrade`, {method:'POST'});
+    const j = await r.json();
+    const status = j?.anchor?.status;
+    if(status){
+      _renderAnchorStatus(status);
+      if(results) results.anchor_status = status;
+      if(resTab === 'downloads') renderResults('downloads');
+      if(typeof _coreResTab !== 'undefined' && _coreResTab === 'downloads') renderCoreResults('downloads');
+      _liveAppend(status === 'confirmed' ? 'ok' : 'info',
+        status === 'confirmed'
+          ? 'Bitcoin timestamp confirmed — proof is now fully self-contained.'
+          : 'Still pending Bitcoin confirmation — try again later.');
+    }
+  } catch(e){
+    _liveAppend('warn', 'Could not check anchor status (offline?).');
+  } finally {
+    btns.forEach((b, i) => { b.textContent = prevLabels[i]; b.disabled = false; });
+  }
+}
+
 function _startLiveStream(runId, opts = {}){
   _liveRunId = runId;
   if(_liveEs){ _liveEs.close(); _liveEs = null; }
+  _renderAnchorStatus(null);  // clear any stale anchor badge from a previous run
 
   // ── Activate global live-log button + pulsing dot ──────────────────────
   const _gBtn = document.getElementById('global-live-btn');
@@ -5733,7 +5968,22 @@ function _startLiveStream(runId, opts = {}){
             gFpBar.style.display = 'block';
           }
           _liveAuditData = d.audit;
-          _liveAppend('ok', 'Fingerprint anchored — download Audit JSON to verify');
+          _liveAppend('ok', 'Fingerprint computed locally — download Audit JSON to verify');
+          // Bitcoin timestamping is opt-in (see "Timestamp on Bitcoin" checkbox)
+          // and only reported here if it was actually requested for this run.
+          if(d.anchor && d.anchor.status){
+            const st = d.anchor.status;
+            _renderAnchorStatus(st);
+            if(st === 'pending'){
+              _liveAppend('ok', 'Submitted to public OpenTimestamps calendar servers — pending Bitcoin confirmation, usually a few hours. Download the .ots proof now from the Downloads tab; it is not stored permanently on the server.');
+            } else if(st === 'confirmed'){
+              _liveAppend('ok', 'Bitcoin timestamp confirmed via OpenTimestamps — proof is now complete and self-contained.');
+            } else {
+              _liveAppend('warn', `Bitcoin timestamping not completed (${st}) — the local fingerprint above is unaffected.`);
+            }
+          } else {
+            _renderAnchorStatus(null);
+          }
         }
         return;
       }
@@ -6431,6 +6681,7 @@ function buildReport(){
     ['invariance',  typeof _invarianceResult  !== 'undefined' && _invarianceResult],
     ['efa',         typeof _efaResult         !== 'undefined' && _efaResult],
     ['cvi',         typeof _cviResult         !== 'undefined' && _cviResult],
+    ['fsqca',       typeof _fsqcaResult       !== 'undefined' && _fsqcaResult],
   ];
   _satelliteUnlocks.forEach(([key, hasData]) => {
     if (hasData) {
@@ -7077,6 +7328,49 @@ function buildReport(){
     </div>`;
   }
 
+  // ── fsQCA ───────────────────────────────────────────────────────────────
+  let fsqcaReportHtml = '';
+  if (typeof _fsqcaResult !== 'undefined' && _fsqcaResult) {
+    const d = _fsqcaResult;
+    const necRows = (d.necessity || []).map(n => `<tr>
+      <td style="color:var(--accent-text)">${esc(n.condition)}</td>
+      <td style="text-align:right">${_fmtR(n.coverage)}</td>
+      <td style="text-align:right">${_fmtR(n.consistency)}</td>
+      <td><span class="fit-chip ${n.label==='Necessary'?'fc-good':n.label==='Near-Necessary'?'fc-ok':'fc-bad'}">${esc(n.label)}</span></td>
+    </tr>`).join('');
+    const solLabels = { complex: 'Complex Solution', parsimonious: 'Parsimonious Solution', intermediate: 'Intermediate Solution' };
+    const solBlocks = (d.solutions || []).map(s => {
+      const termRows = (s.terms || []).map(t => `<tr>
+        <td style="color:var(--accent-text);font-family:var(--mono)">${esc(t.configuration)}</td>
+        <td style="text-align:right">${_fmtR(t.raw_coverage)}</td>
+        <td style="text-align:right">${_fmtR(t.unique_coverage)}</td>
+        <td style="text-align:right">${_fmtR(t.consistency)}</td>
+      </tr>`).join('');
+      return `<div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:6px">
+          ${esc(solLabels[s.solution_type] || s.solution_type)}
+          <span class="fit-chip fc-ok" style="margin-left:6px">Coverage ${_fmtR(s.solution_coverage)} \u00b7 Consistency ${_fmtR(s.solution_consistency)}</span>
+        </div>
+        ${termRows ? `<div style="overflow-x:auto"><table class="gtable"><thead><tr>
+          <th>Configuration</th><th style="text-align:right">Raw Cov.</th><th style="text-align:right">Unique Cov.</th><th style="text-align:right">Consistency</th>
+        </tr></thead><tbody>${termRows}</tbody></table></div>`
+          : '<div style="color:var(--t3);font-size:11px">No terms in this solution.</div>'}
+      </div>`;
+    }).join('');
+    fsqcaReportHtml = `<div class="rpt-section" id="rpt-fsqca-section">
+      <div class="rpt-section-title">Fuzzy-Set QCA (fsQCA)</div>
+      <div style="font-size:9px;letter-spacing:1.5px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">
+        Outcome: ${esc(d.outcome ?? '\u2014')} &nbsp;\u00b7&nbsp; Conditions: ${esc((d.conditions||[]).join(', '))} &nbsp;\u00b7&nbsp; N = ${d.n_obs ?? '\u2014'}
+      </div>
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:8px">Necessity Analysis</div>
+      <div style="overflow-x:auto"><table class="gtable"><thead><tr>
+        <th>Condition</th><th style="text-align:right">Coverage</th><th style="text-align:right">Consistency</th><th>Label</th>
+      </tr></thead><tbody>${necRows}</tbody></table></div>
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin:14px 0 8px">Sufficiency Solutions</div>
+      ${solBlocks || '<div style="color:var(--t3);font-size:11px">No solutions found for the given thresholds.</div>'}
+    </div>`;
+  }
+
   // ── Moderated Mediation ────────────────────────────────────────────────
   let modMediationReportHtml = '';
   if (typeof _modMediationResult !== 'undefined' && _modMediationResult) {
@@ -7159,9 +7453,10 @@ function buildReport(){
       </div>
     </div>
 
+    ${syntax && syntax.trim() ? `
     <div class="rpt-section">
       <div class="rpt-section-title">Model Syntax (lavaan)</div>
-      <div class="rpt-syntax-box">${syntax||'<span style="color:var(--t3)">No syntax captured</span>'}</div>
+      <div class="rpt-syntax-box">${syntax}</div>
     </div>
 
     <div class="rpt-section">
@@ -7171,7 +7466,10 @@ function buildReport(){
           //   (same positions, colours, edge labels as the canvas).
           // 2nd choice: SVG rebuilt from lavaan syntax + parameter estimates.
           // 3rd choice: PNG canvas snapshot.
-          // 4th choice: placeholder.
+          // 4th choice: placeholder (only reached here because syntax exists
+          //   but no diagram was ever rendered from it — a genuine "build a
+          //   model" prompt, not shown at all for non-SEM analyses like fsQCA
+          //   which have no model syntax in the first place).
           const builderSvg = _buildSVGFromBuilderNodes(snap.nodes, snap.edges);
           if (builderSvg) return `<div id="rpt-diagram-img" style="width:100%">${builderSvg}</div>`;
           const svgDiag = _buildSVGDiagram(syntax, results.parameters);
@@ -7180,6 +7478,7 @@ function buildReport(){
           return `<div id="rpt-diagram-img" class="rpt-diagram-placeholder">Diagram not available — build a model on the canvas first.</div>`;
         })()}
     </div>
+    ` : ''}
 
     <div class="rpt-section">
       <div class="rpt-section-title">Model Fit Indices</div>
@@ -7233,6 +7532,7 @@ function buildReport(){
     ${efaReportHtml}
     ${cviReportHtml}
     ${modMediationReportHtml}
+    ${fsqcaReportHtml}
 
     <div id="rpt-note-section">${noteHtml}</div>
 
@@ -7577,6 +7877,7 @@ async function downloadReport(fmt){
         efa:           (typeof _efaResult          !== 'undefined') ? _efaResult          : null,
         cvi:           (typeof _cviResult          !== 'undefined') ? _cviResult          : null,
         mod_mediation: (typeof _modMediationResult !== 'undefined') ? _modMediationResult : null,
+        fsqca:         (typeof _fsqcaResult        !== 'undefined') ? _fsqcaResult        : null,
         diagram_png: diagramPng,
         analyst:     analyst,
         note:        note,
@@ -7623,6 +7924,11 @@ async function exportDocx() {
   fd.append('algorithm', document.getElementById('algo-sel')?.value || 'pls');
   fd.append('bootstrap_n', '1000');
   fd.append('missing', document.getElementById('missing-sel')?.value || 'listwise');
+  // This export re-fits the model server-side (may not exactly match the
+  // interactive run's bootstrap_n/reverse_items), so it gets its own fresh
+  // fingerprint. Mirror the "Timestamp on Bitcoin" checkbox so the exported
+  // document carries the same opt-in Bitcoin timestamp as the live run.
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try {
     const r = await fetch('/export/docx', { method: 'POST', body: fd });
     if (!r.ok) { alert('Export failed.'); return; }
@@ -7788,6 +8094,7 @@ async function runMGA(){
   fd.append('run_micom',      runMicom);
   fd.append('missing',        missing);
   fd.append('run_id',         _mgaRunId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
 
   // Start SSE stream before POST so no events are missed
   _startLiveStream(_mgaRunId, {
@@ -8263,6 +8570,7 @@ async function runHOC() {
   fd.append('bootstrap_n', bsN);
   fd.append('missing',     missing);
   fd.append('run_id',      runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
 
   _startLiveStream(runId, {
     label : `HOC run · method: ${method} · algo: ${algo}`,
@@ -8398,6 +8706,7 @@ async function runModeration() {
   fd.append('bootstrap_n', bsN);
   fd.append('missing',     missing);
   fd.append('run_id',      runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
 
   _startLiveStream(runId, { label: `Moderation · algo: ${algo}`, bsSel: 'mod-bootstrap', bsN: parseInt(bsN) || 0 });
 
@@ -8546,6 +8855,7 @@ async function runIPMA() {
   if (scaleMin) fd.append('scale_min', scaleMin);
   if (scaleMax) fd.append('scale_max', scaleMax);
   fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
 
   _startLiveStream(runId, { label: `IPMA · target: ${targetLV} · algo: ${algo}`, bsSel: null, bsN: 0 });
 
@@ -8639,6 +8949,7 @@ async function runModMediation() {
   fd.append('bootstrap_n', bsN);
   fd.append('missing',     missing);
   fd.append('run_id',      runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
 
   _startLiveStream(runId, { label: `Mod. Mediation · algo: ${algo}`, bsSel: 'modmed-bootstrap', bsN: parseInt(bsN) || 0 });
 
@@ -8789,6 +9100,7 @@ async function runNCA() {
   fd.append('perms',   perms);
   fd.append('missing', missing);
   fd.append('run_id',  runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
 
   _startLiveStream(runId, { label: `NCA · perms: ${perms}`, bsSel: null, bsN: 0 });
 
@@ -8897,6 +9209,7 @@ async function runFIMIX() {
   fd.append('data', file); fd.append('model', syntax);
   fd.append('k_max', kMax); fd.append('n_starts', starts);
   fd.append('seed', seed); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: `FIMIX · K_max: ${kMax}`, bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/fimix', { method: 'POST', body: fd });
@@ -9007,6 +9320,7 @@ async function runPLSPOS() {
   fd.append('data', file); fd.append('model', syntax);
   fd.append('k', k); fd.append('n_starts', starts);
   fd.append('seed', seed); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: `PLS-POS · K=${k}`, bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/plspos', { method: 'POST', body: fd });
@@ -9098,6 +9412,7 @@ async function runCopula() {
   fd.append('checks', 'copula');
   if (endog) fd.append('endogenous', endog);
   fd.append('bootstrap_n', bs); fd.append('seed', seed); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: 'Gaussian Copula', bsSel: null, bsN: parseInt(bs) });
   try {
     const r = await fetch('/robustness', { method: 'POST', body: fd });
@@ -9207,6 +9522,7 @@ async function runNCAESSE() {
   fd.append('file', file); fd.append('model', syntax);
   fd.append('n_permutations', perms); fd.append('n_benchmark_reps', bench);
   fd.append('seed', seed); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: `NCA-ESSE · perms: ${perms}`, bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/nca-esse', { method: 'POST', body: fd });
@@ -9253,6 +9569,8 @@ function _renderNCAESSEResults(data) {
 // ════════════════════════════════════════════════════════
 //  v1.0  fsQCA — Fuzzy-Set Qualitative Comparative Analysis
 // ════════════════════════════════════════════════════════
+let _fsqcaResult = null;   // stored so Report tab / PDF export can detect a completed fsQCA run
+
 async function runFsQCA() {
   const btn = document.getElementById('fsqca-run-btn');
   const outcome = (document.getElementById('fsqca-outcome')?.value || '').trim();
@@ -9267,6 +9585,11 @@ async function runFsQCA() {
   document.getElementById('fsqca-error').style.display   = 'none';
   document.getElementById('fsqca-results').style.display = 'none';
   document.getElementById('fsqca-idle').style.display    = 'none';
+
+  // ── Live log setup ──────────────────────────────────────────────────────
+  const _fsqcaRunId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16);
+  _runT0 = performance.now();
+
   const fd = new FormData();
   fd.append('file', file);
   fd.append('outcome', outcome);
@@ -9274,10 +9597,21 @@ async function runFsQCA() {
   fd.append('freq_threshold', freq);
   fd.append('consist_threshold', consist);
   fd.append('missing', document.getElementById('missing-sel')?.value || 'listwise');
+  fd.append('run_id', _fsqcaRunId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
+
+  // Start SSE stream before POST so no events are missed
+  _startLiveStream(_fsqcaRunId, {
+    label : `fsQCA · outcome: ${outcome}`,
+    bsSel : null,
+    bsN   : 0
+  });
+
   try {
     const r = await fetch('/fsqca', { method: 'POST', body: fd });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+    _okRunRecord(d); _fsqcaResult = d; _freezeReportSnapshot();
     _renderFsQCAResults(d);
     document.getElementById('fsqca-spinner').style.display = 'none';
     document.getElementById('fsqca-results').style.display = 'flex';
@@ -9299,17 +9633,18 @@ function _fsqcaShowError(msg) {
 function _renderFsQCAResults(d) {
   const el = document.getElementById('fsqca-results');
   let html = '<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin-bottom:8px">Necessity Analysis</h3>';
-  html += '<table class="res-tbl"><thead><tr><th>Condition</th><th>Coverage</th><th>Consistency</th><th>Label</th></tr></thead><tbody>';
+  html += '<table class="res-tbl"><thead><tr><th>Condition</th><th style="text-align:right">Coverage</th><th style="text-align:right">Consistency</th><th>Label</th></tr></thead><tbody>';
   for (const n of (d.necessity || [])) {
-    html += `<tr><td>${n.condition}</td><td>${Number(n.coverage).toFixed(3)}</td><td>${Number(n.consistency).toFixed(3)}</td><td><span class="nbadge nb-v">${n.label}</span></td></tr>`;
+    const _cls = n.label === 'Necessary' ? 'fc-good' : n.label === 'Near-Necessary' ? 'fc-ok' : 'fc-bad';
+    html += `<tr><td>${n.condition}</td><td style="text-align:right">${Number(n.coverage).toFixed(3)}</td><td style="text-align:right">${Number(n.consistency).toFixed(3)}</td><td><span class="fit-chip ${_cls}">${n.label}</span></td></tr>`;
   }
   html += '</tbody></table>';
   for (const sol of (d.solutions || [])) {
     const stype = sol.solution_type ? sol.solution_type.charAt(0).toUpperCase() + sol.solution_type.slice(1) : '';
     html += `<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin:14px 0 8px">${stype} Solution <span class="nbadge nb-v">Coverage ${Number(sol.solution_coverage).toFixed(3)} · Consistency ${Number(sol.solution_consistency).toFixed(3)}</span></h3>`;
-    html += '<table class="res-tbl"><thead><tr><th>Configuration</th><th>Raw Cov.</th><th>Unique Cov.</th><th>Consistency</th></tr></thead><tbody>';
+    html += '<table class="res-tbl"><thead><tr><th>Configuration</th><th style="text-align:right">Raw Cov.</th><th style="text-align:right">Unique Cov.</th><th style="text-align:right">Consistency</th></tr></thead><tbody>';
     for (const t of (sol.terms || [])) {
-      html += `<tr><td><code style="font-family:var(--mono);font-size:11px">${t.configuration}</code></td><td>${Number(t.raw_coverage).toFixed(3)}</td><td>${Number(t.unique_coverage).toFixed(3)}</td><td>${Number(t.consistency).toFixed(3)}</td></tr>`;
+      html += `<tr><td><code style="font-family:var(--mono);font-size:11px">${t.configuration}</code></td><td style="text-align:right">${Number(t.raw_coverage).toFixed(3)}</td><td style="text-align:right">${Number(t.unique_coverage).toFixed(3)}</td><td style="text-align:right">${Number(t.consistency).toFixed(3)}</td></tr>`;
     }
     html += '</tbody></table>';
   }
@@ -9361,6 +9696,7 @@ async function runNomological() {
   document.getElementById('nomological-idle').style.display    = 'none';
   const fd = new FormData();
   fd.append('file', file); fd.append('model_syntax', syntax); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: 'Nomological validity', bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/nomological', { method: 'POST', body: fd });
@@ -9381,8 +9717,9 @@ function _renderNomologicalResults(data) {
   document.getElementById('nomological-spinner').style.display = 'none';
   const el = document.getElementById('nomological-results'); el.style.display = 'flex';
   const _fmt = v => v != null ? Number(v).toFixed(3) : '—';
-  // NomologicalResult may return {entries: [...], benchmark: str, warnings: [...]}
-  // or plain list for backward compat
+  // /nomological now always returns {entries, warnings, fingerprint, anchor_status}
+  // (a bare array can't carry a fingerprint) — Array.isArray kept only for
+  // safety against any stale cached response shape.
   const entries = Array.isArray(data) ? data : (data.entries || []);
   let html = '';
   if (data.benchmark) {
@@ -9405,6 +9742,10 @@ function _renderNomologicalResults(data) {
   }
   if (!Array.isArray(data) && data.warnings?.length) {
     html += `<div class="warn-box" style="margin-top:8px">${data.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>`;
+  }
+  if (!Array.isArray(data) && data.fingerprint){
+    html += `<div style="margin-top:10px;padding-top:8px;border-top:.5px solid var(--line);font-size:9px;color:var(--t3);font-family:var(--mono)">
+      Fingerprint: <code style="color:var(--green-text)">${data.fingerprint.slice(0,16)}…${data.fingerprint.slice(-8)}</code></div>`;
   }
   el.innerHTML = html || '<div style="color:var(--t3);padding:8px">No endogenous constructs found.</div>';
 }
@@ -9437,6 +9778,7 @@ async function runInvariance() {
   const fd = new FormData();
   fd.append('file', file); fd.append('model_syntax', syntax);
   fd.append('group_col', groupCol); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: `Invariance · group: ${groupCol}`, bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/invariance', { method: 'POST', body: fd });
@@ -9505,6 +9847,7 @@ async function runEFA() {
   fd.append('file', file);
   if (nf) fd.append('n_factors', nf);
   fd.append('rotation', rotation); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: `EFA · rotation: ${rotation}`, bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/efa', { method: 'POST', body: fd });
@@ -9573,6 +9916,7 @@ async function runCVI() {
   document.getElementById('cvi-idle').style.display    = 'none';
   const fd = new FormData();
   fd.append('file', file); fd.append('n_experts', nExp); fd.append('run_id', runId);
+  fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   _startLiveStream(runId, { label: 'CVI', bsSel: null, bsN: 0 });
   try {
     const r = await fetch('/cvi', { method: 'POST', body: fd });
@@ -9819,6 +10163,14 @@ function toggleResultsPanel() {
   <div class="glo-fp-bar" id="glo-fp-bar">
     <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:5px">Run Fingerprint (SHA-256)</div>
     <code id="glo-fp-code" style="font-family:var(--mono);font-size:11px;color:var(--green-text);background:var(--green-soft);padding:4px 10px;border-radius:6px;word-break:break-all;display:block"></code>
+    <div id="glo-anchor-row" style="display:none;margin-top:10px;padding-top:10px;border-top:.5px solid var(--line)">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin-bottom:6px">Bitcoin Timestamp (OpenTimestamps)</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="glo-anchor-status" style="font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:6px"></span>
+        <button id="glo-anchor-proof-btn" onclick="downloadAnchorProof()" style="display:none;font-size:9px;padding:4px 12px;background:var(--accent-soft);border:.5px solid var(--accent-text);border-radius:var(--pill);color:var(--accent-text);cursor:pointer">⬇ .ots Proof</button>
+        <button id="glo-anchor-check-btn" onclick="checkAnchorUpgrade()" style="display:none;font-size:9px;padding:4px 12px;background:transparent;border:.5px solid var(--line);border-radius:var(--pill);color:var(--t2);cursor:pointer">↻ Check confirmation</button>
+      </div>
+    </div>
   </div>
 </div>
 

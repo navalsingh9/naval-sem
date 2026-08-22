@@ -106,6 +106,11 @@ class BootstrapResult(BaseModel):
     # path. Confirm which is intended before wiring engine.py; harmless
     # (empty list) either way until then.
     annotations: List[str] = []
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class HTMTEntry(BaseModel):
@@ -124,6 +129,11 @@ class HTMTResult(BaseModel):
 
 
 # ── v0.4 schemas ──────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class OuterWeightEntry(BaseModel):
     lv: str
@@ -182,6 +192,11 @@ class IndirectResult(BaseModel):
 
 
 # ── v0.7 summary schemas ──────────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class StructuralPathSummary(BaseModel):
     """One row per structural path in the inner model."""
@@ -239,6 +254,11 @@ class CVIResult(BaseModel):
     n_experts: int
     n_items: int
     interpretation: str              # "Excellent" / "Acceptable" / "Poor"
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class ScaleDevelopmentResult(BaseModel):
@@ -255,6 +275,11 @@ class ScaleDevelopmentResult(BaseModel):
     loadings: List[Dict[str, Any]]   # [{item, factor, loading}]
     cross_loadings: Optional[List[Dict[str, Any]]] = None
     warnings: List[str] = []
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class NomologicalResult(BaseModel):
@@ -271,6 +296,24 @@ class NomologicalResult(BaseModel):
     benchmark: float
     passed: bool
     interpretation: str              # "Substantial" / "Moderate" / "Weak" / "Not supported"
+
+
+class NomologicalBatchResult(BaseModel):
+    """
+    Wrapper for POST /nomological. A bare JSON array can't carry a top-level
+    fingerprint, so this wraps the per-construct results the same way every
+    other analysis endpoint's response does. The frontend already handled
+    this shape defensively (see _renderNomologicalResults in static/index.html,
+    which checks `Array.isArray(data) ? data : data.entries`) before the
+    backend ever sent it.
+    """
+    entries: List[NomologicalResult] = []
+    warnings: List[str] = []
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class MeasurementInvarianceLevel(BaseModel):
@@ -291,6 +334,11 @@ class MeasurementInvarianceResult(BaseModel):
     scalar: MeasurementInvarianceLevel
     partial_invariance: Optional[List[str]] = None   # items released
     conclusion: str   # "Full scalar" / "Partial scalar" / "Metric only" / "Configural only"
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class ModelResult(BaseModel):
@@ -315,6 +363,11 @@ class ModelResult(BaseModel):
     # v0.6 — reproducibility
     run_id: Optional[str] = None
     fingerprint: Optional[str] = None
+    # v0.10 — optional, opt-in blockchain anchoring (OpenTimestamps) of the
+    # fingerprint above. None unless the caller requested anchor=True on
+    # /run. One of: "pending" (submitted, awaiting Bitcoin confirmation),
+    # "confirmed" (fully verifiable), "unavailable"/"failed"/"timeout".
+    anchor_status: Optional[str] = None
     # v0.7 — results summary
     summary: Optional[ModelSummary] = None
     # v0.6 — higher-order constructs
@@ -446,6 +499,11 @@ class CMBMarkerResult(BaseModel):
     max_marker_correlation: float
     cmb_concern: bool            # True when max r > 0.20 (Lindell & Whitney)
     note: str
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class PredictResult(BaseModel):
@@ -459,6 +517,11 @@ class PredictResult(BaseModel):
 
 
 # ── v0.6 schemas ──────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class HOCType(str, Enum):
     """How a higher-order construct was estimated."""
@@ -590,6 +653,11 @@ class MGAResult(BaseModel):
     warnings: List[str] = []
 
 # ── v0.7 schemas ──────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class SimpleSlope(BaseModel):
     """
@@ -643,6 +711,11 @@ class ModerationResult(BaseModel):
 
 
 # ── IPMA ──────────────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class IPMAIndicatorEntry(BaseModel):
     lv: str
@@ -690,6 +763,11 @@ class IPMAResult(BaseModel):
 
 
 # ── NCA ───────────────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class NCAEntry(BaseModel):
     """
@@ -753,6 +831,11 @@ class NCAResult(BaseModel):
 # Must-have, or maybe not? A sensitivity-based extension to necessary condition
 # analysis. Journal of Business Research, 206, 115920.
 # https://doi.org/10.1016/j.jbusres.2025.115920  (CC BY 4.0)
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class NCAESSEThresholdPoint(BaseModel):
@@ -796,6 +879,11 @@ class NCAESSEResult(BaseModel):
 
 
 # ── Moderated Mediation (v0.7) ────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class ConditionalIndirectEffect(BaseModel):
     """
@@ -871,6 +959,11 @@ class ModMediationResult(BaseModel):
 
 
 # ── Nonlinear (Polynomial) Effects (v0.7) ─────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class NonlinearEntry(BaseModel):
     path: str
@@ -949,6 +1042,11 @@ class FIMIXResult(BaseModel):
 
 
 # ── PLS-POS (v0.8) ────────────────────────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class PLSPOSSegment(BaseModel):
     segment_id: int
@@ -970,6 +1068,11 @@ class PLSPOSResult(BaseModel):
 
 
 # ── Robustness Checks wrapper (v0.8) ──────────────────────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class RobustnessChecks(BaseModel):
     nonlinear:      Optional["NonlinearResult"]       = None
@@ -983,6 +1086,11 @@ class RobustnessChecks(BaseModel):
 # Ragin, C. C. (2008). Redesigning Social Inquiry. University of Chicago Press.
 # Schneider, C. Q., & Wagemann, C. (2012). Set-Theoretic Methods for the
 #   Social Sciences. Cambridge University Press.
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class NecessityEntry(BaseModel):
@@ -1064,6 +1172,11 @@ class FsQCAResult(BaseModel):
 #   An improved R-hat for MCMC. Bayesian Analysis. — bulk-ESS.
 # Chen, M.-H., & Shao, Q.-M. (1999). Monte Carlo estimation of Bayesian
 #   credible and HPD intervals. J. Comp. Graph. Statistics, 8(1), 69-92.
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 class BayesianParameterEntry(BaseModel):
@@ -1124,6 +1237,11 @@ class BayesianSemResponse(BaseModel):
 # ── General Latent Class / Finite Mixture engine (v1.1, A12–A15) ──────────────
 # Reuses the FIMIX-PLS EM scaffolding (fimix.py) but operates on raw indicator
 # columns directly. See app/engine_lca.py.
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class LCAFitRow(BaseModel):
     """One row of the K-selection fit table (mirrors FIMIXSolution's fit
@@ -1170,6 +1288,11 @@ class LCAResult(BaseModel):
 
 
 # ── v1.1 (S2) — Confirmatory Tetrad Analysis (CTA-PLS) ─────────────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class CTATetradEntry(BaseModel):
     """
@@ -1211,6 +1334,11 @@ class CTAResult(BaseModel):
 
 
 # ── v1.1 (A16) — Multi-group CB-SEM with equality constraints ─────────────────
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 class MultigroupCBSEMFit(BaseModel):
     """Fit summary for one side (free or constrained) of the multi-group test."""
@@ -1245,6 +1373,11 @@ class MultigroupCBSEMResult(BaseModel):
     constrained_rejected: Optional[bool] = None   # True when lr_p_value < .05
     conclusion: str = ""
     warnings: List[str] = []
+    # Provenance: reproducibility fingerprint (SHA-256) always present;
+    # anchor_status only set if Bitcoin timestamping (OpenTimestamps) was
+    # requested for this run. See app/anchor.py.
+    fingerprint: Optional[str] = None
+    anchor_status: Optional[str] = None
 
 
 # Resolve all forward references now that every class is defined.

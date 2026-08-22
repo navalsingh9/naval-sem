@@ -501,6 +501,102 @@ def _build_header_block(snap: dict, analyst: dict, note: str, st: dict) -> list:
     return flowables
 
 
+_ANCHOR_STATUS_LABELS = {
+    "pending":     "Pending Bitcoin confirmation (submitted to public OpenTimestamps calendars)",
+    "confirmed":   "Confirmed on Bitcoin via OpenTimestamps",
+    "failed":      "Timestamping attempted but failed",
+    "timeout":     "Timestamping attempted — no calendar server responded",
+    "unavailable": "Timestamping unavailable on the server that generated this report",
+}
+
+# Every analysis-result slot the frontend may attach to a PDF export payload
+# (see the `payload = {...}` object built in exportReportPdf() / static/index.html),
+# mapped to a human-readable label. Each slot's own ModelResult-derived schema
+# carries its own independent fingerprint/anchor_status (see app/schemas.py and
+# _attach_provenance() in app/main.py) — a single report can combine several
+# analyses run in the same session, each needing its own row here rather than
+# only ever showing the main /run fingerprint.
+_PROVENANCE_ANALYSIS_LABELS = {
+    "results":       "Main run (SEM/PLS fit)",
+    "mga":           "Multi-Group Analysis (MGA)",
+    "htmt":          "HTMT",
+    "predictive":    "Predictive Relevance",
+    "moderation":    "Moderation",
+    "ipma":          "IPMA",
+    "nca":           "NCA",
+    "fimix":         "FIMIX",
+    "plspos":        "PLS-POS",
+    "nca_esse":      "NCA-ESSE",
+    "nomological":   "Nomological Validity",
+    "invariance":    "Measurement Invariance",
+    "efa":           "EFA",
+    "cvi":           "CVI",
+    "mod_mediation": "Moderated Mediation",
+    "fsqca":         "Fuzzy-Set QCA (fsQCA)",
+}
+
+
+def _build_provenance_section(payload: dict, st: dict) -> list:
+    """
+    Reproducibility & Provenance block: one row per analysis included in this
+    report that carries a SHA-256 fingerprint, plus (only if the user opted
+    in when that analysis was run) its OpenTimestamps Bitcoin timestamp
+    status. A single report can combine several analyses run in the same
+    session (main fit, MGA, fsQCA, etc.) — each has its own independent
+    fingerprint, so every one present in the payload gets its own row here
+    rather than only ever surfacing the main /run's fingerprint. Printed
+    directly into the exported document so a reader of the paper -- not just
+    someone with access to the NAVAL-SEM session that produced it -- has the
+    hash(es) needed to independently verify the result(s). Only the
+    fingerprint hash is ever sent to any external service; see app/anchor.py
+    for the full mechanism.
+    """
+    entries = []
+    for key, label in _PROVENANCE_ANALYSIS_LABELS.items():
+        sub = payload.get(key)
+        if isinstance(sub, dict) and sub.get("fingerprint"):
+            entries.append((label, sub.get("fingerprint"), sub.get("anchor_status")))
+
+    if not entries:
+        return []
+
+    flowables: list = [
+        Spacer(1, 8),
+        Paragraph("Reproducibility &amp; Provenance", st["SectionTitle"]),
+        Paragraph(
+            "Each analysis below has its own SHA-256 fingerprint — a hash of its "
+            "model syntax, a hash of the input data, algorithm, software "
+            "environment, and key result statistics. Recomputing it from the "
+            "corresponding Audit JSON (downloadable from the Downloads tab) and "
+            "comparing against the value below lets a reader verify this report "
+            "was not altered after generation.",
+            st["Small"],
+        ),
+        Spacer(1, 4),
+    ]
+
+    for label, fingerprint, anchor_status in entries:
+        flowables.append(Paragraph(f"<b>{_xml_escape(label)}</b>", st["Small"]))
+        flowables.append(Paragraph(_xml_escape(fingerprint), st["Mono"]))
+        if anchor_status:
+            status_label = _ANCHOR_STATUS_LABELS.get(anchor_status, anchor_status)
+            flowables.append(Paragraph(
+                f"Bitcoin timestamp (OpenTimestamps): {_xml_escape(status_label)}. "
+                "Only this fingerprint hash was submitted to public calendar "
+                "servers — no data, model syntax, or results left this machine. "
+                "No wallet, mining, or payment was performed by NAVAL-SEM.",
+                st["Small"],
+            ))
+        else:
+            flowables.append(Paragraph(
+                "<i>Bitcoin timestamping was not requested for this analysis.</i>",
+                st["Muted"],
+            ))
+        flowables.append(Spacer(1, 6))
+
+    return flowables
+
+
 def _build_syntax_block(snap: dict, st: dict) -> list:
     syntax = (snap.get("syntax") or "").strip()
     if not syntax:
@@ -1655,6 +1751,7 @@ def generate_pdf(payload: dict) -> bytes:
     # ── Story assembly ───────────────────────────────────────────────────────
     story: list = []
     story += _build_header_block(snap, analyst, note, st)
+    story += _build_provenance_section(payload, st)
     story += _build_syntax_block(snap, st)
     story += _build_kpi_row(results, st)
     story += _build_fit_indices(results, st)
