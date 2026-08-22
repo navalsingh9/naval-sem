@@ -4,7 +4,15 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+
 ---
+
+## [v2.0.1] - 2026-08-22
+
+### Fixed
+
+- Bitcoin timestamping (OpenTimestamps) failed to initialize in packaged builds — `opentimestamps` and its dependencies (`Cryptodome`, `bitcoin`) weren't declared as PyInstaller hidden imports, and UPX compression could corrupt Cryptodome's compiled extensions on Windows. Added explicit hidden imports and excluded Cryptodome from UPX in `naval_sem.spec`.
+
 
 ## [v2.0.0] - 2026-08-22
 
