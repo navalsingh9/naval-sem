@@ -33,6 +33,18 @@ dependencies = [
     "numdifftools==0.9.42",
     "numpy==2.4.6",
     "openpyxl==3.1.5",
+    # opentimestamps (NOT the otsclient CLI wrapper) powers the OPTIONAL,
+    # opt-in Bitcoin timestamping of run fingerprints (app/anchor.py —
+    # anchor=True on /run). We talk to public OpenTimestamps calendar
+    # servers directly via this library rather than shelling out to the
+    # `ots` CLI, because the CLI's otsclient package unconditionally
+    # imports python-bitcoinlib's RPC/wallet modules (for local-node mode,
+    # which we never use) and those crash at import time on Windows via a
+    # ctypes OpenSSL load with no target DLL. The core `opentimestamps`
+    # library never touches that code path. Its absence never affects
+    # normal (offline) analysis — anchoring just reports
+    # status="unavailable" instead. Free service, no wallet/funds.
+    "opentimestamps==0.4.5",
     "packaging==26.2",
     "pandas==3.0.5",
     "patsy==1.0.2",

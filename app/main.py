@@ -31,6 +31,7 @@ import pandas as pd
 
 # ── Single source of truth for the app version ───────────────────────────────
 from app.version import APP_VERSION
+from app.anchor import stamp_fingerprint, upgrade_proof, verify_proof, opentimestamps_available
 
 _GITHUB_REPO = "navalsingh9/naval-sem"
 
@@ -52,7 +53,10 @@ def _validate_run_id(run_id: str) -> str:
 
 def _init_run(run_id: str):
     with _run_store_lock:
-        _run_store[run_id] = {"logs": [], "done": False, "fingerprint": None, "audit": None}
+        _run_store[run_id] = {
+            "logs": [], "done": False, "fingerprint": None, "audit": None,
+            "anchor": None,  # opt-in OpenTimestamps status; None unless requested
+        }
         if len(_run_store) > 500:
             all_keys = sorted(
                 (k for k in _run_store if k != run_id),
@@ -91,17 +95,23 @@ def _run_context(run_id: str):
                 _run_store[run_id]["done"] = True
 
 
-def _compute_fingerprint(
+def _compute_fingerprint_generic(
     run_id: str,
-    model_syntax: str,
+    endpoint: str,
+    params: dict,
     df: pd.DataFrame,
-    algorithm: str,
-    result,
+    results_summary: dict,
 ) -> tuple[str, dict]:
     """
-    Compute a SHA-256 fingerprint of the run for reproducibility anchoring.
-    The fingerprint covers: model syntax, data hash, algorithm, env, key results.
-    Nothing sensitive (raw data) is included — only hashes and aggregates.
+    Compute a SHA-256 fingerprint for any analysis endpoint, not just SEM
+    model fitting. Covers: endpoint name, request parameters (model syntax,
+    algorithm, column selections, thresholds, etc. -- whatever the caller
+    passes in ``params``), a hash of the input data, environment, and a
+    small caller-supplied summary of key output numbers. Nothing sensitive
+    (raw data) is included -- only hashes and aggregates.
+
+    ``_compute_fingerprint`` (SEM-specific, used by /run and /export/docx)
+    is a thin wrapper around this for backward-compatible audit shape.
     """
     try:
         data_hash = hashlib.sha256(
@@ -124,6 +134,41 @@ def _compute_fingerprint(
     except Exception:
         env["semopy"] = "unknown"
 
+    payload = {
+        "run_id": run_id,
+        "endpoint": endpoint,
+        "params": params,
+        "data_hash": data_hash,
+        "n_rows": len(df),
+        "n_cols": len(df.columns),
+        "results": results_summary,
+        "env": env,
+    }
+
+    fingerprint = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+    audit = {**payload, "fingerprint": fingerprint, "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    return fingerprint, audit
+
+
+def _compute_fingerprint(
+    run_id: str,
+    model_syntax: str,
+    df: pd.DataFrame,
+    algorithm: str,
+    result,
+) -> tuple[str, dict]:
+    """
+    Compute a SHA-256 fingerprint of a /run (or /export/docx) SEM fit for
+    reproducibility anchoring. Thin wrapper around
+    ``_compute_fingerprint_generic`` that preserves the original SEM-specific
+    audit shape (model_syntax, algorithm, and CFI/RMSEA/etc. at the top
+    level of ``results``) rather than nesting them under ``params``, since
+    this is the original/most-used endpoint and existing tooling may expect
+    that shape.
+    """
     results_summary = {
         "n_obs": result.n_obs,
         "n_params": result.n_params,
@@ -135,24 +180,79 @@ def _compute_fingerprint(
         "aic": result.fit.aic,
         "bic": result.fit.bic,
     }
-
-    payload = {
+    fingerprint, generic_audit = _compute_fingerprint_generic(
+        run_id, "/run", {"model_syntax": model_syntax.strip(), "algorithm": algorithm}, df, results_summary,
+    )
+    # Re-flatten to match the pre-existing /run audit shape exactly.
+    audit = {
         "run_id": run_id,
         "model_syntax": model_syntax.strip(),
-        "data_hash": data_hash,
-        "n_rows": len(df),
-        "n_cols": len(df.columns),
+        "data_hash": generic_audit["data_hash"],
+        "n_rows": generic_audit["n_rows"],
+        "n_cols": generic_audit["n_cols"],
         "algorithm": algorithm,
         "results": results_summary,
-        "env": env,
+        "env": generic_audit["env"],
+        "fingerprint": fingerprint,
+        "timestamp_utc": generic_audit["timestamp_utc"],
     }
-
-    fingerprint = hashlib.sha256(
-        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
-
-    audit = {**payload, "fingerprint": fingerprint, "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     return fingerprint, audit
+
+async def _attach_provenance(
+    result,
+    run_id: str,
+    endpoint: str,
+    params: dict,
+    df: pd.DataFrame,
+    results_summary: dict,
+    anchor: bool,
+    log=None,
+):
+    """
+    Shared by every result-producing analysis endpoint: computes a
+    fingerprint via ``_compute_fingerprint_generic``, optionally submits it
+    for Bitcoin timestamping (only if ``anchor`` is True -- off by default),
+    and attaches ``fingerprint``/``anchor_status`` onto ``result`` in place.
+    Never raises -- a fingerprint/anchoring failure must not break the
+    underlying analysis result. Also stores the fingerprint/audit/anchor
+    status in ``_run_store[run_id]`` (when present) so /fingerprint/{run_id}
+    and its proof/upgrade endpoints work for every analysis type, not just
+    /run.
+    """
+    try:
+        fingerprint, audit = _compute_fingerprint_generic(run_id, endpoint, params, df, results_summary)
+        result.fingerprint = fingerprint
+        anchor_status = None
+        anchor_obj = None
+        if anchor:
+            if not opentimestamps_available():
+                if log:
+                    log("warn", "Bitcoin timestamping requested but the opentimestamps "
+                                 "library is not usable on this server — skipping.")
+                anchor_obj = {"status": "unavailable", "detail": "opentimestamps library not usable."}
+            else:
+                if log:
+                    log("step", "Submitting fingerprint to public OpenTimestamps calendars "
+                                 "(Bitcoin) — this may take a few seconds and requires internet…")
+                anchor_obj = await asyncio.get_running_loop().run_in_executor(
+                    None, stamp_fingerprint, fingerprint
+                )
+                if log:
+                    if anchor_obj.get("status") == "pending":
+                        log("ok", "Submitted for Bitcoin timestamping (pending confirmation). "
+                                   "Download the .ots proof promptly — it is not stored on disk.")
+                    else:
+                        log("warn", f"Bitcoin timestamping not completed: {anchor_obj.get('detail', anchor_obj.get('status'))}")
+            anchor_status = anchor_obj.get("status")
+        result.anchor_status = anchor_status
+        with _run_store_lock:
+            if run_id in _run_store:
+                _run_store[run_id]["fingerprint"] = fingerprint
+                _run_store[run_id]["audit"] = audit
+                _run_store[run_id]["anchor"] = anchor_obj
+    except Exception as exc:
+        logger.warning("Fingerprint/provenance computation failed for %s: %s", endpoint, exc)
+
 
 from app.engine import (
     fit_model, run_bootstrap, compute_htmt, export_as_code,
@@ -171,6 +271,7 @@ from app.schemas import (
     RobustnessChecks, FIMIXResult, PLSPOSResult,      # v0.8
     GaussianCopulaResult, NonlinearResult,            # v0.8
     NomologicalResult,                                # v0.9
+    NomologicalBatchResult,
     MeasurementInvarianceResult,                      # v0.9
     CVIResult, ScaleDevelopmentResult,                # v0.9 — scale development
     FsQCAResult,                                       # v1.0 — fsQCA
@@ -532,7 +633,9 @@ async def stream_logs(run_id: str):
             if run["done"]:
                 fp = run.get("fingerprint")
                 audit = run.get("audit")
-                yield f"data: {json.dumps({'done': True, 'fingerprint': fp, 'audit': audit})}\n\n"
+                anchor = run.get("anchor")
+                anchor_out = {"status": anchor["status"]} if anchor else None
+                yield f"data: {json.dumps({'done': True, 'fingerprint': fp, 'audit': audit, 'anchor': anchor_out})}\n\n"
                 return
             await asyncio.sleep(0.2)
             elapsed += 0.2
@@ -562,7 +665,66 @@ async def get_fingerprint(run_id: str):
         raise HTTPException(404, "Run not found")
     if not run["done"]:
         raise HTTPException(425, "Run not yet complete")
-    return {"run_id": run_id, "fingerprint": run["fingerprint"], "audit": run["audit"]}
+    anchor = run.get("anchor")
+    anchor_out = None
+    if anchor:
+        anchor_out = {k: v for k, v in anchor.items() if k != "ots_proof_b64"}
+        anchor_out["has_proof"] = "ots_proof_b64" in anchor
+    return {"run_id": run_id, "fingerprint": run["fingerprint"], "audit": run["audit"], "anchor": anchor_out}
+
+
+@app.get("/fingerprint/{run_id}/proof")
+async def get_anchor_proof(run_id: str):
+    """
+    Download the raw OpenTimestamps .ots proof file for a run (only present
+    if anchor=True was passed to /run and stamping succeeded). This file,
+    together with the fingerprint hex string, is what a third party needs
+    to independently verify when the result was timestamped — no trust in
+    NAVAL-SEM or Anthropic required.
+    """
+    _validate_run_id(run_id)
+    with _run_store_lock:
+        run = _run_store.get(run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    anchor = run.get("anchor")
+    if not anchor or "ots_proof_b64" not in anchor:
+        raise HTTPException(404, "No anchoring proof available for this run. "
+                                   "Re-run with anchor=True, or check /fingerprint/{run_id} for status.")
+    import base64 as _b64
+    proof_bytes = _b64.b64decode(anchor["ots_proof_b64"])
+    fp = run.get("fingerprint") or run_id
+    return StreamingResponse(
+        io.BytesIO(proof_bytes),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{fp}.txt.ots"'},
+    )
+
+
+@app.post("/fingerprint/{run_id}/upgrade")
+async def upgrade_anchor_proof(run_id: str):
+    """
+    Re-check a pending OpenTimestamps proof and upgrade it to a complete,
+    self-contained proof once the Bitcoin transaction has confirmed
+    (usually within a few hours of the original stamp). Safe to call
+    repeatedly; returns status='pending' again if not yet confirmed.
+    """
+    _validate_run_id(run_id)
+    with _run_store_lock:
+        run = _run_store.get(run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    anchor = run.get("anchor")
+    fp = run.get("fingerprint")
+    if not anchor or "ots_proof_b64" not in anchor or not fp:
+        raise HTTPException(404, "No pending anchoring proof for this run.")
+    result = await asyncio.get_running_loop().run_in_executor(
+        None, upgrade_proof, fp, anchor["ots_proof_b64"]
+    )
+    with _run_store_lock:
+        if run_id in _run_store and _run_store[run_id].get("anchor"):
+            _run_store[run_id]["anchor"].update(result)
+    return {"run_id": run_id, "anchor": {k: v for k, v in result.items() if k != "ots_proof_b64"}}
 
 
 @app.get("/health")
@@ -641,6 +803,8 @@ async def predictive_relevance(
     k_folds: int = Form(10),
     missing: str = Form("listwise"),
     reverse_items: Optional[str] = Form(None),
+    run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     v0.5 predictive relevance suite.
@@ -671,7 +835,7 @@ async def predictive_relevance(
     df = auto_reverse_score(df, model, reverse_items=reverse_items)
     model = _expand_covariances(model)   # M10: expand multi-target ~~ before engine sees the model
     try:
-        return compute_predict(
+        result = compute_predict(
             df, model,
             omission_distance=omission_distance,
             k_folds=k_folds,
@@ -682,6 +846,18 @@ async def predictive_relevance(
         logger.error("Unexpected error in /predict: %s", e, exc_info=True)
         raise HTTPException(500, "Predictive relevance analysis failed. Check server logs.")
 
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    await _attach_provenance(
+        result, run_id, "/predict",
+        params={"model_syntax": model, "omission_distance": omission_distance, "k_folds": k_folds, "missing": missing},
+        df=df,
+        results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+        anchor=anchor,
+    )
+    return result
+
 
 @app.post("/cmb", response_model=CMBMarkerResult)
 async def cmb_analysis(
@@ -690,6 +866,8 @@ async def cmb_analysis(
     marker_variable: str = Form(...),
     missing: str = Form("listwise"),
     reverse_items: Optional[str] = Form(None),
+    run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Common Method Bias marker variable analysis (Lindell & Whitney 2001).
@@ -720,12 +898,24 @@ async def cmb_analysis(
     df = auto_reverse_score(df, model, reverse_items=reverse_items)
     model = _expand_covariances(model)
     try:
-        return compute_cmb(df, model, marker_variable=marker_variable)
+        result = compute_cmb(df, model, marker_variable=marker_variable)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
         logger.error("Unexpected error in /cmb: %s", e, exc_info=True)
         raise HTTPException(500, "CMB analysis failed. Check server logs.")
+
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    await _attach_provenance(
+        result, run_id, "/cmb",
+        params={"model_syntax": model, "marker_variable": marker_variable, "missing": missing},
+        df=df,
+        results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+        anchor=anchor,
+    )
+    return result
 
 
 @app.post("/indirect", response_model=IndirectResult)
@@ -735,6 +925,8 @@ async def indirect_effects(
     bootstrap_n: int = Form(500),
     missing: str = Form("listwise"),
     algorithm: str = Form("pls"),
+    run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Decompose indirect (mediation) effects for all variable pairs connected
@@ -771,12 +963,24 @@ async def indirect_effects(
 
     df = auto_reverse_score(df, model)
     try:
-        return compute_indirect_effects(df, model, n_bootstrap=bootstrap_n, algorithm=algorithm)
+        result = compute_indirect_effects(df, model, n_bootstrap=bootstrap_n, algorithm=algorithm)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
         logger.error("Unexpected error in /indirect: %s", e, exc_info=True)
         raise HTTPException(500, "Indirect effects computation failed. Check server logs.")
+
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    await _attach_provenance(
+        result, run_id, "/indirect",
+        params={"model_syntax": model, "bootstrap_n": bootstrap_n, "missing": missing, "algorithm": algorithm},
+        df=df,
+        results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+        anchor=anchor,
+    )
+    return result
 
 
 @app.post("/upload/preview")
@@ -815,6 +1019,7 @@ async def run_model(
     run_id: str = Form(None),
     reverse_items: Optional[str] = Form(None),
     estimator: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     run_id = run_id or str(uuid.uuid4())
     _validate_run_id(run_id)
@@ -916,6 +1121,36 @@ async def run_model(
                     _run_store[run_id]["fingerprint"] = fp
                     _run_store[run_id]["audit"] = audit
             log("ok", f"Fingerprint: {fp[:16]}…{fp[-8:]}")
+
+            # Optional, opt-in only: anchor the fingerprint to public
+            # OpenTimestamps calendar servers (free, no wallet). Skipped
+            # entirely unless the caller explicitly requested it — this
+            # keeps NAVAL-SEM fully usable offline by default. Any failure
+            # here (no internet, calendars unreachable/timed out) is
+            # logged as a warning and never affects the analysis result.
+            if anchor:
+                if not opentimestamps_available():
+                    log("warn", "Bitcoin timestamping requested but the opentimestamps "
+                                 "library is not usable on this server — skipping.")
+                    anchor_status = {"status": "unavailable",
+                                      "detail": "opentimestamps library not usable."}
+                else:
+                    log("step", "Anchoring fingerprint to public OpenTimestamps calendars "
+                                 "(Bitcoin) — this may take a few seconds and requires internet…")
+                    anchor_status = await asyncio.get_running_loop().run_in_executor(
+                        None, stamp_fingerprint, fp
+                    )
+                    if anchor_status.get("status") == "pending":
+                        log("ok", "Submitted for Bitcoin timestamping (pending confirmation, "
+                                   "usually a few hours). Download the .ots proof from "
+                                   "/fingerprint/{run_id}/proof and re-check later via "
+                                   "/fingerprint/{run_id}/upgrade.")
+                    else:
+                        log("warn", f"Anchoring not completed: {anchor_status.get('detail', anchor_status.get('status'))}")
+                with _run_store_lock:
+                    if run_id in _run_store:
+                        _run_store[run_id]["anchor"] = anchor_status
+                result.anchor_status = anchor_status.get("status")
         except Exception as e:
             log("warn", f"Fingerprint computation failed: {e}")
 
@@ -929,6 +1164,8 @@ async def bootstrap_only(
     bootstrap_n: int = Form(500),
     algorithm: str = Form("pls"),
     reverse_items: Optional[str] = Form(None),
+    run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     bootstrap_n = min(bootstrap_n, 20_000)
     if algorithm not in ("pls", "cb", "wls"):
@@ -945,12 +1182,24 @@ async def bootstrap_only(
     df = auto_reverse_score(df, model, reverse_items=reverse_items)   # TC-67: parity with /run — must reverse-score before fitting
     model = _expand_covariances(model)   # TC-52: expand multi-target ~~ before engine sees the model
     try:
-        return run_bootstrap(df, model, n=bootstrap_n, algorithm=algorithm)
+        result = run_bootstrap(df, model, n=bootstrap_n, algorithm=algorithm)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
         logger.error("Unexpected error in /bootstrap: %s", e, exc_info=True)
         raise HTTPException(500, "Bootstrap analysis failed. Check server logs.")
+
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    await _attach_provenance(
+        result, run_id, "/bootstrap",
+        params={"model_syntax": model, "bootstrap_n": bootstrap_n, "algorithm": algorithm},
+        df=df,
+        results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+        anchor=anchor,
+    )
+    return result
 
 
 @app.post("/bayesian-sem", response_model=BayesianSemResponse)
@@ -1026,11 +1275,31 @@ async def bayesian_sem(payload: dict):
             logger.error("Unexpected engine error in /bayesian-sem: %s", e, exc_info=True)
             raise HTTPException(500, "Bayesian SEM fitting failed. Check server logs.")
 
-        return BayesianSemResponse(result=result, posterior_density=density)
+        response = BayesianSemResponse(result=result, posterior_density=density)
+        anchor = bool(payload.get("anchor", False))
+        await _attach_provenance(
+            response, run_id, "/bayesian-sem",
+            params={
+                "model_syntax": model_syntax, "n_chains": n_chains,
+                "n_samples": n_samples, "n_warmup": n_warmup, "rng_seed": rng_seed,
+            },
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"})
+            if hasattr(result, "model_dump") else {"summary": str(result)},
+            anchor=anchor,
+            log=log,
+        )
+        return response
 
 
 @app.post("/htmt", response_model=HTMTResult)
-async def htmt(file: UploadFile = File(...), model: str = Form(...), reverse_items: Optional[str] = Form(None)):
+async def htmt(
+    file: UploadFile = File(...),
+    model: str = Form(...),
+    reverse_items: Optional[str] = Form(None),
+    run_id: str = Form(None),
+    anchor: bool = Form(False),
+):
     content = await file.read()
     try:
         df = _parse_upload(content, file.filename)
@@ -1042,12 +1311,24 @@ async def htmt(file: UploadFile = File(...), model: str = Form(...), reverse_ite
         raise HTTPException(422, "Could not parse the uploaded file. Ensure it is a valid CSV, XLSX, or SAV.")
     df = auto_reverse_score(df, model, reverse_items=reverse_items)
     try:
-        return compute_htmt(df, model)
+        result = compute_htmt(df, model)
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception as e:
         logger.error("Unexpected error in /htmt: %s", e, exc_info=True)
         raise HTTPException(500, "HTMT computation failed. Check server logs.")
+
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    await _attach_provenance(
+        result, run_id, "/htmt",
+        params={"model_syntax": model},
+        df=df,
+        results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+        anchor=anchor,
+    )
+    return result
 
 
 @app.post("/validate-syntax")
@@ -1239,6 +1520,7 @@ async def export_docx_route(
     bootstrap_n: int = Form(1000),
     missing: str = Form("listwise"),
     reverse_items: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Generate an APA 7th-edition Word (.docx) report for a PLS/CB/WLS model.
@@ -1304,6 +1586,31 @@ async def export_docx_route(
         except Exception as exc:
             logger.error("Model fit error in /export/docx: %s", exc, exc_info=True)
             raise HTTPException(500, "Model fitting failed. Check server logs.")
+
+        # ── Fingerprint (+ optional Bitcoin timestamp) ─────────────────────
+        # This export re-fits the model independently of any prior /run call
+        # (bootstrap_n/reverse_items here may differ from the interactive
+        # session), so we compute a fresh fingerprint over *this exact* fit
+        # rather than reusing one from elsewhere — the hash embedded in the
+        # document must match what's actually in the document.
+        fingerprint = None
+        anchor_status = None
+        try:
+            export_run_id = str(uuid.uuid4())
+            fingerprint, _audit = _compute_fingerprint(export_run_id, model, df, algorithm, result)
+            result.fingerprint = fingerprint
+            if anchor:
+                if not opentimestamps_available():
+                    logger.warning("DOCX export: Bitcoin timestamping requested but unavailable.")
+                    anchor_status = "unavailable"
+                else:
+                    anchor_result = await asyncio.get_running_loop().run_in_executor(
+                        None, stamp_fingerprint, fingerprint
+                    )
+                    anchor_status = anchor_result.get("status")
+            result.anchor_status = anchor_status
+        except Exception as exc:
+            logger.warning("DOCX export: fingerprint computation failed: %s", exc)
 
         # ── Generate DOCX ────────────────────────────────────────────────
         try:
@@ -1404,6 +1711,7 @@ async def multi_group_analysis(
     missing: str = Form("listwise"),
     run_id: str = Form(None),
     reverse_items: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Multi-Group Analysis (MGA) with optional MICOM measurement invariance test.
@@ -1491,6 +1799,18 @@ async def multi_group_analysis(
             logger.error("Unexpected error in /mga: %s", exc, exc_info=True)
             raise HTTPException(500, "MGA analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/mga",
+            params={
+                "model_syntax": model, "group_col": group_col, "algorithm": algorithm,
+                "bootstrap_n": bootstrap_n, "n_permutations": n_permutations,
+                "run_micom": run_micom, "mga_method": mga_method, "missing": missing,
+            },
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -1506,6 +1826,7 @@ async def hoc_analysis(
     missing: str = Form("listwise"),
     run_id: str = Form(None),
     reverse_items: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Higher-Order Construct (HOC) estimation.
@@ -1614,6 +1935,15 @@ async def hoc_analysis(
             logger.error("Unexpected error in /hoc: %s", exc, exc_info=True)
             raise HTTPException(500, "HOC analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/hoc",
+            params={"model_syntax": model, "hoc_method": hoc_method, "algorithm": algorithm,
+                    "bootstrap_n": bootstrap_n, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -1628,6 +1958,7 @@ async def moderation_analysis(
     missing:     str        = Form("listwise"),
     run_id:      str        = Form(None),
     reverse_items: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Moderation analysis via the product-of-composites approach.
@@ -1701,7 +2032,7 @@ async def moderation_analysis(
             from app.schemas import ModerationResult, ModerationTerm, FitIndices, PathParameter
             terms  = [ModerationTerm(**t)   for t in _manifest_result["moderation_terms"]]
             params = [PathParameter(**p)    for p in _manifest_result["parameters"]]
-            return ModerationResult(
+            manifest_result = ModerationResult(
                 algorithm=_manifest_result["algorithm"],
                 n_obs=_manifest_result["n_obs"],
                 bootstrap_n=_manifest_result["bootstrap_n"],
@@ -1710,6 +2041,15 @@ async def moderation_analysis(
                 fit=FitIndices(**_manifest_result["fit"]),
                 warnings=_manifest_result.get("warnings", []),
             )
+            await _attach_provenance(
+                manifest_result, run_id, "/moderation",
+                params={"model_syntax": model, "algorithm": "ols_manifest", "bootstrap_n": bootstrap_n, "missing": missing},
+                df=df,
+                results_summary=manifest_result.model_dump(exclude={"fingerprint", "anchor_status"}),
+                anchor=anchor,
+                log=log,
+            )
+            return manifest_result
 
         try:
             result = await asyncio.get_running_loop().run_in_executor(
@@ -1729,6 +2069,14 @@ async def moderation_analysis(
             logger.error("Unexpected error in /moderation: %s", exc, exc_info=True)
             raise HTTPException(500, "Moderation analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/moderation",
+            params={"model_syntax": model, "algorithm": algorithm, "bootstrap_n": bootstrap_n, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -1745,6 +2093,7 @@ async def ipma_analysis(
     missing:   str           = Form("listwise"),
     run_id:    str           = Form(None),
     reverse_items: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Importance-Performance Map Analysis (IPMA).
@@ -1815,6 +2164,15 @@ async def ipma_analysis(
             logger.error("Unexpected error in /ipma: %s", exc, exc_info=True)
             raise HTTPException(500, "IPMA analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/ipma",
+            params={"model_syntax": model, "target_lv": target_lv, "algorithm": algorithm,
+                    "scale_min": scale_min, "scale_max": scale_max, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -1828,6 +2186,7 @@ async def nca_analysis(
     missing:         str        = Form("listwise"),
     run_id:          str        = Form(None),
     reverse_items:   Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Necessary Condition Analysis (NCA).
@@ -1895,6 +2254,14 @@ async def nca_analysis(
             logger.error("Unexpected error in /nca: %s", exc, exc_info=True)
             raise HTTPException(500, "NCA analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/nca",
+            params={"model_syntax": model, "n_permutations": n_permutations, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -1910,6 +2277,7 @@ async def nca_esse_analysis(
     missing:           str        = Form("listwise"),
     run_id:            str        = Form(None),
     reverse_items:     Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     NCA Effect Size Sensitivity Extension (NCA-ESSE).
@@ -1984,6 +2352,15 @@ async def nca_esse_analysis(
             logger.error("Unexpected error in /nca-esse: %s", exc, exc_info=True)
             raise HTTPException(500, "NCA-ESSE analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/nca-esse",
+            params={"model_syntax": model, "n_permutations": n_permutations,
+                    "n_benchmark_reps": n_benchmark_reps, "seed": seed, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -1997,6 +2374,8 @@ async def run_fsqca_endpoint(
     freq_threshold:    int        = Form(1),
     consist_threshold: float      = Form(0.75),
     missing:           str        = Form("listwise"),
+    run_id:            str        = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Fuzzy-set Qualitative Comparative Analysis (fsQCA).
@@ -2020,42 +2399,67 @@ async def run_fsqca_endpoint(
     FsQCAResult — necessity analysis, truth table, three minimized solutions
     (complex / parsimonious / intermediate), and XY bubble-chart data.
     """
-    raw = await file.read()
-    try:
-        df = _parse_upload(raw, file.filename)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("File parse error in /fsqca: %s", exc, exc_info=True)
-        raise HTTPException(422, "Could not parse the uploaded file.")
+    run_id = run_id or str(uuid.uuid4())
+    _validate_run_id(run_id)
+    _init_run(run_id)
+    log = _make_log_fn(run_id)
+    with _run_context(run_id):
+        raw = await file.read()
+        log("step", f"fsQCA: parsing uploaded file: {file.filename}")
+        try:
+            df = _parse_upload(raw, file.filename)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("File parse error in /fsqca: %s", exc, exc_info=True)
+            raise HTTPException(422, "Could not parse the uploaded file.")
 
-    if missing == "listwise":
-        df = df.dropna()
-    elif missing == "mean":
-        df = df.fillna(df.mean(numeric_only=True))
+        if missing == "listwise":
+            df = df.dropna()
+            log("info", f"Missing data: listwise deletion → {len(df)} complete rows")
+        elif missing == "mean":
+            df = df.fillna(df.mean(numeric_only=True))
+            log("info", "Missing data: mean imputation applied")
 
-    cond_list = [c.strip() for c in conditions.split(",") if c.strip()]
-    if not cond_list:
-        raise HTTPException(400, "At least one condition column must be provided.")
+        cond_list = [c.strip() for c in conditions.split(",") if c.strip()]
+        if not cond_list:
+            raise HTTPException(400, "At least one condition column must be provided.")
 
-    from app.fsqca import run_fsqca
-    try:
-        return await asyncio.get_running_loop().run_in_executor(
-            None,
-            lambda: run_fsqca(
-                df,
-                outcome,
-                cond_list,
-                calibration_params={},
-                freq_threshold=freq_threshold,
-                consist_threshold=consist_threshold,
-            ),
+        log("step", f"fsQCA: outcome={outcome}, conditions={cond_list}")
+
+        from app.fsqca import run_fsqca
+        try:
+            result = await asyncio.get_running_loop().run_in_executor(
+                None,
+                lambda: run_fsqca(
+                    df,
+                    outcome,
+                    cond_list,
+                    calibration_params={},
+                    freq_threshold=freq_threshold,
+                    consist_threshold=consist_threshold,
+                    log_fn=log,
+                ),
+            )
+        except ValueError as exc:
+            log("error", f"fsQCA failed: {exc}")
+            raise HTTPException(422, str(exc))
+        except Exception as exc:
+            log("error", "fsQCA unexpected error — see server logs for details")
+            logger.error("Unexpected error in /fsqca: %s", exc, exc_info=True)
+            raise HTTPException(500, "fsQCA analysis failed. Check server logs.")
+
+        log("ok", "fsQCA complete")
+        await _attach_provenance(
+            result, run_id, "/fsqca",
+            params={"outcome": outcome, "conditions": cond_list, "freq_threshold": freq_threshold,
+                    "consist_threshold": consist_threshold, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
         )
-    except ValueError as exc:
-        raise HTTPException(422, str(exc))
-    except Exception as exc:
-        logger.error("Unexpected error in /fsqca: %s", exc, exc_info=True)
-        raise HTTPException(500, "fsQCA analysis failed. Check server logs.")
+        return result
 
 
 # ── v0.8: Robustness Checks ───────────────────────────────────────────────────
@@ -2072,6 +2476,7 @@ async def run_robustness(
     scale_min:    float = Form(None),
     scale_max:    float = Form(None),
     run_id:       str   = Form(""),
+    anchor: bool = Form(False),
 ):
     if algorithm not in ("pls", "cb", "wls"):
         raise HTTPException(400, f"Invalid algorithm '{algorithm}'.")
@@ -2109,6 +2514,15 @@ async def run_robustness(
         elif "copula" in checks_set and not endogenous_list:
             log_fn("warn", "Copula check requested but no endogenous variables specified — skipped. Pass endogenous=VAR1,VAR2.")
 
+        await _attach_provenance(
+            result, run_id, "/robustness",
+            params={"model_syntax": model, "algorithm": algorithm, "checks": sorted(checks_set),
+                    "endogenous": endogenous_list, "bootstrap_n": bootstrap_n, "seed": seed},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log_fn,
+        )
         return result
 
 
@@ -2123,6 +2537,7 @@ async def run_fimix_endpoint(
     bootstrap_n: int  = Form(0),
     seed:        int  = Form(42),
     run_id:      str  = Form(""),
+    anchor: bool = Form(False),
 ):
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
@@ -2134,6 +2549,14 @@ async def run_fimix_endpoint(
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, lambda: run_fimix(
             df, model, k_max=k_max, n_starts=n_starts, seed=seed, log_fn=log_fn))
+        await _attach_provenance(
+            result, run_id, "/fimix",
+            params={"model_syntax": model, "k_max": k_max, "n_starts": n_starts, "seed": seed},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log_fn,
+        )
         return result
 
 
@@ -2148,6 +2571,7 @@ async def run_plspos_endpoint(
     seed:               int  = Form(42),
     fimix_result_json:  str  = Form(""),   # optional: JSON string of a prior FIMIXResult
     run_id:             str  = Form(""),
+    anchor: bool = Form(False),
 ):
     run_id = run_id or str(uuid.uuid4())
     _init_run(run_id)
@@ -2179,6 +2603,15 @@ async def run_plspos_endpoint(
         except Exception as exc:
             logger.error("Unexpected error in /plspos: %s", exc, exc_info=True)
             raise HTTPException(500, "PLS-POS analysis failed. Check server logs.")
+
+        await _attach_provenance(
+            result, run_id, "/plspos",
+            params={"model_syntax": model, "k": k, "n_starts": n_starts, "seed": seed},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log_fn,
+        )
         return result
 
 # ── v1.1: General Latent Class / Finite Mixture engine (A12–A15) ──────────────
@@ -2197,6 +2630,7 @@ async def run_lca_endpoint(
     seed:                  int        = Form(42),
     missing:               str        = Form("listwise"),
     run_id:                str        = Form(""),
+    anchor: bool = Form(False),
 ):
     """
     General-purpose latent class / finite mixture segmentation.
@@ -2268,6 +2702,17 @@ async def run_lca_endpoint(
         except Exception as exc:
             logger.error("Unexpected error in /lca: %s", exc, exc_info=True)
             raise HTTPException(500, "LCA analysis failed. Check server logs.")
+
+        await _attach_provenance(
+            result, run_id, "/lca",
+            params={"indicator_cols": cols, "k_min": k_min, "k_max": k_max, "mode": mode,
+                    "dv_col": dv_col, "known_class_col": known_class_col,
+                    "equality_constraints": constraints, "n_starts": n_starts, "seed": seed, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log_fn,
+        )
         return result
 
 
@@ -2280,6 +2725,7 @@ async def mod_mediation_analysis(
     missing:     str        = Form("listwise"),
     run_id:      str        = Form(None),
     reverse_items: Optional[str] = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Moderated Mediation / Conditional Process Analysis.
@@ -2361,17 +2807,26 @@ async def mod_mediation_analysis(
             logger.error("Unexpected error in /mod-mediation: %s", exc, exc_info=True)
             raise HTTPException(500, "Moderated mediation analysis failed. Check server logs.")
 
+        await _attach_provenance(
+            result, run_id, "/mod-mediation",
+            params={"model_syntax": model, "algorithm": algorithm, "bootstrap_n": bootstrap_n, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
 # ── v0.9: Nomological Validity ─────────────────────────────────────────────────
 
-@app.post("/nomological", response_model=List[NomologicalResult])
+@app.post("/nomological", response_model=NomologicalBatchResult)
 async def run_nomological(
     file: UploadFile = File(...),
     model_syntax: str = Form(...),
     missing: str = Form("listwise"),
     run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     run_id = run_id or str(uuid.uuid4())
     _validate_run_id(run_id)
@@ -2395,7 +2850,7 @@ async def run_nomological(
             df = df.fillna(df.mean(numeric_only=True))
 
         try:
-            result = await asyncio.get_running_loop().run_in_executor(
+            entries = await asyncio.get_running_loop().run_in_executor(
                 None,
                 lambda: compute_nomological_validity(df, model_syntax),
             )
@@ -2407,8 +2862,17 @@ async def run_nomological(
             logger.error("Unexpected error in /nomological: %s", exc, exc_info=True)
             raise HTTPException(500, "Nomological validity analysis failed.")
 
-        log("ok", f"Nomological complete — {len(result)} construct(s)")
-        return result
+        log("ok", f"Nomological complete — {len(entries)} construct(s)")
+        batch = NomologicalBatchResult(entries=entries)
+        await _attach_provenance(
+            batch, run_id, "/nomological",
+            params={"model_syntax": model_syntax, "missing": missing},
+            df=df,
+            results_summary=batch.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
+        return batch
 
 
 # ── v0.9: Measurement Invariance ───────────────────────────────────────────────
@@ -2420,6 +2884,7 @@ async def run_invariance(
     group_col: str = Form(...),
     missing: str = Form("listwise"),
     run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Full measurement invariance sequence: configural → metric → scalar.
@@ -2473,6 +2938,14 @@ async def run_invariance(
             raise HTTPException(500, "Measurement invariance analysis failed. Check server logs.")
 
         log("ok", f"Invariance complete — conclusion: {result.conclusion}")
+        await _attach_provenance(
+            result, run_id, "/invariance",
+            params={"model_syntax": model_syntax, "group_col": group_col, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -2486,6 +2959,7 @@ async def run_cta(
     bootstrap_n: int = Form(500),
     missing: str = Form("listwise"),
     run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Confirmatory Tetrad Analysis (CTA-PLS; Bollen & Ting 2000, Gudergan et
@@ -2562,6 +3036,14 @@ async def run_cta(
             raise HTTPException(500, "CTA analysis failed. Check server logs.")
 
         log("ok", f"CTA complete — {len(result.lv_results)} LV block(s) tested")
+        await _attach_provenance(
+            result, run_id, "/cta",
+            params={"model_syntax": model_syntax, "reflective_lvs": lv_list, "bootstrap_n": bootstrap_n, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -2575,6 +3057,7 @@ async def run_multigroup_cbsem(
     equality_constraints: str = Form(""),
     missing: str = Form("listwise"),
     run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Multi-group CB-SEM likelihood-ratio test (A16).
@@ -2645,6 +3128,15 @@ async def run_multigroup_cbsem(
             raise HTTPException(500, "Multi-group CB-SEM analysis failed. Check server logs.")
 
         log("ok", f"Multi-group CB-SEM complete — rejected={result.constrained_rejected}")
+        await _attach_provenance(
+            result, run_id, "/multigroup-cbsem",
+            params={"model_syntax": model_syntax, "group_col": group_col,
+                    "equality_constraints": constraints_list, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -2657,6 +3149,7 @@ async def run_efa(
     rotation: str = Form("varimax"),
     missing: str = Form("listwise"),
     run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Exploratory Factor Analysis with KMO, Bartlett's test, and varimax/oblimin rotation.
@@ -2708,6 +3201,14 @@ async def run_efa(
             raise HTTPException(500, "EFA analysis failed. Check server logs.")
 
         log("ok", f"EFA complete — {result.n_factors} factor(s), KMO={result.kmo}")
+        await _attach_provenance(
+            result, run_id, "/efa",
+            params={"n_factors": n_factors, "rotation": rotation, "missing": missing},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 
@@ -2718,6 +3219,7 @@ async def run_cvi(
     file: UploadFile = File(...),
     n_experts: int = Form(...),
     run_id: str = Form(None),
+    anchor: bool = Form(False),
 ):
     """
     Content Validity Index from an expert ratings matrix.
@@ -2762,6 +3264,14 @@ async def run_cvi(
             raise HTTPException(500, "CVI analysis failed. Check server logs.")
 
         log("ok", f"CVI complete — {result.n_items} item(s), interpretation: {result.interpretation}")
+        await _attach_provenance(
+            result, run_id, "/cvi",
+            params={"n_experts": n_experts},
+            df=df,
+            results_summary=result.model_dump(exclude={"fingerprint", "anchor_status"}),
+            anchor=anchor,
+            log=log,
+        )
         return result
 
 

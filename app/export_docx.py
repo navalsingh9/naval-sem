@@ -335,6 +335,82 @@ def _add_picture_centered(doc: Document, png_bytes: bytes) -> None:
 #  Table 1 — Measurement Model
 # ═════════════════════════════════════════════════════════════════════════════
 
+_ANCHOR_STATUS_LABELS = {
+    "pending":     "Pending Bitcoin confirmation (submitted to public OpenTimestamps calendars)",
+    "confirmed":   "Confirmed on Bitcoin via OpenTimestamps",
+    "failed":      "Timestamping attempted but failed",
+    "timeout":     "Timestamping attempted \u2014 no calendar server responded",
+    "unavailable": "Timestamping unavailable on the server that generated this report",
+}
+
+
+def _build_provenance_section(doc: Document, result: Any) -> None:
+    """
+    Reproducibility & Provenance note: the run's SHA-256 fingerprint, and
+    (only if the caller opted in) its OpenTimestamps Bitcoin timestamp
+    status. Printed directly into the exported document so a reader of the
+    paper -- not just someone with access to the NAVAL-SEM session that
+    produced it -- has the hash needed to independently verify the result.
+    Only the fingerprint hash is ever sent to any external service; see
+    app/anchor.py for the full mechanism.
+    """
+    fingerprint = _get(result, "fingerprint")
+    if not fingerprint:
+        return
+
+    p_title = doc.add_paragraph()
+    r_title = p_title.add_run("Reproducibility & Provenance")
+    r_title.font.name = _BODY_FONT
+    r_title.font.size = Pt(12)
+    r_title.bold      = True
+    p_title.paragraph_format.space_before = Pt(14)
+    p_title.paragraph_format.space_after  = Pt(4)
+
+    p_fp = doc.add_paragraph()
+    r_fp_label = p_fp.add_run(
+        "Run fingerprint (SHA-256) \u2014 a hash of the model syntax, a hash of the "
+        "input data, algorithm, software environment, and key fit statistics for "
+        "this run. Recomputing it from the Audit JSON and comparing against the "
+        "value below lets a reader verify this report was not altered after "
+        "generation: "
+    )
+    r_fp_label.font.name = _BODY_FONT
+    r_fp_label.font.size = _TABLE_PT
+    r_fp_value = p_fp.add_run(str(fingerprint))
+    r_fp_value.font.name = "Consolas"
+    r_fp_value.font.size = _TABLE_PT
+    p_fp.paragraph_format.space_after = Pt(6)
+
+    anchor_status = _get(result, "anchor_status")
+    p_anchor = doc.add_paragraph()
+    if anchor_status:
+        label = _ANCHOR_STATUS_LABELS.get(anchor_status, str(anchor_status))
+        r1 = p_anchor.add_run("Bitcoin timestamp (OpenTimestamps): ")
+        r1.font.name = _BODY_FONT
+        r1.font.size = _TABLE_PT
+        r1.bold = True
+        r2 = p_anchor.add_run(
+            f"{label}. Only this fingerprint hash was submitted to public calendar "
+            "servers \u2014 no data, model syntax, or results left this machine. No "
+            "wallet, mining, or payment was performed by NAVAL-SEM; free calendar "
+            "servers batch many users' hashes into a single Bitcoin transaction paid "
+            "for by the calendar operator. Verification does not require trusting "
+            "NAVAL-SEM."
+        )
+        r2.font.name = _BODY_FONT
+        r2.font.size = _TABLE_PT
+    else:
+        r1 = p_anchor.add_run(
+            "Bitcoin timestamping was not requested for this export. The fingerprint "
+            "above is still valid for local/offline verification; it simply has no "
+            "independent third-party proof of when it was produced."
+        )
+        r1.font.name = _BODY_FONT
+        r1.font.size = _TABLE_PT
+        r1.italic = True
+    p_anchor.paragraph_format.space_after = Pt(10)
+
+
 def _build_measurement_model(doc: Document, result: Any, table_n: int) -> None:
     """
     Table 1: Construct | Indicator | Loading | AVE | CR | α
@@ -835,6 +911,8 @@ def generate_docx(
     r_title.bold      = True
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_after = Pt(6)
+
+    _build_provenance_section(doc, result)
 
     # ── Tables ────────────────────────────────────────────────────────────
     tbl_n = 1
