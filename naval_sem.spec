@@ -56,6 +56,10 @@ hiddenimports = [
     "reportlab.pdfbase.ttfonts",
     "reportlab.lib.styles",
     "PIL", "PIL.Image",   # Pillow — reportlab dependency
+    "opentimestamps", "opentimestamps.calendar", "opentimestamps.core.notary",
+    "opentimestamps.core.op", "opentimestamps.core.serialize", "opentimestamps.core.timestamp",
+    "Cryptodome", "Cryptodome.Hash.keccak",
+    "bitcoin", "bitcoin.core",
 ]
 
 a = Analysis(
@@ -104,7 +108,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,           # compress with UPX if installed (reduces size ~30%)
-    upx_exclude=[],
+    upx_exclude=["*Cryptodome*", "*Crypto*"],
     runtime_tmpdir=None,
     console=False,      # no console window — set True while debugging
     disable_windowed_traceback=False,
