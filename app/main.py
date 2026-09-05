@@ -848,6 +848,15 @@ async def check_updates():
 
     except URLError:
         return {"current_version": APP_VERSION, "status": "offline"}
+    except RuntimeError as exc:
+        # "cannot schedule new futures after interpreter shutdown" -- the update
+        # check firing while the process is already tearing down. Expected during
+        # a normal quit, so report it as offline rather than logging it as a
+        # fault the way an unexpected failure should be.
+        if "interpreter shutdown" in str(exc):
+            return {"current_version": APP_VERSION, "status": "offline"}
+        logger.warning(f"check-updates failed: {exc}")
+        return {"current_version": APP_VERSION, "status": "error"}
     except Exception as exc:
         logger.warning(f"check-updates failed: {exc}")  # details stay server-side only
         return {"current_version": APP_VERSION, "status": "error"}

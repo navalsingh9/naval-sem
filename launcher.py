@@ -54,16 +54,68 @@ def resource_path(relative: str) -> str:
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), relative)
 
 
-# ── Find a free TCP port ─────────────────────────────────────────────────────
-def find_free_port(start: int = 8765) -> int:
+# ── Single-instance lock ─────────────────────────────────────────────────────
+# Held open for the life of the process; the OS releases it automatically if we
+# crash, so a stale lock file can never wedge the app shut.
+#
+# Without this, launching the app twice started two servers that both raced for
+# port 8765, both windows ended up pointing at whichever one won, and closing
+# either window killed the shared server -- leaving the other windows showing
+# "server offline" with every API call failing, including the update check.
+_LOCK_FH = None
+
+
+def acquire_single_instance_lock(lock_path: Path) -> bool:
+    """True if this process is the only instance; False if one already runs."""
+    global _LOCK_FH
+    try:
+        fh = open(lock_path, "w")
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _LOCK_FH = fh          # keep the handle alive; closing it frees the lock
+        return True
+    except OSError:
+        return False
+    except Exception:
+        # Locking unavailable for some reason -- never block startup over it.
+        return True
+
+
+# ── Acquire a TCP port ───────────────────────────────────────────────────────
+# The socket is HELD until uvicorn is about to bind. The previous version bound
+# a probe socket, closed it, and returned the number -- and uvicorn only bound
+# for real about three seconds later, so anything launched inside that window
+# saw the same port as free and picked it too.
+_PORT_HOLD = None
+
+
+def acquire_port(start: int = 8765) -> int:
+    global _PORT_HOLD
     for port in range(start, start + 100):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("127.0.0.1", port))
-                return port
-            except OSError:
-                continue
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(("127.0.0.1", port))
+            _PORT_HOLD = s
+            return port
+        except OSError:
+            s.close()
+            continue
     raise RuntimeError("No free port found in range 8765-8865")
+
+
+def release_port_hold():
+    """Free the reservation microseconds before uvicorn takes the port."""
+    global _PORT_HOLD
+    if _PORT_HOLD is not None:
+        try:
+            _PORT_HOLD.close()
+        except Exception:
+            pass
+        _PORT_HOLD = None
 
 
 # ── Start FastAPI/Uvicorn in a daemon thread ──────────────────────────────────
@@ -71,6 +123,7 @@ def start_server(port: int):
     import uvicorn
     os.environ["NAVAL_SEM_STATIC"] = resource_path("static")
     os.environ["NAVAL_SEM_PORT"] = str(port)
+    release_port_hold()          # hand the reservation over to uvicorn
     logging.info(f"Starting uvicorn on port {port}")
     try:
         uvicorn.run(
@@ -174,7 +227,15 @@ def main():
     log_file = setup_logging()
 
     try:
-        port = find_free_port()
+        if log_file is not None:
+            if not acquire_single_instance_lock(Path(log_file).parent / "naval_sem.lock"):
+                logging.info(
+                    "Another NAVAL-SEM instance is already running -- exiting. "
+                    "Use the window that is already open."
+                )
+                return
+
+        port = acquire_port()
         logging.info(f"Using port {port}")
 
         server_thread = threading.Thread(
