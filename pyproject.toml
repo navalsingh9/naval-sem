@@ -43,7 +43,7 @@ dependencies = [
     # normal (offline) analysis — anchoring just reports
     # status="unavailable" instead. Free service, no wallet/funds.
     "opentimestamps==0.4.5",
-    "packaging==26.2",
+    "packaging==26.3",
     "pandas==3.0.5",
     "patsy==1.0.2",
     "pingouin==0.6.1",
