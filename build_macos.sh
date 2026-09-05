@@ -28,7 +28,7 @@ echo ""
 echo " [1/3] Verifying build environment..."
 if command -v uv &>/dev/null; then
   echo " Found 'uv'. Synchronizing dependencies from secure lockfile..."
-  uv sync --locked
+  uv sync --locked --group build
 else
   echo " 'uv' not found. Proceeding with active environment packages..."
 fi

@@ -38,8 +38,10 @@ hiddenimports = [
     "h11",
     # anyio
     "anyio", "anyio._backends._asyncio",
-    # email validator used by pydantic
-    "email_validator",
+    # NOTE: "email_validator" was listed here but is not in uv.lock, so
+    # PyInstaller silently skipped it on every build. Nothing in app/ uses
+    # pydantic EmailStr, so the entry was dead. If email validation is ever
+    # added, declare pydantic[email] in pyproject.toml and restore it here.
     # matplotlib — imported lazily inside app/engine_ipma.py (not at module
     # level) to avoid blocking server startup on its first-run font-cache
     # build. Listed explicitly here rather than relying on PyInstaller's

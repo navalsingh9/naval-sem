@@ -35,12 +35,17 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --locked
+        run: uv sync --locked --group build
 
       - name: Inject version from tag
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          if (-not ($version -match '^\d')) { $version = "dev" }
+          # A tag gives x.y.z. workflow_dispatch gives a branch name, which is
+          # not a version at all -- and WiX rejects anything that isn't numeric
+          # (CNDL0108), so dispatch runs failed at candle.exe even when the
+          # build itself was fine. 0.0.0 keeps the packaging step honest.
+          $version = $version -replace '-.*$', ''
+          if ($version -notmatch '^\d+(\.\d+)*$') { $version = "0.0.0" }
           (Get-Content app/version.py) -replace '_DEFAULT_APP_VERSION = ".*"', "_DEFAULT_APP_VERSION = `"$version`"" | Set-Content app/version.py
 
           $msiVersion = $version
@@ -106,7 +111,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --locked
+        run: uv sync --locked --group build
 
       - name: Install create-dmg
         run: brew install create-dmg
@@ -114,8 +119,17 @@ jobs:
       - name: Inject version from tag
         run: |
           VERSION="${{ github.ref_name }}"
-          if [[ "$VERSION" == v* ]]; then VERSION="${VERSION#v}"; else VERSION="dev"; fi
+          VERSION="${VERSION#v}"
+          # See the Windows job: a branch ref is not a version. dpkg-deb also
+          # refuses a Version field that doesn't start with a digit.
+          # MSI and .deb can't express a prerelease suffix, so v2.0.2-rc1
+          # becomes 2.0.2 rather than being thrown away as 0.0.0.
+          VERSION="${VERSION%%-*}"
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]] || VERSION="0.0.0"
           sed -i "" "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${VERSION}\"/" app/version.py
+          # Export it: build_linux.sh / build_macos.sh should use the sanitised
+          # value rather than re-deriving it from the raw ref.
+          echo "APP_VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Injected APP_VERSION=${VERSION}"
 
       - name: Build .app + DMG
@@ -160,13 +174,22 @@ jobs:
             gir1.2-webkit2-4.0
 
       - name: Install dependencies
-        run: uv sync --locked
+        run: uv sync --locked --group build
 
       - name: Inject version from tag
         run: |
           VERSION="${{ github.ref_name }}"
-          if [[ "$VERSION" == v* ]]; then VERSION="${VERSION#v}"; else VERSION="dev"; fi
+          VERSION="${VERSION#v}"
+          # See the Windows job: a branch ref is not a version. dpkg-deb also
+          # refuses a Version field that doesn't start with a digit.
+          # MSI and .deb can't express a prerelease suffix, so v2.0.2-rc1
+          # becomes 2.0.2 rather than being thrown away as 0.0.0.
+          VERSION="${VERSION%%-*}"
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]] || VERSION="0.0.0"
           sed -i "s/^_DEFAULT_APP_VERSION = \".*\"$/_DEFAULT_APP_VERSION = \"${VERSION}\"/" app/version.py
+          # Export it: build_linux.sh / build_macos.sh should use the sanitised
+          # value rather than re-deriving it from the raw ref.
+          echo "APP_VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Injected APP_VERSION=${VERSION}"
 
       - name: Build binary
