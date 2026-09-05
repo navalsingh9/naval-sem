@@ -19,3 +19,24 @@ jobs:
         with:
           python-version: "3.11"
       - run: python scripts/check_versions.py
+
+  lockfile:
+    name: uv.lock matches pyproject.toml
+    runs-on: ubuntu-latest
+    # `uv sync --locked` is what every build job in release.yml runs, and it
+    # refuses to proceed when uv.lock disagrees with pyproject.toml. Until
+    # now nothing checked that outside release.yml -- which only fires on a
+    # tag -- so a mismatch stayed invisible until a release build failed on
+    # all three platforms at once.
+    #
+    # That is not hypothetical. Dependabot merged a pyinstaller bump that
+    # edited pyproject.toml and left uv.lock untouched; every check on that
+    # PR was green, because none of them opened the lockfile.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: "3.11"
+          enable-cache: true
+      - name: uv.lock is up to date
+        run: uv lock --check
