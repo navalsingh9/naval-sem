@@ -42,8 +42,12 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart('v')
           if (-not ($version -match '^\d')) { $version = "dev" }
           (Get-Content app/version.py) -replace '_DEFAULT_APP_VERSION = ".*"', "_DEFAULT_APP_VERSION = `"$version`"" | Set-Content app/version.py
-          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Injected APP_VERSION=$version"
+
+          $msiVersion = $version
+          if ($msiVersion -eq "dev") { $msiVersion = "0.0.0" }
+
+          "APP_VERSION=$msiVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Injected APP_VERSION=$msiVersion"
 
       - name: Build EXE
         run: uv run pyinstaller naval_sem.spec --clean --noconfirm
