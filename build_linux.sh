@@ -14,8 +14,13 @@
 set -e
 cd "$(dirname "$0")"
 
-VERSION="${GITHUB_REF_NAME#v}"
-VERSION="${VERSION:-0.7.1}"
+# Prefer APP_VERSION, which release.yml has already sanitised. Fall back to
+# the raw ref for local runs, then to 0.0.0 -- dpkg-deb rejects any Version
+# field not starting with a digit, which is how workflow_dispatch runs died
+# at packaging with 'review/audit-fixes' as the version.
+VERSION="${APP_VERSION:-${GITHUB_REF_NAME#v}}"
+VERSION="${VERSION%%-*}"
+case "$VERSION" in [0-9]*) ;; *) VERSION="0.0.0" ;; esac
 ARCH="amd64"
 PKG_NAME="naval-sem"
 DEB_DIR="dist/deb_pkg"

@@ -8,8 +8,8 @@ authors:
 repository-code: "https://github.com/navalsingh9/naval-sem"
 url: "https://github.com/navalsingh9/naval-sem"
 license: "CC-BY-NC-ND-4.0"
-version: "2.0.1"
-date-released: "2026-05-08"
+version: "2.0.2"
+date-released: "2026-09-05"
 abstract: >
   NAVAL-SEM is a free offline desktop application for Structural Equation
   Modelling (SEM) supporting PLS-SEM, CB-SEM, HTMT, bootstrapping,
