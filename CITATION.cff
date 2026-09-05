@@ -7,8 +7,8 @@ authors:
     given-names: "Naval"
 repository-code: "https://github.com/navalsingh9/naval-sem"
 url: "https://github.com/navalsingh9/naval-sem"
-license: "MIT"
-version: "0.2.1"
+license: "CC-BY-NC-ND-4.0"
+version: "2.0.1"
 date-released: "2026-05-08"
 abstract: >
   NAVAL-SEM is a free offline desktop application for Structural Equation

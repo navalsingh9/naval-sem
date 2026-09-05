@@ -168,7 +168,7 @@ launcher.py
   └── static/index.html        ← canvas builder, results panels, export
 ```
 
-No telemetry. No account. No data transmission beyond the opt-in fingerprint.
+No telemetry. No account. Anchoring sends a hash and nothing else — see [What touches the network](#what-touches-the-network) for the complete list of outbound requests the application can make.
 
 ---
 
@@ -197,7 +197,27 @@ Every release is gated on **174 pytest + Playwright tests**, compared against pu
 - Corporate Reputation avg loading ≈ 0.80, max HTMT ≈ 0.86 (Hair et al. 2011/2013)
 - fsQCA consistency ≥ 0.80 (Wagemann & Schneider 2010; Ragin 2008)
 
+Beyond those anchors, the suite checks FIML log-likelihood against Arbuckle (1996), fit indices against the `lavaan` tutorial's worked examples, Mardia's test on known normal and non-normal data, and ground-truth recovery for the Bayesian, latent-class, multi-group and PLSpredict paths — that is, whether the estimator finds a structure that was deliberately planted, and correctly finds nothing in noise.
+
 → [Full test suite documentation](https://naval-sem.sourceforge.io/testbench.html)
+
+**Requesting the suite.** The test code itself is not published, to limit derivative redistribution under the licence below. If you are evaluating NAVAL-SEM for research use and want to run the tests yourself, email **navalsem@hotmail.com** from an institutional or otherwise verifiable address and ask for a copy. Requests from anonymous or disposable addresses are not answered.
+
+---
+
+## What touches the network
+
+NAVAL-SEM performs **all analysis offline**. No dataset, variable name, model, or result ever leaves your machine, and every statistical feature works with networking disabled. Three optional features do make outbound requests, listed here in full so the answer is on record for ethics and IRB review:
+
+| Feature | When | Where it connects | What is sent |
+|---|---|---|---|
+| Update check | ~4 s after launch, and on demand via the toolbar button | `api.github.com` | Nothing but the request itself. Compares the latest release tag to your version. |
+| Result anchoring | Only when you tick **anchor** on a run — off by default | OpenTimestamps calendars: `a.pool.opentimestamps.org`, `b.pool.opentimestamps.org`, `a.pool.eternitywall.com`, `ots.btc.catallaxy.com` | A SHA-256 fingerprint only. Never the dataset, the model, or the results. No wallet, no funds, no account. |
+| Theme fonts | Only if you pick a theme font that isn't one of the bundled DM Sans / DM Mono faces | `fonts.googleapis.com` | Nothing but the font request. |
+
+To run fully air-gapped, decline the update check, leave anchoring off, and stay on the bundled fonts — or simply block the application at your firewall. Nothing degrades except those three features.
+
+No telemetry. No analytics. No account. No data transmission of any kind beyond the three rows above.
 
 ---
 

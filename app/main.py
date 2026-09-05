@@ -17,7 +17,7 @@ import datetime
 import threading
 from pathlib import Path
 import logging
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from typing import Optional, List
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,56 @@ _GITHUB_REPO = "navalsingh9/naval-sem"
 # "done" is set True once the run completes so the SSE stream can terminate.
 _run_store: dict[str, dict] = {}
 _run_store_lock = threading.RLock()
+
+
+# ── Upload guard ──────────────────────────────────────────────────────────────
+# Every analysis endpoint reads the whole upload into memory before parsing —
+# unavoidable, since pandas/pyreadstat want the full buffer. Without a ceiling
+# a single oversized file OOMs the process, and in the desktop build the server
+# runs in-process, so that takes the whole application down with it.
+#
+# 512 MB is far above any realistic survey dataset (a 100k x 500 CSV is ~200 MB)
+# while still leaving headroom on a 4 GB machine. Override with
+# NAVAL_SEM_MAX_UPLOAD_MB if you genuinely have something larger.
+_MAX_UPLOAD_BYTES = int(os.environ.get("NAVAL_SEM_MAX_UPLOAD_MB", "512")) * 1024 * 1024
+_UPLOAD_CHUNK = 1024 * 1024
+
+
+async def _read_upload(file: UploadFile) -> bytes:
+    """
+    Read an UploadFile fully, refusing anything over _MAX_UPLOAD_BYTES.
+
+    Reads in chunks and stops at the limit rather than calling .read() and
+    discovering the size afterwards — by then the memory is already gone.
+    """
+    buf = bytearray()
+    while True:
+        chunk = await file.read(_UPLOAD_CHUNK)
+        if not chunk:
+            break
+        buf.extend(chunk)
+        if len(buf) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                413,
+                f"File is larger than the {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit. "
+                f"Set NAVAL_SEM_MAX_UPLOAD_MB to raise it, or filter the dataset first.",
+            )
+    if not buf:
+        raise HTTPException(400, "Uploaded file is empty.")
+    return bytes(buf)
+
+
+def _upload_ext(filename: Optional[str]) -> str:
+    """
+    Extension of an uploaded file, lowercased, without the dot.
+
+    `filename` is Optional on UploadFile: some multipart clients omit it, and
+    `None.rsplit(...)` would surface as a 500 instead of the 400 the caller
+    deserves.
+    """
+    if not filename or "." not in filename:
+        raise HTTPException(400, "Upload has no filename extension; expected .csv, .xlsx, .xls or .sav.")
+    return filename.rsplit(".", 1)[-1].lower()
 
 import re as _re
 _RUN_ID_RE = _re.compile(r'^[0-9a-f\-]{8,36}$')
@@ -547,11 +597,15 @@ _STATIC_DIR = os.environ.get(
     str(Path(__file__).parent.parent / "static"),
 )
 
-app = FastAPI(title="NAVAL-SEM API", version=APP_VERSION)
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """
+    Startup/shutdown hook.
 
-@app.on_event("startup")
-async def _startup_warnings():
-    import socket
+    Replaces @app.on_event("startup"), which FastAPI deprecated in 0.93 and
+    which emits a DeprecationWarning on the pinned 0.141. Everything before
+    the `yield` runs at startup; anything after would run at shutdown.
+    """
     host = os.getenv("HOST", "127.0.0.1")
     if host not in ("127.0.0.1", "localhost", "::1"):
         logger.warning(
@@ -566,6 +620,10 @@ async def _startup_warnings():
             "requires single-worker deployment (WEB_CONCURRENCY=1). "
             "For multi-worker setups, replace _run_store with a shared store (Redis)."
         )
+    yield
+
+
+app = FastAPI(title="NAVAL-SEM API", version=APP_VERSION, lifespan=_lifespan)
 
 # --- ADDED: Catch Pydantic serialization errors (e.g., NaNs slipping through) ---
 from fastapi.exceptions import ResponseValidationError
@@ -810,8 +868,8 @@ async def predictive_relevance(
     v0.5 predictive relevance suite.
     Returns Q² (blindfolding), PLSpredict (k-fold vs LM), and CVPAT.
     """
-    content = await file.read()
-    ext = file.filename.rsplit(".", 1)[-1].lower()
+    content = await _read_upload(file)
+    ext = _upload_ext(file.filename)
     try:
         if ext == "csv":
             df = parse_csv_robust(content)
@@ -873,8 +931,8 @@ async def cmb_analysis(
     Common Method Bias marker variable analysis (Lindell & Whitney 2001).
     Provide a marker variable theoretically unrelated to your constructs.
     """
-    content = await file.read()
-    ext = file.filename.rsplit(".", 1)[-1].lower()
+    content = await _read_upload(file)
+    ext = _upload_ext(file.filename)
     try:
         if ext == "csv":
             df = parse_csv_robust(content)
@@ -939,8 +997,8 @@ async def indirect_effects(
     bootstrap_n = min(bootstrap_n, 20_000)
     if algorithm not in ("pls", "cb", "wls"):
         raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
-    content = await file.read()
-    ext = file.filename.rsplit(".", 1)[-1].lower()
+    content = await _read_upload(file)
+    ext = _upload_ext(file.filename)
     try:
         if ext == "csv":
             df = parse_csv_robust(content)
@@ -985,8 +1043,8 @@ async def indirect_effects(
 
 @app.post("/upload/preview")
 async def upload_preview(file: UploadFile = File(...)):
-    content = await file.read()
-    ext = file.filename.rsplit(".", 1)[-1].lower()
+    content = await _read_upload(file)
+    ext = _upload_ext(file.filename)
     try:
         if ext == "csv":
             df = parse_csv_robust(content)
@@ -1048,8 +1106,8 @@ async def run_model(
                     "has no equivalent)."
                 )
 
-        raw = await file.read()
-        ext = file.filename.rsplit(".", 1)[-1].lower()
+        raw = await _read_upload(file)
+        ext = _upload_ext(file.filename)
         log("step", f"Parsing uploaded file: {file.filename}")
         try:
             if ext == "csv":
@@ -1170,7 +1228,7 @@ async def bootstrap_only(
     bootstrap_n = min(bootstrap_n, 20_000)
     if algorithm not in ("pls", "cb", "wls"):
         raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
-    content = await file.read()
+    content = await _read_upload(file)
     try:
         df = _parse_upload(content, file.filename)
         df = df.dropna()
@@ -1300,7 +1358,7 @@ async def htmt(
     run_id: str = Form(None),
     anchor: bool = Form(False),
 ):
-    content = await file.read()
+    content = await _read_upload(file)
     try:
         df = _parse_upload(content, file.filename)
         df = df.dropna()
@@ -1555,7 +1613,7 @@ async def export_docx_route(
         bootstrap_n = min(bootstrap_n, 20_000)
 
         # ── Parse upload ─────────────────────────────────────────────────
-        raw = await file.read()
+        raw = await _read_upload(file)
         try:
             df = _parse_upload(raw, file.filename)
         except HTTPException:
@@ -1686,9 +1744,9 @@ async def export_docx_route(
 
 # ── v0.6: Multi-Group Analysis ─────────────────────────────────────────────────
 
-def _parse_upload(content: bytes, filename: str) -> pd.DataFrame:
+def _parse_upload(content: bytes, filename: Optional[str]) -> pd.DataFrame:
     """Shared helper: parse uploaded file bytes to DataFrame."""
-    ext = filename.rsplit(".", 1)[-1].lower()
+    ext = _upload_ext(filename)
     if ext == "csv":
         return parse_csv_robust(content)
     elif ext in ("xlsx", "xls"):
@@ -1751,7 +1809,7 @@ async def multi_group_analysis(
                 f"Invalid mga_method '{mga_method}'. Use 'bootstrap', 'henseler', or 'parametric'.",
             )
 
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"MGA: parsing uploaded file: {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -1867,7 +1925,7 @@ async def hoc_analysis(
         if algorithm not in ("pls", "cb", "wls"):
             raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
 
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"HOC: parsing uploaded file: {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -1995,7 +2053,7 @@ async def moderation_analysis(
         if algorithm not in ("pls", "cb", "wls"):
             raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
 
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"Moderation: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2126,7 +2184,7 @@ async def ipma_analysis(
         if algorithm not in ("pls", "cb", "wls"):
             raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
 
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"IPMA: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2219,7 +2277,7 @@ async def nca_analysis(
     log = _make_log_fn(run_id)
     n_permutations = min(n_permutations, 20_000)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"NCA: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2315,7 +2373,7 @@ async def nca_esse_analysis(
     n_permutations    = min(n_permutations, 5_000)
     n_benchmark_reps  = min(n_benchmark_reps, 5_000)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"NCA-ESSE: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2404,7 +2462,7 @@ async def run_fsqca_endpoint(
     _init_run(run_id)
     log = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"fsQCA: parsing uploaded file: {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2664,7 +2722,7 @@ async def run_lca_endpoint(
     _init_run(run_id)
     log_fn = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         try:
             df = _parse_upload(raw, file.filename)
         except HTTPException:
@@ -2771,7 +2829,7 @@ async def mod_mediation_analysis(
         if algorithm not in ("pls", "cb", "wls"):
             raise HTTPException(400, f"Invalid algorithm '{algorithm}'. Use 'pls', 'cb', or 'wls'.")
 
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"ModMediation: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2833,7 +2891,7 @@ async def run_nomological(
     _init_run(run_id)
     log = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"Nomological: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2908,7 +2966,7 @@ async def run_invariance(
     _init_run(run_id)
     log = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"Invariance: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -2990,7 +3048,7 @@ async def run_cta(
     log = _make_log_fn(run_id)
     bootstrap_n = min(bootstrap_n, 5_000)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"CTA: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -3091,7 +3149,7 @@ async def run_multigroup_cbsem(
     _init_run(run_id)
     log = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"Multi-group CB-SEM: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -3172,7 +3230,7 @@ async def run_efa(
     _init_run(run_id)
     log = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"EFA: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -3240,7 +3298,7 @@ async def run_cvi(
     _init_run(run_id)
     log = _make_log_fn(run_id)
     with _run_context(run_id):
-        raw = await file.read()
+        raw = await _read_upload(file)
         log("step", f"CVI: parsing {file.filename}")
         try:
             df = _parse_upload(raw, file.filename)
@@ -3334,7 +3392,7 @@ async def impute_data(
         raise HTTPException(400, "m must be between 1 and 100.")
 
     # ── Parse file ────────────────────────────────────────────────────────────
-    content = await file.read()
+    content = await _read_upload(file)
     try:
         df = _parse_upload(content, file.filename)
     except HTTPException:
