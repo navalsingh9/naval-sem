@@ -7,6 +7,57 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.5] - 2026-09-05
+
+### Fixed
+
+- **The update indicator reported "offline" on a machine that was online.** `except HTTPError` was placed *after* `except URLError`, and `HTTPError` is a subclass of `URLError` — so Python never reached the `HTTPError` branch and every HTTP error answer from GitHub (403, 404, 500) fell into the offline handler. The common case was 403: GitHub's unauthenticated API allows 60 requests per hour per IP, the app checked on every launch, and once that ran out GitHub refused for the rest of the hour. That is the opposite of being offline — GitHub was reached and answered. The two handlers are now in the correct order.
+- **The offline branch logged nothing**, which is why the app log had nothing to say while the indicator was showing a wrong answer. It now records why the connection failed.
+
+### Added
+
+- **The result is cached for 6 hours** (`update_check.json` in the platform app-data directory), so ordinary use no longer spends a rate-limit slot on every launch. Five checks in a session now make one request instead of five, which keeps a normal user far below the 60/hour ceiling and makes 403 unlikely in the first place. Clicking the indicator passes `?force=1` and always asks GitHub.
+- **A distinct `rate_limited` state.** The indicator reads "Limited" rather than "Offline", and a manual click explains the wait, using `X-RateLimit-Reset` for the minutes when GitHub supplies it.
+
+
+## [v2.0.4] - 2026-09-04
+
+### Fixed
+
+- **A second launch could kill the first one's server.** Reported as "the update button doesn't work" on Windows. Three copies of the app each picked port 8765, one won the bind, and all three windows pointed at that one server — so closing whichever window owned the socket left the others talking to nothing, and every API call failed, the update check among them. Three separate defects, all fixed: a single-instance lock file held for the life of the process (released by the OS on a crash, so a stale file cannot wedge the app shut); `find_free_port` replaced with `acquire_port`, which *holds* the probe socket until the moment uvicorn binds instead of closing it and leaving a three-second window in which another launch saw the same port free; and the shutdown race in `check-updates` ("cannot schedule new futures after interpreter shutdown", which is normal during a quit) reported as offline rather than logged as a fault.
+
+### Added
+
+- **A version-consistency check** (`scripts/check_versions.py` and a Consistency workflow) that fails when `pyproject.toml`, `CITATION.cff`, `app/version.py` and `uv.lock` disagree. `release.yml` patches `version.py` from the tag but never the other three, which is how `version.py` sat at 2.0.0 while 2.0.1 shipped, and how `CITATION.cff` — the file Zenodo and GitHub's citation widget read — sat at 0.2.1.
+
+
+## [v2.0.3] - 2026-09-03
+
+### Fixed
+
+- **Canvas tool buttons appeared dead on click, and the app felt sluggish throughout, on older hardware.** One cause for both: `backdrop-filter`, used in 19 places including the nodes drawn on the canvas, so the cost scales with model size. On a GPU-composited webview it is nearly free; without acceleration it is ruinous, and an unaccelerated WebKit additionally loses paint invalidation inside a blurred region — the class landed but never reached the screen until something forced a re-composite, such as switching tabs. The decisive evidence was that the same page, from the same process on the same machine, was smooth in a browser.
+- A startup probe now measures whether the renderer can afford the effect (it forces a re-composite on each sampled frame and takes the median over 24 frames, 2 s after load) and drops every `backdrop-filter` when it cannot. An **Effects** button in the top bar overrides the probe in either direction and persists the choice; `prefers-reduced-transparency` is honoured unless effects were explicitly kept. The default is unchanged on hardware that can render it.
+- **~1.2 s off startup.** `sklearn` was imported at the top of `app/scale.py` but used only in `compute_efa()`, so every launch waited for it. Deferred into the function, matching what matplotlib, semopy, pyreadstat and reportlab already do.
+
+### Changed
+
+- `transition: all` on toggleable controls narrowed to the three properties that actually change.
+
+
+## [v2.0.2] - 2026-08-30
+
+### Fixed
+
+- **`workflow_dispatch` could never produce a Windows or Linux artifact.** The version sanitiser derived the build version from the tag, and a manual run has no tag — so the Windows MSI and the Linux package failed on an invalid version string. Manual builds now fall back to the version declared in the project files.
+- **Metadata contradictions.** The licence was stated inconsistently across files, and the four version declarations disagreed with each other.
+- **Uploads were unbounded.** A size cap is now enforced.
+
+### Changed
+
+- Migrated off FastAPI's deprecated `@app.on_event("startup")` to the `lifespan` context manager.
+- Split the packaging toolchain (PyInstaller and friends) out of the runtime dependencies into a `build` dependency group, so installing the app no longer pulls in the tools used to package it.
+
+
 ## [v2.0.1] - 2026-08-22
 
 ### Fixed

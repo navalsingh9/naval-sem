@@ -10252,12 +10252,25 @@ function toggleResultsPanel() {
     if (manual) hideUpdToast();
     _setState('spin', 'Checking…');
     try {
-      const res  = await fetch('/check-updates');
+      const res  = await fetch('/check-updates' + (manual ? '?force=1' : ''));
       const data = await res.json();
 
       if (data.status === 'offline') {
         _setState('offline', 'Offline');
         if (manual) _showToast('var(--t3)', 'No internet connection — check again later.', 4000);
+        return;
+      }
+      if (data.status === 'rate_limited') {
+        // Reached GitHub and was refused, which is not the same as being
+        // offline -- saying "Offline" here sent someone hunting a network
+        // fault that did not exist.
+        _setState('offline', 'Limited');
+        if (manual) {
+          const mins = data.retry_after_minutes;
+          _showToast('var(--t3)',
+            'GitHub is rate-limiting update checks' +
+            (mins ? ` &mdash; try again in ~${mins} min.` : '. Try again later.'), 5000);
+        }
         return;
       }
       if (data.status === 'error') {
