@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from typing import Optional
 from scipy.stats import chi2 as chi2_dist
-from sklearn.decomposition import FactorAnalysis
 
 from app.schemas import CVIResult, ScaleDevelopmentResult
 
@@ -153,6 +152,13 @@ def compute_efa(
     # 4. Factor extraction.
     # sklearn.FactorAnalysis uses the ML common-factor model — not PCA.
     # PCA is a different dimensionality-reduction technique with no latent factor assumption.
+    # Imported here, not at module level. sklearn costs ~0.8s to import on a
+    # modern machine and several seconds on older hardware, and compute_efa is
+    # the only place in the codebase that touches it -- so an eager import made
+    # every launch wait for a library most sessions never use. Same treatment
+    # matplotlib, semopy, pyreadstat and reportlab already get.
+    from sklearn.decomposition import FactorAnalysis
+
     fa = FactorAnalysis(n_components=n_factors, rotation=rotation, max_iter=1000)
     fa.fit(df)
     L = fa.components_.T   # shape (n_items, n_factors)

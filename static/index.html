@@ -353,12 +353,25 @@ button { cursor: pointer; }
 .drawer-close:hover { color: var(--t1); }
 .sl { font-size: 9px; font-weight: 500; letter-spacing: 2px; color: var(--t3); text-transform: uppercase; padding: 8px 8px 3px; }
 .sl:first-child { padding-top: 2px; }
+/* WebKit repaint fix. These controls sit inside a backdrop-filter ancestor
+   (.model-sidebar / .ana-nav / .rep-nav), which promotes that ancestor to a
+   compositing layer. Their active state is a TRANSLUCENT background painted
+   onto that layer, and WebKit often fails to invalidate the backdrop region
+   when it changes -- the class lands, the pixels don't, and the control only
+   looks right after something forces a re-composite (e.g. switching tabs).
+   Affects WKWebView (macOS) and WebKitGTK (Linux); Windows uses WebView2
+   (Chromium) and never showed it.
+   translateZ(0) gives each control its own layer so its repaint no longer
+   depends on the parent's. The narrowed transitions are a second fix: the
+   original `transition: all` animated the translucent change, which is the
+   exact case WebKit drops, and it animated layout properties nobody changes. */
 .tool {
   display: flex; align-items: center; gap: 10px;
   font-size: 12px; font-weight: 400; color: var(--t2);
   padding: 8px 10px; border-radius: var(--r-sm);
   background: transparent; border: .5px solid transparent;
-  transition: all .15s ease; text-align: left;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  text-align: left; transform: translateZ(0);
 }
 .tool:hover { background: var(--glass-hover); border-color: var(--line); color: var(--t1); }
 .tool.on { background: var(--accent-soft); border-color: rgba(59,130,246,.3); color: var(--accent-text); }
@@ -408,7 +421,7 @@ button { cursor: pointer; }
 .ctool {
   font-size: 12px; padding: 5px 13px;
   border-radius: var(--pill); background: transparent; border: none;
-  color: var(--t2); transition: all .14s;
+  color: var(--t2); transition: background-color .14s, color .14s; transform: translateZ(0);
 }
 .ctool:hover { color: var(--t1); background: var(--glass-hover); }
 .ctool.on { background: var(--glass-active); color: var(--t0); }
@@ -463,7 +476,8 @@ button { cursor: pointer; }
   font-size: 11px; padding: 8px 14px;
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
-  transition: all .15s; white-space: nowrap; letter-spacing: .1px;
+  transition: color .15s, border-bottom-color .15s; white-space: nowrap;
+  transform: translateZ(0); letter-spacing: .1px;
   flex-shrink: 0;
 }
 .rtab:hover { color: var(--t1); }
@@ -541,7 +555,8 @@ button { cursor: pointer; }
   font-size: 12px; color: var(--t2);
   padding: 7px 10px; border-radius: var(--r-sm);
   border: .5px solid transparent; cursor: pointer;
-  transition: all .15s ease;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  transform: translateZ(0);
 }
 .ani:hover { background: var(--glass-hover); color: var(--t1); }
 .ani.on { background: var(--accent-soft); border-color: rgba(59,130,246,.22); color: var(--accent-text); }
@@ -647,7 +662,8 @@ button { cursor: pointer; }
   font-size: 11px; padding: 9px 12px;
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
-  transition: all .15s; white-space: nowrap;
+  transition: color .15s, border-bottom-color .15s; white-space: nowrap;
+  transform: translateZ(0);   /* see the WebKit repaint note above .tool */
 }
 .stab:hover { color: var(--t1); }
 .stab.on { color: var(--t0); border-bottom-color: var(--accent); }
@@ -3314,9 +3330,13 @@ function setTool(t){
   }
   prevTool=tool!=='hand'?tool:prevTool;
   tool=t;arrowStart=null;clrStatus();
-  ['lv','obs','arrow'].forEach(x=>document.getElementById('tool-'+x).classList.toggle('on',x===t));
+  ['lv','obs','arrow'].forEach(x=>{
+    const el=document.getElementById('tool-'+x);
+    el.classList.toggle('on',x===t);
+    void el.offsetWidth;   // force a style flush — see the WebKit note in CSS
+  });
   const hb=document.getElementById('tool-hand');
-  if(hb) hb.classList.toggle('on',t==='hand');
+  if(hb){ hb.classList.toggle('on',t==='hand'); void hb.offsetWidth; }
   _svgEl.style.cursor=t==='hand'?'grab':'';
   validateNodeLabel();
 }
