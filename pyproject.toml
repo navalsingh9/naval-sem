@@ -5,7 +5,6 @@ description = "Free offline PLS-SEM, CB-SEM and fsQCA desktop application with b
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "altgraph==0.17.5",
     "annotated-doc==0.0.5",
     "annotated-types==0.8.0",
     "anyio==4.14.2",
@@ -21,7 +20,6 @@ dependencies = [
     "httptools==0.8.0",
     "idna==3.18",
     "joblib==1.5.3",
-    "macholib==1.16.4",
     # matplotlib powers the IPMA quadrant chart (engine_ipma.py). Unlike the
     # lazily-imported packages below (pyreadstat, python-docx, reportlab),
     # engine_ipma imports matplotlib at module level and is itself imported
@@ -48,13 +46,10 @@ dependencies = [
     "packaging==26.2",
     "pandas==3.0.5",
     "patsy==1.0.2",
-    "pefile==2024.8.26",
     "pingouin==0.6.1",
     "proxy-tools==0.1.0",
     "pycparser==3.0",
     "pydantic==2.13.4",
-    "pyinstaller==6.21.0",
-    "pyinstaller-hooks-contrib==2026.6",
     # pyreadstat powers SPSS .sav file uploads (parser.parse_spss). Lazily
     # imported with a friendly ImportError message, so its absence only
     # breaks SPSS-file uploads specifically — it does not stop the server
@@ -69,7 +64,6 @@ dependencies = [
     "python-multipart==0.0.32",
     "pythonnet==3.1.0",
     "pywebview==6.2.1",
-    "pywin32-ctypes==0.2.3",
     "pyyaml==6.0.3",
     # reportlab powers /export/pdf (app/export_pdf.py). The endpoint already
     # degrades gracefully with an actionable error if this is missing, but it
@@ -95,6 +89,20 @@ dependencies = [
     "watchfiles==1.2.0",
     "websockets==17.0.1",
     "xlrd==2.0.2",
+]
+
+[dependency-groups]
+# Packaging toolchain only — never imported by the application. Installed
+# with `uv sync --group build`, which every build script and release job
+# now passes; a plain `uv sync` gives contributors the runtime environment
+# without ~40 MB of PyInstaller machinery they don't need to run from source.
+build = [
+    "altgraph==0.17.5",
+    "macholib==1.16.4",
+    "pefile==2024.8.26",
+    "pyinstaller-hooks-contrib==2026.6",
+    "pyinstaller==6.21.0",
+    "pywin32-ctypes==0.2.3",
 ]
 
 [tool.uv]
