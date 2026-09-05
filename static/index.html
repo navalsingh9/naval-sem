@@ -358,7 +358,8 @@ button { cursor: pointer; }
   font-size: 12px; font-weight: 400; color: var(--t2);
   padding: 8px 10px; border-radius: var(--r-sm);
   background: transparent; border: .5px solid transparent;
-  transition: all .15s ease; text-align: left;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  text-align: left;
 }
 .tool:hover { background: var(--glass-hover); border-color: var(--line); color: var(--t1); }
 .tool.on { background: var(--accent-soft); border-color: rgba(59,130,246,.3); color: var(--accent-text); }
@@ -408,7 +409,7 @@ button { cursor: pointer; }
 .ctool {
   font-size: 12px; padding: 5px 13px;
   border-radius: var(--pill); background: transparent; border: none;
-  color: var(--t2); transition: all .14s;
+  color: var(--t2); transition: background-color .14s, color .14s;
 }
 .ctool:hover { color: var(--t1); background: var(--glass-hover); }
 .ctool.on { background: var(--glass-active); color: var(--t0); }
@@ -463,7 +464,8 @@ button { cursor: pointer; }
   font-size: 11px; padding: 8px 14px;
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
-  transition: all .15s; white-space: nowrap; letter-spacing: .1px;
+  transition: color .15s, border-bottom-color .15s; white-space: nowrap;
+  letter-spacing: .1px;
   flex-shrink: 0;
 }
 .rtab:hover { color: var(--t1); }
@@ -541,7 +543,8 @@ button { cursor: pointer; }
   font-size: 12px; color: var(--t2);
   padding: 7px 10px; border-radius: var(--r-sm);
   border: .5px solid transparent; cursor: pointer;
-  transition: all .15s ease;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+ 
 }
 .ani:hover { background: var(--glass-hover); color: var(--t1); }
 .ani.on { background: var(--accent-soft); border-color: rgba(59,130,246,.22); color: var(--accent-text); }
@@ -647,7 +650,7 @@ button { cursor: pointer; }
   font-size: 11px; padding: 9px 12px;
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
-  transition: all .15s; white-space: nowrap;
+  transition: color .15s, border-bottom-color .15s; white-space: nowrap;
 }
 .stab:hover { color: var(--t1); }
 .stab.on { color: var(--t0); border-bottom-color: var(--accent); }
@@ -1224,6 +1227,36 @@ button { cursor: pointer; }
 .ss-dot.ss-active  { background: var(--green); box-shadow: 0 0 5px var(--green-glow); }
 .ss-dot.ss-partial { background: var(--amber); }
 #ss-label { transition: color .3s; letter-spacing: .2px; }
+
+/* ── Reduced effects ───────────────────────────────────────────────────────
+   backdrop-filter costs almost nothing on a GPU-composited webview and is
+   ruinous without one. Worse, an unaccelerated WebKit also loses paint
+   invalidation inside a blurred region: toggling a class on a control there
+   updates the DOM but never reaches the screen until something forces a
+   re-composite (switching tabs, resizing). That is why the canvas tool
+   buttons appeared dead in the desktop app while working perfectly in a
+   browser on the same machine -- same engine, but Safari gets acceleration
+   and the embedded WKWebView did not.
+
+   Covers the two hardcoded blurs on .lv/.obs as well as the var-driven ones,
+   hence the universal selector and !important. Set by the startup probe
+   below, or by the person via the Effects button. */
+html.reduced-effects,
+html.reduced-effects *,
+html.reduced-effects *::before,
+html.reduced-effects *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Respect the OS-level preference too, unless effects were explicitly kept. */
+@media (prefers-reduced-transparency: reduce) {
+  html:not(.force-full-effects),
+  html:not(.force-full-effects) * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1255,6 +1288,10 @@ button { cursor: pointer; }
       <span class="ver-badge" id="ver-badge">v…</span>
       <button id="theme-btn" class="upd-btn" onclick="openThemeModal()" title="Apply a Firefox or Chrome browser theme">
         ⬡ Theme
+      </button>
+      <button id="fx-btn" class="upd-btn" onclick="toggleEffects()"
+        title="Background blur. Costs nothing on a GPU-accelerated display and a great deal without one, where it can also stop controls from repainting. Turned off automatically when the renderer cannot keep up.">
+        <span id="fx-label">Effects</span>
       </button>
       <button id="upd-btn" class="upd-btn" onclick="checkForUpdates(true)" title="Check for updates">
         <span id="upd-dot" class="upd-dot upd-idle"></span>
@@ -11081,6 +11118,66 @@ function toggleResultsPanel() {
     } catch (e) {}
   })();
 
+})();
+
+// ── Renderer capability probe ────────────────────────────────────────────────
+// There is no API that answers "is this compositor accelerated", so measure it.
+// An idle frame rate tells us nothing -- blur only costs anything when a
+// blurred region actually repaints -- so the probe forces one to re-composite
+// on every sampled frame and times the result. A machine that cannot hold a
+// reasonable rate under that load gets the blur dropped, which fixes both the
+// sluggishness and the stale-paint bug described in the CSS note above.
+(function initEffects(){
+  const KEY  = 'naval_sem_effects';
+  const root = document.documentElement;
+
+  const read  = () => { try { return localStorage.getItem(KEY); } catch(e) { return null; } };
+  const write = v  => { try { localStorage.setItem(KEY, v); } catch(e) {} };
+
+  function apply(reduced){
+    root.classList.toggle('reduced-effects', reduced);
+    root.classList.toggle('force-full-effects', !reduced);
+    const lbl = document.getElementById('fx-label');
+    if (lbl) lbl.textContent = reduced ? 'Effects off' : 'Effects';
+    const btn = document.getElementById('fx-btn');
+    if (btn) btn.classList.toggle('on', !reduced);
+  }
+
+  window.toggleEffects = function(){
+    const reduced = !root.classList.contains('reduced-effects');
+    apply(reduced);
+    write(reduced ? 'reduced' : 'full');
+  };
+
+  const saved = read();
+  if (saved === 'reduced') { apply(true);  return; }   // person chose this
+  if (saved === 'full')    { apply(false); return; }   // person chose this
+  apply(false);                                        // default: keep the design
+
+  const SAMPLES = 24;
+  const BUDGET  = 28;            // ms; ~36fps. Generous -- only clear failures count.
+  const probe   = document.querySelector('.model-sidebar') || document.body;
+  const frames  = [];
+  let   last    = 0;
+
+  function tick(now){
+    if (last) frames.push(now - last);
+    last = now;
+    // Force the blurred region to re-composite so we measure blur, not idle.
+    probe.style.opacity = (frames.length % 2) ? '0.999' : '1';
+    if (frames.length < SAMPLES) { requestAnimationFrame(tick); return; }
+    probe.style.opacity = '';
+    frames.sort((a, b) => a - b);
+    const median = frames[frames.length >> 1];
+    if (median > BUDGET) {
+      apply(true);
+      write('reduced');
+      console.info('[NAVAL-SEM] Blur disabled: median frame ' + median.toFixed(1) +
+                   'ms exceeds the ' + BUDGET + 'ms budget. Re-enable with the Effects button.');
+    }
+  }
+  // Measure the steady state, not application startup.
+  setTimeout(() => requestAnimationFrame(tick), 2000);
 })();
 </script>
 
