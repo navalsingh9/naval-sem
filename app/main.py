@@ -790,8 +790,48 @@ def health():
     return {"status": "ok", "version": APP_VERSION}
 
 
+# ── Update-check cache ────────────────────────────────────────────────────────
+# GitHub's unauthenticated API allows 60 requests per hour per IP. The app
+# checks on every launch, so a few restarts -- or several people behind one
+# office NAT -- exhaust it, and GitHub then answers 403 for the rest of the
+# hour. Caching the answer keeps normal use far under the limit; the toolbar
+# button passes force=1 to bypass it.
+_UPDATE_CACHE_TTL = 6 * 3600
+
+
+def _update_cache_path() -> Path:
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA", Path.home()))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
+    d = base / "NAVAL-SEM"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / "update_check.json"
+
+
+def _read_update_cache():
+    try:
+        raw = json.loads(_update_cache_path().read_text())
+        if time.time() - raw.get("checked_at", 0) < _UPDATE_CACHE_TTL:
+            return raw.get("payload")
+    except Exception:
+        pass
+    return None
+
+
+def _write_update_cache(payload: dict) -> None:
+    try:
+        _update_cache_path().write_text(
+            json.dumps({"checked_at": time.time(), "payload": payload})
+        )
+    except Exception:
+        pass
+
+
 @app.get("/check-updates")
-async def check_updates():
+async def check_updates(force: bool = False):
     """
     Checks GitHub Releases for a version newer than APP_VERSION.
     Returns update_available=True/False (or status='offline' on network error).
@@ -809,7 +849,12 @@ async def check_updates():
     """
     import json as _json
     from urllib.request import urlopen, Request
-    from urllib.error import URLError
+    from urllib.error import HTTPError, URLError
+
+    if not force:
+        cached = _read_update_cache()
+        if cached is not None:
+            return {**cached, "cached": True}
 
     api_url = f"https://api.github.com/repos/{_GITHUB_REPO}/releases/latest"
 
@@ -838,15 +883,42 @@ async def check_updates():
         release_name = data.get("name") or f"v{latest_tag}"
 
         update_available = _ver_tuple(latest_tag) > _ver_tuple(APP_VERSION)
-        return {
+        payload = {
             "current_version": APP_VERSION,
             "latest_version":  latest_tag,
             "release_name":    release_name,
             "release_url":     release_url,
             "update_available": update_available,
         }
+        _write_update_cache(payload)
+        return payload
 
-    except URLError:
+    except HTTPError as exc:
+        # MUST precede URLError -- HTTPError subclasses it, so the old handler
+        # swallowed every 403/404/500 and reported them as "offline". A 403
+        # means GitHub was reached and refused us, which is the opposite of
+        # being offline, and it is what a user sees after the unauthenticated
+        # rate limit (60/hour/IP) runs out.
+        if exc.code == 403:
+            reset = exc.headers.get("X-RateLimit-Reset") if exc.headers else None
+            wait_min = None
+            if reset:
+                try:
+                    wait_min = max(0, int((int(reset) - time.time()) // 60))
+                except (TypeError, ValueError):
+                    pass
+            logger.info("check-updates: GitHub rate limit reached (resets in %s min)", wait_min)
+            return {
+                "current_version": APP_VERSION,
+                "status": "rate_limited",
+                "retry_after_minutes": wait_min,
+            }
+        logger.warning(f"check-updates: GitHub returned HTTP {exc.code}")
+        return {"current_version": APP_VERSION, "status": "error", "http_status": exc.code}
+    except URLError as exc:
+        # Genuinely could not reach GitHub. Logged now -- the previous silent
+        # handler is why the app log had nothing to say about any of this.
+        logger.info(f"check-updates: cannot reach GitHub ({exc.reason})")
         return {"current_version": APP_VERSION, "status": "offline"}
     except RuntimeError as exc:
         # "cannot schedule new futures after interpreter shutdown" -- the update
