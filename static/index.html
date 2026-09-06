@@ -2240,9 +2240,9 @@ html.reduced-effects *::after {
       <div class="rni rni-locked" data-rni="efa"         onclick="repNavClick(this,'efa')" title="Exploratory Factor Analysis — uncovers the underlying factor structure of a set of items with no predefined model.">EFA</div>
       <div class="rni rni-locked" data-rni="cvi"         onclick="repNavClick(this,'cvi')" title="Content Validity Index — quantifies expert agreement on how well items represent the construct they're meant to measure.">CVI</div>
       <div class="rni rni-locked" data-rni="fsqca"       onclick="repNavClick(this,'fsqca')" title="Fuzzy-Set Qualitative Comparative Analysis — set-theoretic method identifying necessary and sufficient configurations of conditions that produce an outcome.">fsQCA</div>
+      <div class="rni"     data-rni="apa"         onclick="repNavClick(this,'apa')" title="Jump to the APA 7 parameter-estimates table in this report.">APA tables</div>
       <div class="rns">Export</div>
-      <div class="rni"     data-rni="apa"         onclick="repNavClick(this,'apa')" title="American Psychological Association style — standardised statistical reporting tables.">APA tables</div>
-      <div class="rni rni-locked" data-rni="docx"        onclick="repNavClick(this,'docx')" title="Microsoft Word document, APA 7th edition formatted.">Full .docx</div>
+      <div class="rni rni-locked" data-rni="docx"        onclick="repNavClick(this,'docx')" title="Download the full report as a Microsoft Word document, APA 7th edition formatted.">Full .docx</div>
       <div class="rns" style="margin-top:6px">Session</div>
       <div class="rni" data-rni="history" onclick="repNavClick(this,'history')">Run history &nbsp;<span id="rh-badge" class="nbadge nb-v" style="display:none">0</span></div>
       <div style="flex:1"></div>
@@ -7334,6 +7334,15 @@ function buildReport(){
       <td style="text-align:right">${_fmtR(n.consistency)}</td>
       <td><span class="fit-chip ${n.label==='Necessary'?'fc-good':n.label==='Near-Necessary'?'fc-ok':'fc-bad'}">${esc(n.label)}</span></td>
     </tr>`).join('');
+    // The engine explains an empty result -- e.g. "No truth-table rows pass
+    // freq_threshold and consist_threshold -- solutions will be empty.
+    // Consider lowering consist_threshold." That warning was computed and then
+    // dropped here, so a legitimate "nothing was sufficient at this threshold"
+    // arrived as three silent boxes reading Coverage 0.000, indistinguishable
+    // from a broken feature. Show what it said.
+    const fsqcaWarnHtml = (d.warnings || []).length
+      ? `<div class="warn-box" style="margin-top:10px">${(d.warnings || []).map(w => `\u26a0 ${esc(w)}`).join('<br>')}</div>`
+      : '';
     const solLabels = { complex: 'Complex Solution', parsimonious: 'Parsimonious Solution', intermediate: 'Intermediate Solution' };
     const solBlocks = (d.solutions || []).map(s => {
       const termRows = (s.terms || []).map(t => `<tr>
@@ -7345,7 +7354,9 @@ function buildReport(){
       return `<div style="margin-bottom:14px">
         <div style="font-size:12px;font-weight:600;color:var(--t0);margin-bottom:6px">
           ${esc(solLabels[s.solution_type] || s.solution_type)}
-          <span class="fit-chip fc-ok" style="margin-left:6px">Coverage ${_fmtR(s.solution_coverage)} \u00b7 Consistency ${_fmtR(s.solution_consistency)}</span>
+          ${(s.terms || []).length
+            ? `<span class="fit-chip fc-ok" style="margin-left:6px">Coverage ${_fmtR(s.solution_coverage)} \u00b7 Consistency ${_fmtR(s.solution_consistency)}</span>`
+            : ''}
         </div>
         ${termRows ? `<div style="overflow-x:auto"><table class="gtable"><thead><tr>
           <th>Configuration</th><th style="text-align:right">Raw Cov.</th><th style="text-align:right">Unique Cov.</th><th style="text-align:right">Consistency</th>
@@ -7362,6 +7373,7 @@ function buildReport(){
       <div style="overflow-x:auto"><table class="gtable"><thead><tr>
         <th>Condition</th><th style="text-align:right">Coverage</th><th style="text-align:right">Consistency</th><th>Label</th>
       </tr></thead><tbody>${necRows}</tbody></table></div>
+      ${fsqcaWarnHtml}
       <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);font-family:var(--mono);margin:14px 0 8px">Sufficiency Solutions</div>
       ${solBlocks || '<div style="color:var(--t3);font-size:11px">No solutions found for the given thresholds.</div>'}
     </div>`;
@@ -7633,6 +7645,13 @@ const _repNavMap = {
 function repNavClick(el, key) {
   // Check if item is locked (no data available)
   if (el.classList.contains('rni-locked')) return;
+
+  // "Full .docx" is an ACTION, not a link to a section. It used to fall
+  // through to the scroll-to-top fallback at the bottom of this function,
+  // because _repNavMap.docx is null -- so clicking the one item in the
+  // Export group whose title says "Microsoft Word document" scrolled the
+  // report to the top and downloaded nothing.
+  if (key === 'docx') { exportDocx(); return; }
 
   // Update active state
   document.querySelectorAll('#rep-nav .rni').forEach(n => n.classList.remove('on'));
@@ -7913,10 +7932,15 @@ async function downloadReport(fmt){
 async function exportDocx() {
   const file = (typeof uploadedFile !== 'undefined' ? uploadedFile : null);
   const syntax = (document.getElementById('syntax-area')?.value || '').trim();
-  if (!file || !syntax) { alert('Run an analysis first.'); return; }
+  // Only the data file is genuinely required. Model syntax is NOT: an fsQCA run
+  // is set-theoretic and has none, and refusing on it here is why the .docx
+  // button appeared dead on a run whose PDF and PNG exported fine. With no
+  // syntax the server returns a document explaining the situation instead.
+  if (!file) { alert('Upload a data file and run an analysis first.'); return; }
   const fd = new FormData();
   fd.append('file', file);
   fd.append('model', syntax);
+  fd.append('analysis_type', syntax ? 'SEM' : 'Non-SEM analysis (no structural model)');
   fd.append('algorithm', document.getElementById('algo-sel')?.value || 'pls');
   fd.append('bootstrap_n', '1000');
   fd.append('missing', document.getElementById('missing-sel')?.value || 'listwise');
@@ -7931,7 +7955,12 @@ async function exportDocx() {
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
-    a.download = 'naval_sem_report.docx'; a.click();
+    // The server names the explanatory document differently. Honour it, so a
+    // "why this is empty" file is never mistaken for a finished report.
+    const cd = r.headers.get('Content-Disposition') || '';
+    const m  = cd.match(/filename="?([^";]+)"?/);
+    a.download = m ? m[1] : 'naval_sem_report.docx';
+    a.click();
     URL.revokeObjectURL(url);
   } catch(e) { alert('Export error: ' + e.message); }
 }
@@ -9628,7 +9657,16 @@ function _fsqcaShowError(msg) {
 
 function _renderFsQCAResults(d) {
   const el = document.getElementById('fsqca-results');
-  let html = '<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin-bottom:8px">Necessity Analysis</h3>';
+  // Same omission as the report had: the engine says why a result is empty
+  // ("No truth-table rows pass freq_threshold and consist_threshold"), and
+  // this panel used to discard it, leaving solutions reading Coverage 0.000
+  // with no indication that the thresholds, not the app, were the reason.
+  let html = '';
+  if ((d.warnings || []).length) {
+    html += `<div class="warn-box" style="margin-bottom:10px">${d.warnings.map(w =>
+      '\u26a0 ' + String(w).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))).join('<br>')}</div>`;
+  }
+  html += '<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin-bottom:8px">Necessity Analysis</h3>';
   html += '<table class="res-tbl"><thead><tr><th>Condition</th><th style="text-align:right">Coverage</th><th style="text-align:right">Consistency</th><th>Label</th></tr></thead><tbody>';
   for (const n of (d.necessity || [])) {
     const _cls = n.label === 'Necessary' ? 'fc-good' : n.label === 'Near-Necessary' ? 'fc-ok' : 'fc-bad';
@@ -9637,7 +9675,13 @@ function _renderFsQCAResults(d) {
   html += '</tbody></table>';
   for (const sol of (d.solutions || [])) {
     const stype = sol.solution_type ? sol.solution_type.charAt(0).toUpperCase() + sol.solution_type.slice(1) : '';
-    html += `<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin:14px 0 8px">${stype} Solution <span class="nbadge nb-v">Coverage ${Number(sol.solution_coverage).toFixed(3)} · Consistency ${Number(sol.solution_consistency).toFixed(3)}</span></h3>`;
+    // A solution with no terms has coverage and consistency of exactly 0 by
+    // definition, not by measurement. Printing "Coverage 0.000" next to it
+    // reads as a computed result and is what made an empty fsQCA look broken.
+    const _solChip = (sol.terms || []).length
+      ? ` <span class="nbadge nb-v">Coverage ${Number(sol.solution_coverage).toFixed(3)} · Consistency ${Number(sol.solution_consistency).toFixed(3)}</span>`
+      : ' <span class="nbadge" style="opacity:.7">no configurations met the thresholds</span>';
+    html += `<h3 style="font-size:12px;font-weight:600;color:var(--t1);margin:14px 0 8px">${stype} Solution${_solChip}</h3>`;
     html += '<table class="res-tbl"><thead><tr><th>Configuration</th><th style="text-align:right">Raw Cov.</th><th style="text-align:right">Unique Cov.</th><th style="text-align:right">Consistency</th></tr></thead><tbody>';
     for (const t of (sol.terms || [])) {
       html += `<tr><td><code style="font-family:var(--mono);font-size:11px">${t.configuration}</code></td><td style="text-align:right">${Number(t.raw_coverage).toFixed(3)}</td><td style="text-align:right">${Number(t.unique_coverage).toFixed(3)}</td><td style="text-align:right">${Number(t.consistency).toFixed(3)}</td></tr>`;
