@@ -1533,7 +1533,6 @@ html.reduced-effects *::after {
         <div id="toggle-bottom-btn" style="display:none"></div>
         <div id="syntax-drag-handle" style="display:none"></div>
         <div id="htmt-body" style="display:none"></div>
-        <div id="export-wrap" style="display:none"><div id="export-btn"></div><div id="export-drop"></div><div id="export-toast"><span id="export-toast-sub"></span></div></div>
       </div><!-- /canvas-wrap -->
 
     </div><!-- /model-body -->
@@ -2265,9 +2264,6 @@ html.reduced-effects *::after {
 <input id="rpt-email" type="hidden" value="">
 <input id="rpt-org"   type="hidden" value="">
 <input id="rpt-note"  type="hidden" value="">
-<div id="rpt-meta-block" style="display:none"></div>
-<div id="rpt-note-section" style="display:none"></div>
-<div id="rpt-diagram-img" style="display:none"></div>
 <!-- Hidden proxy elements for JS compatibility -->
 <div id="builder-view" style="display:none"></div>
 <div id="live-view"    style="display:none"></div>
@@ -5507,43 +5503,6 @@ function loadDemo(){
   updateSyntax();draw();
 }
 
-function showExportToast(filename){
-  document.getElementById('export-toast-sub').textContent='Paste into editor → save as: '+filename;
-  const t=document.getElementById('export-toast');
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),4000);
-}
-function toggleExport(){
-  const btn=document.getElementById('export-btn');
-  const drop=document.getElementById('export-drop');
-  btn.classList.toggle('open');drop.classList.toggle('show');
-  if(drop.classList.contains('show')){
-    const close=e=>{if(!document.getElementById('export-wrap').contains(e.target)){btn.classList.remove('open');drop.classList.remove('show');document.removeEventListener('click',close);}};
-    setTimeout(()=>document.addEventListener('click',close),10);
-  }
-}
-async function doExport(fmt){
-  document.getElementById('export-btn').classList.remove('open');
-  document.getElementById('export-drop').classList.remove('show');
-  const syntax=document.getElementById('syntax-area').value.trim();
-  if(!syntax){alert('Build a model first.');return;}
-  const algo=document.getElementById('algo-sel').value;
-  try{
-    const r=await fetch(API+'/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:syntax,algorithm:algo,format:fmt})});
-    if(!r.ok){alert('Export failed.');return;}
-    const text=await r.text();
-    const ext={r:'R',python:'py',lav:'lav'}[fmt]||'txt';
-    const filename='naval_sem_model.'+ext;
-    try{await navigator.clipboard.writeText(text);}
-    catch(e){
-      const ta=document.createElement('textarea');
-      ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
-      document.body.appendChild(ta);ta.select();
-      document.execCommand('copy');document.body.removeChild(ta);
-    }
-    showExportToast(filename);
-  } catch(e){alert('Export error: '+e.message);}
-}
 const ro=new ResizeObserver(()=>requestAnimationFrame(resize));
 ro.observe(canvas.parentElement);
 setTimeout(()=>{resize();loadDemo();},80);
@@ -10001,10 +9960,6 @@ function _renderCVIResults(data) {
 
 </script>
 
-<div class="export-toast" id="export-toast">
-  <div class="export-toast-title">&#10003; Copied to clipboard</div>
-  <div class="export-toast-sub" id="export-toast-sub">Paste into your editor and save as the filename shown.</div>
-</div>
 <!-- ── end main script ── -->
 
 <script>
