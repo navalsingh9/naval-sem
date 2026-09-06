@@ -113,8 +113,13 @@ def release_port_hold():
     if _PORT_HOLD is not None:
         try:
             _PORT_HOLD.close()
-        except Exception:
-            pass
+        except OSError as exc:
+            # Closing a socket can only really fail if the OS already reclaimed
+            # it, which is harmless here -- uvicorn is about to bind the port
+            # either way. Worth a line rather than nothing: if this ever does
+            # fire, the bind failing a moment later would otherwise look
+            # inexplicable.
+            logging.debug(f"port hold already released ({exc})")
         _PORT_HOLD = None
 
 

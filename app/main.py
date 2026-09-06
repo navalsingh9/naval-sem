@@ -812,22 +812,33 @@ def _update_cache_path() -> Path:
 
 
 def _read_update_cache():
+    # There is no cache file on first run, so a miss is the normal path rather
+    # than a fault -- hence debug, not warning. But it does say something now.
+    # A bare `except Exception: pass` here is the same shape of mistake that
+    # made the rate-limit bug invisible: a handler that swallowed a 403 and
+    # left the app log with nothing to say about it.
     try:
         raw = json.loads(_update_cache_path().read_text())
-        if time.time() - raw.get("checked_at", 0) < _UPDATE_CACHE_TTL:
-            return raw.get("payload")
-    except Exception:
-        pass
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:  # unreadable, or not valid JSON
+        logger.debug("update cache unreadable (%s); asking GitHub instead", exc)
+        return None
+    if time.time() - raw.get("checked_at", 0) < _UPDATE_CACHE_TTL:
+        return raw.get("payload")
     return None
 
 
 def _write_update_cache(payload: dict) -> None:
+    # Failing to cache is not fatal -- the next check simply asks GitHub again.
+    # It still earns a line, because silently failing to write is precisely how
+    # you end up wondering why the rate limit keeps running out.
     try:
         _update_cache_path().write_text(
             json.dumps({"checked_at": time.time(), "payload": payload})
         )
-    except Exception:
-        pass
+    except (OSError, TypeError) as exc:  # read-only or full disk, unserialisable
+        logger.debug("could not write update cache (%s)", exc)
 
 
 @app.get("/check-updates")
