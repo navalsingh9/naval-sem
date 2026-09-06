@@ -1665,7 +1665,13 @@ async def export_pdf(payload: dict):
 @app.post("/export/docx")
 async def export_docx_route(
     file: UploadFile = File(...),
-    model: str = Form(...),
+    # Optional on purpose. An fsQCA run has no lavaan syntax -- it is
+    # set-theoretic, not SEM -- so requiring it here meant the .docx button
+    # could only ever refuse on those runs, while PDF and PNG exported the same
+    # report happily. With no model we now return a document that says why,
+    # rather than an error the user has to interpret.
+    model: str = Form(""),
+    analysis_type: str = Form(""),
     algorithm: str = Form("pls"),
     bootstrap_n: int = Form(1000),
     missing: str = Form("listwise"),
@@ -1713,6 +1719,32 @@ async def export_docx_route(
         except Exception as exc:
             logger.error("File parse error in /export/docx: %s", exc, exc_info=True)
             raise HTTPException(422, "Could not parse the uploaded file.")
+
+        # ── No structural model: explain, do not refuse ──────────────────
+        # Everything below this point fits a SEM and writes APA 7 tables about
+        # it. Without model syntax there is nothing to fit, so return a real
+        # .docx stating what was run, why these tables do not apply, and how to
+        # get them -- instead of a 422 the front end turned into
+        # "Run an analysis first."
+        if not model.strip():
+            # Local import to match the one further down this function: that
+            # later `from fastapi.responses import StreamingResponse` makes the
+            # name a local for the WHOLE function scope, so using the
+            # module-level one up here raises UnboundLocalError.
+            from fastapi.responses import StreamingResponse
+            from app.export_docx import generate_unavailable_docx
+            logger.info("export/docx: no model syntax; returning explanatory document")
+            buf = generate_unavailable_docx(
+                analysis_type=analysis_type or "Non-SEM analysis",
+                data_file=file.filename or "",
+                n_obs=int(len(df)),
+            )
+            return StreamingResponse(
+                buf,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={"Content-Disposition":
+                         'attachment; filename="naval_sem_report_unavailable.docx"'},
+            )
 
         # ── Missing data + reverse scoring (parity with /run) ────────────
         if missing == "listwise":
