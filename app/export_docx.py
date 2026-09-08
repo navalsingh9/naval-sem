@@ -1010,3 +1010,101 @@ if __name__ == "__main__":
     assert len_no_ipma > 0, "generate_docx() returned an empty buffer!"  # nosec B101 — smoke test only, never runs in production
     assert len_ipma > len_no_ipma, "IPMA section (table + image) did not add any content!"  # nosec B101
     print("[SMOKE TEST]  Non-empty BytesIO + IPMA section confirmed. All assertions passed. ✓")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Explanatory document for analyses this exporter cannot render
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# The .docx report is APA 7 for SEM: measurement model, discriminant validity,
+# structural paths. Those tables are SEM constructs, so an analysis with no
+# fitted structural model -- fsQCA above all, which is set-theoretic and has no
+# lavaan syntax at all -- has nothing for them to hold.
+#
+# The old behaviour was to refuse with alert('Run an analysis first.'), which is
+# wrong twice over: the user HAS run an analysis, and the message names neither
+# the real reason nor a way forward. PDF and PNG export fine from the same run,
+# so a silent .docx refusal reads as a broken button.
+#
+# This returns a real .docx instead: what was run, why the APA 7 tables are not
+# applicable to it, and the steps to get one.
+
+def generate_unavailable_docx(
+    analysis_type: str = "",
+    data_file: str = "",
+    n_obs: Optional[int] = None,
+    reason: str = "",
+) -> io.BytesIO:
+    """
+    Build a short .docx explaining why an APA 7 report could not be produced.
+
+    Returns a seeked BytesIO, exactly like generate_docx(), so the route can
+    stream either one without branching on the type.
+    """
+    doc = Document()
+
+    section = doc.sections[0]
+    for attr in ("top_margin", "bottom_margin", "left_margin", "right_margin"):
+        setattr(section, attr, Inches(1))
+
+    def _para(text: str, *, bold: bool = False, size: int = 11,
+              align=WD_ALIGN_PARAGRAPH.LEFT, after: int = 6, style: str = None):
+        p = doc.add_paragraph(style=style)
+        r = p.add_run(text)
+        r.font.name = _BODY_FONT
+        r.font.size = Pt(size)
+        r.bold = bold
+        p.alignment = align
+        p.paragraph_format.space_after = Pt(after)
+        return p
+
+    _para("NAVAL-SEM — APA 7th Edition Report Not Available",
+          bold=True, size=14, align=WD_ALIGN_PARAGRAPH.CENTER, after=12)
+
+    _para("What was run", bold=True, size=12, after=4)
+    rows = [
+        ("Analysis type", analysis_type or "—"),
+        ("Data file", data_file or "—"),
+        ("Observations", str(n_obs) if n_obs is not None else "—"),
+    ]
+    t = doc.add_table(rows=len(rows), cols=2)
+    _apply_apa_borders(t, len(rows), 2)
+    for i, (k, v) in enumerate(rows):
+        _cell_write(t.cell(i, 0), k, bold=True)
+        _cell_write(t.cell(i, 1), v)
+    doc.add_paragraph()
+
+    _para("Why this report is empty", bold=True, size=12, after=4)
+    _para(reason or (
+        "The .docx report is an APA 7th-edition write-up of a structural "
+        "equation model: the measurement model (loadings, AVE, CR, Cronbach's "
+        "alpha), discriminant validity (HTMT), and the structural paths. Those "
+        "tables describe a fitted SEM. This run did not produce one, so there "
+        "is nothing for them to report."
+    ), after=10)
+
+    _para("What to do instead", bold=True, size=12, after=4)
+    for step in (
+        "Export as PDF or PNG. Those render the on-screen report exactly as you "
+        "see it, including fsQCA necessity and sufficiency tables, and are "
+        "produced from the run you have already done — no re-fitting.",
+        "If you want the APA 7 .docx tables, build a structural model on the "
+        "Model canvas (or paste lavaan syntax into the syntax panel) and run a "
+        "SEM analysis. The .docx export becomes available once a model has been "
+        "fitted.",
+        "fsQCA results are not a substitute for SEM tables and vice versa: they "
+        "answer different questions. Reporting both is normal, and each has its "
+        "own export.",
+    ):
+        _para("•  " + step, after=4)
+
+    _para(
+        "This document was generated deliberately, so that a failed export "
+        "leaves you with the reason rather than nothing.",
+        size=9, after=0,
+    )
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
