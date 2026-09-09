@@ -83,7 +83,7 @@ dependencies = [
     "sympy==1.14.0",
     "threadpoolctl==3.6.0",
     "typing-extensions==4.16.0",
-    "typing-inspection==0.4.2",
+    "typing-inspection==0.4.4",
     "tzdata==2026.3",
     "uvicorn[standard]==0.52.1",
     "watchfiles==1.2.0",
