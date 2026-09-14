@@ -45,7 +45,7 @@ dependencies = [
     "opentimestamps==0.4.5",
     "packaging==26.3",
     "pandas==3.0.5",
-    "patsy==1.0.2",
+    "patsy==1.0.3",
     "pingouin==0.6.1",
     "proxy-tools==0.1.0",
     "pycparser==3.0",
