@@ -10,7 +10,7 @@ dependencies = [
     "anyio==4.14.2",
     "bottle==0.13.4",
     "cffi==2.1.1",
-    "click==8.4.2",
+    "click==8.5.0",
     "clr-loader==0.3.1",
     "colorama==0.4.6",
     "et-xmlfile==2.0.0",
