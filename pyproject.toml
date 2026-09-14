@@ -18,7 +18,7 @@ dependencies = [
     "fastapi==0.141.1",
     "h11==0.16.0",
     "httptools==0.8.0",
-    "idna==3.18",
+    "idna==3.19",
     "joblib==1.5.3",
     # matplotlib powers the IPMA quadrant chart (engine_ipma.py). Unlike the
     # lazily-imported packages below (pyreadstat, python-docx, reportlab),
