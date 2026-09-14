@@ -85,7 +85,7 @@ dependencies = [
     "typing-extensions==4.16.0",
     "typing-inspection==0.4.2",
     "tzdata==2026.3",
-    "uvicorn[standard]==0.52.1",
+    "uvicorn[standard]==0.52.4",
     "watchfiles==1.2.0",
     "websockets==17.0.1",
     "xlrd==2.0.2",
