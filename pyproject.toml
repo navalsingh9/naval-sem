@@ -60,7 +60,7 @@ dependencies = [
     # degrades gracefully with an actionable error if this is missing, but it
     # should stay declared so a standard `uv sync` doesn't need a follow-up step.
     "python-docx==1.2.0",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "python-multipart==0.0.32",
     "pythonnet==3.1.0",
     "pywebview==6.2.1",
