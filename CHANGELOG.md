@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.6] - 2026-09-17
+
+### Fixed
+
+- **Background blur now respects the OS "reduce transparency" preference.** Follow-up hardening of the renderer-capability probe from v2.0.3: an untouched install defers to `prefers-reduced-transparency` unless you explicitly opt back into full effects via the Effects button; the automatic downgrade is now only persisted after two consecutive slow launches, so a single slow frame (antivirus scan, busy background tab) can't permanently strip the design; and the reduced-effects media query now also covers `::before`/`::after` pseudoelements. PR #222.
+- **fsQCA and the APA `.docx` export stopped failing silently.** An fsQCA run that produced no truth-table rows showed three empty solutions with no explanation — the engine had already computed the reason and put it in `warnings`, but neither renderer read them, so a legitimate diagnostic read as a broken feature. The solutions look-ups and warnings display now surface the cause, and the `.docx` export no longer swallows failures. PR #201.
+- **`master` was unbuildable.** A dependabot `pyinstaller` bump edited `pyproject.toml` and left `uv.lock` behind, so `uv sync --locked` (what every release job runs) refused to proceed. Regenerated the lockfile and added a CI **Consistency** check that refuses such drift — it also verifies `pyproject.toml`, `CITATION.cff`, `app/version.py` and `uv.lock` all declare the same version. PR #199.
+- **Closed the three open Bandit alerts (B110 bare excepts) and the duplicate element IDs.** The bare `except Exception: pass` handlers were swapped for real logging, and the duplicated IDs were removed rather than renamed. PR #200.
+
+### Changed
+
+- **Bandit job renamed to `Bandit scan`.** The bare job key made the Actions check render lowercase (`bandit`) while the SARIF upload produced a second title-case `Bandit` check on every PR; explicit naming keeps the two distinct under branch protection. Also aligned the `actions/checkout` pin annotation with the rest of the repo. PR #223.
+- **CI housekeeping.** Dependabot switched to the native `uv` ecosystem; `actions/setup-python` 7.0.0, `astral-sh/setup-uv` 10.1.0, and the CodeQL action group updated; Scorecard now uses an admin-scoped token for accurate branch-protection scoring. Runtime dependency bumps: `patsy`, `python-dotenv`, `idna`, `click`, `uvicorn[standard]` → 0.52.4. Build toolchain: `pyinstaller` 6.22.2.
+
 ## [v2.0.5] - 2026-09-05
 
 ### Fixed
