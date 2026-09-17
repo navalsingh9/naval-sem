@@ -7,6 +7,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.9] - 2026-09-17
+
+### Fixed
+
+- **The Model-tab tool buttons (Latent variable / Observed indicator) still did not change on click.** Root cause located at the CSS level rather than the paint level: the four containers that host translucent active-state controls — `.model-sidebar`, `.canvas-bar`, `.ana-nav`, `.rep-nav` — each apply `backdrop-filter` themselves, so the `.on` background is painted *onto* the container's blur layer. That is precisely the WebKit case where the class lands in the DOM but the pixels never update on partially-accelerated compositors. Instead of relying on the probe or on per-control layer promotion (either of which can be defeated or can stall the compositor), the blur is now removed from the **host containers** themselves: the controls sit on an ordinary painting layer, so the `.on` repaint is immediate on any renderer — accelerated, software, or OCLP. The ambient/orb blur and the topbar/drawer blur (no translucent active controls) are untouched. PR #228.
+
 ## [v2.0.8] - 2026-09-17
 
 ### Fixed
