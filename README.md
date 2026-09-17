@@ -64,7 +64,7 @@ Built for people who need real SEM output without a subscription or a data-priva
 
 NAVAL-SEM starts a local FastAPI server on `127.0.0.1:8765` and opens the UI in a native window. Nothing is transmitted anywhere unless you explicitly opt into timestamping a fingerprint hash — your raw data never does.
 
-**v2.0.0** is the current stable release. **v1.1.5 LTS** (2 Aug 2026) remains the long-term-support milestone with frozen public API schemas — cite this build in your methods section if schema stability matters more than new features.
+**v2.0.6** is the current stable release. **v1.1.5 LTS** (2 Aug 2026) remains the long-term-support milestone with frozen public API schemas — cite this build in your methods section if schema stability matters more than new features.
 
 ---
 
@@ -249,7 +249,13 @@ A `CITATION.cff` in the repository root supports APA 7, BibTeX, and RIS export.
 
 | Version | Date | Highlights |
 |---|---|---|
-| **v2.0.0** | 22 Aug 2026 | Bitcoin timestamping (OpenTimestamps) provenance across all analyses; method-name tooltips; fsQCA report/live-log fixes; dark-mode table fixes |
+| **v2.0.6** | 17 Sep 2026 | Effects/blur respects the OS reduce-transparency preference; fsQCA & .docx exports no longer fail silently; unbuildable-lock fix + CI consistency checks; Bandit job renamed |
+| v2.0.5 | 5 Sep 2026 | Fixed the update indicator misreading GitHub 403s as offline; 6-hour update-check cache; distinct "rate limited" state |
+| v2.0.4 | 4 Sep 2026 | Fixed a second launch killing the first one's server (single-instance lock, held port, shutdown race) |
+| v2.0.3 | 5 Sep 2026 | Fixed tool buttons not repainting on WebKit plus slower launches; background-blur renderer probe with an Effects toggle |
+| v2.0.2 | 5 Sep 2026 | Packaging toolchain separated from runtime deps; workflow_dispatch builds fixed; metadata/version consistency |
+| v2.0.1 | 22 Aug 2026 | Fixed Bitcoin timestamping failing to initialize in packaged builds (OpenTimestamps) |
+| v2.0.0 | 22 Aug 2026 | Bitcoin timestamping (OpenTimestamps) provenance across all analyses; method-name tooltips; fsQCA report/live-log fixes; dark-mode table fixes |
 | v1.1.9 | 11 Aug 2026 | HOC syntax auto-detection with user guidance; Downloads tab renamed to Outputs |
 | v1.1.5 LTS | 2 Aug 2026 | Report export rebuilds diagram from live theme before capture — fixes stale-theme exports |
 | v1.1.4 | 2 Aug 2026 | Fixed HOC diagram auto-layout; hardcoded dark export background |
