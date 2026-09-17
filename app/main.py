@@ -894,6 +894,10 @@ async def check_updates(force: bool = False):
         release_name = data.get("name") or f"v{latest_tag}"
 
         update_available = _ver_tuple(latest_tag) > _ver_tuple(APP_VERSION)
+        logger.info(
+            "check-updates: running v%s, latest is v%s (%s)",
+            APP_VERSION, latest_tag, "update available" if update_available else "up to date",
+        )
         payload = {
             "current_version": APP_VERSION,
             "latest_version":  latest_tag,
