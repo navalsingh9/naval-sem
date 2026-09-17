@@ -7,6 +7,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.7] - 2026-09-17
+
+### Fixed
+
+- **Model-tab tool buttons (latent variable ↔ observed indicator) could appear dead on click in the packaged app.** The click registered, but WebKit failed to repaint the translucent active background of controls sitting inside a `backdrop-filter` layer (WKWebView on macOS, WebKitGTK on Linux). The v2.0.3 fix relied solely on a startup probe that removes the blur when the compositor cannot afford it; machines that *could* afford the blur but still glitched on invalidation were never covered. Restored the one thing the probe path lacked: each interactive control (`.tool`, `.ctool`, `.rtab`, `.ani`, `.stab`) now gets its own compositing layer via `translateZ(0)`, so its active-state repaint no longer depends on the parent's blurred layer. The probe now also samples the model canvas, since blurred `.lv`/`.obs` nodes make the blur cost scale with the size of the model. PR #225.
+- **The update indicator could report "offline" with no trace of why.** The server path was already verified correct (a 403 now reads "Limited", not "Offline"; the result is cached 6 hours); the missing piece was that the success path logged nothing, so a repeated report had no evidence in the app log. The endpoint now logs which version it is running against. PR #225.
+
 ## [v2.0.6] - 2026-09-17
 
 ### Fixed
