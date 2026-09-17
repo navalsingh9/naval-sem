@@ -363,21 +363,25 @@ button { cursor: pointer; }
    tool buttons (latent variable vs observed indicator, etc.) appearing dead
    on click. Affects WKWebView (macOS) and WebKitGTK (Linux); Windows uses
    WebView2 (Chromium) and never showed it.
-   translateZ(0) gives each control its own compositing layer, so its repaint
-   no longer depends on the parent's blurred layer -- toggle the class and the
-   pixels follow. The narrowed transitions are the second half: `transition:
-   all` animated the translucent change, which is the exact case WebKit drops,
-   while animating layout properties nobody changes. This is belt-and-suspenders
-   with the `html.reduced-effects` probe below: the probe strips the blur where
-   the compositor cannot afford it, and translateZ(0) covers the machines where
-   the blur is affordable but the invalidation still glitches. */
+   We do NOT promote every control: mass translateZ(0) promotion creates a
+   compositing surface per button, and on a partially-accelerated legacy
+   compositor (OLDCP-patched GPUs, 2011-era Macs on macOS) dozens of surfaces
+   stall the compositor and the whole window stops responding to clicks. The
+   surgical version below promotes ONLY the one active (.on) control, so a
+   single layer is ever in play; when it is torn down on switch, WebKit must
+   re-resolve the parent's blurred backdrop, which is exactly the re-composite
+   that unsticks the region. The narrowed transitions are the second half:
+   `transition: all` animated the translucent change, which is the exact case
+   WebKit drops, while animating layout properties nobody changes. This sits
+   alongside the `html.reduced-effects` probe below, which strips the blur
+   outright where the compositor cannot afford it. */
 .tool {
   display: flex; align-items: center; gap: 10px;
   font-size: 12px; font-weight: 400; color: var(--t2);
   padding: 8px 10px; border-radius: var(--r-sm);
   background: transparent; border: .5px solid transparent;
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
-  text-align: left; transform: translateZ(0);
+  text-align: left;
 }
 .tool:hover { background: var(--glass-hover); border-color: var(--line); color: var(--t1); }
 .tool.on { background: var(--accent-soft); border-color: rgba(59,130,246,.3); color: var(--accent-text); }
@@ -427,7 +431,7 @@ button { cursor: pointer; }
 .ctool {
   font-size: 12px; padding: 5px 13px;
   border-radius: var(--pill); background: transparent; border: none;
-  color: var(--t2); transition: background-color .14s, color .14s; transform: translateZ(0);
+  color: var(--t2); transition: background-color .14s, color .14s;
 }
 .ctool:hover { color: var(--t1); background: var(--glass-hover); }
 .ctool.on { background: var(--glass-active); color: var(--t0); }
@@ -483,7 +487,7 @@ button { cursor: pointer; }
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
   transition: color .15s, border-bottom-color .15s; white-space: nowrap;
-  transform: translateZ(0); letter-spacing: .1px;
+  letter-spacing: .1px;
   flex-shrink: 0;
 }
 .rtab:hover { color: var(--t1); }
@@ -562,7 +566,6 @@ button { cursor: pointer; }
   padding: 7px 10px; border-radius: var(--r-sm);
   border: .5px solid transparent; cursor: pointer;
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
-  transform: translateZ(0);
 }
 .ani:hover { background: var(--glass-hover); color: var(--t1); }
 .ani.on { background: var(--accent-soft); border-color: rgba(59,130,246,.22); color: var(--accent-text); }
@@ -669,10 +672,18 @@ button { cursor: pointer; }
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
   transition: color .15s, border-bottom-color .15s; white-space: nowrap;
-  transform: translateZ(0);
 }
 .stab:hover { color: var(--t1); }
 .stab.on { color: var(--t0); border-bottom-color: var(--accent); }
+
+/* Surgical WebKit repaint promotion (see the note above .tool): only the ONE
+   control that is currently active gets a compositing layer. A single layer
+   cannot stall an old/partially-accelerated compositor, and tearing it down
+   on switch forces the parent's blurred backdrop to re-resolve -- the exact
+   re-composite that flushes the stale translucent .on paint. */
+.tool.on, .tool.on .ticon, .ctool.on, .rtab.on, .ani.on, .stab.on {
+  transform: translateZ(0);
+}
 
 .res-scroll {
   flex: 1; overflow-y: auto; padding: 18px 18px;
@@ -3375,6 +3386,17 @@ function setTool(t){
   if(hb) hb.classList.toggle('on',t==='hand');
   _svgEl.style.cursor=t==='hand'?'grab':'';
   validateNodeLabel();
+  // The .on layer promotion (above) usually lands the repaint by itself; this
+  // is the belt-and-suspenders nudge for compositors where adding/removing a
+  // single layer still leaves the parent's blurred backdrop stale. Promoting
+  // the sidebar for one frame forces the re-composite WebKit needs to flush
+  // the translucent .on change, then tears it down. Transient and cheap even
+  // on an unaccelerated machine.
+  const sb = document.querySelector('.model-sidebar');
+  if (sb) {
+    sb.style.transform = 'translateZ(0)';
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (sb) sb.style.transform = ''; }));
+  }
 }
 
 function toggleColPills(){
@@ -11217,10 +11239,10 @@ function toggleResultsPanel() {
     // Force the blurred region to re-composite so we measure blur, not idle.
     const off = (frames.length % 2) ? '0.999' : '1';
     probe.style.opacity = off;
-    if (canvas) canvas.style.opacity = off;
+    if (canvas && canvas.childElementCount) canvas.style.opacity = off;   // skip an empty canvas -- pointless load-time cost on slow machines
     if (frames.length < SAMPLES) { requestAnimationFrame(tick); return; }
     probe.style.opacity = '';
-    if (canvas) canvas.style.opacity = '';
+    if (canvas && canvas.childElementCount) canvas.style.opacity = '';
     frames.sort((a, b) => a - b);
     const n      = frames.length;
     const median = (frames[(n - 1) >> 1] + frames[n >> 1]) / 2;
