@@ -11208,6 +11208,44 @@ function toggleResultsPanel() {
 // consecutive launches fail, so a one-off hitch -- an antivirus scan, a busy
 // background tab -- cannot permanently strip the design. The Effects button
 // always wins and resets the probe counter.
+/* Panel repaint flush ---------------------------------------------------------
+   Some partially-accelerated WebKit builds stop re-rastering a panel after a
+   class toggle on its controls: the `.on` highlight changes the DOM but never
+   reaches the pixels, while unrelated regions (the canvas, the tabs) keep
+   painting normally. We already removed the host's backdrop-filter and promote
+   the active control -- but both are *requests* the compositor may ignore.
+
+   This is deterministic: whenever a tool/tab control's class changes, the host
+   panel is removed from the DOM and re-inserted in the same frame, forcing a
+   full re-layout + re-raster of that subtree on any engine (accelerated,
+   software, or OCLP). Because the MutationObserver callback runs before the
+   next paint, no stale frame is ever shown. Panels are small, so the cost per
+   toggle is a single cheap subtree move. */
+(function(){
+  const HOST = '.model-sidebar, .canvas-bar, .ana-nav, .rep-nav, .rtab-bar, .sub-tabs';
+  const TRIG = ['tool','ctool','ani','stab','rtab','rni'];
+  function reinsert(h){
+    const p  = h.parentNode, n = h.nextSibling;
+    if (!p) return;
+    const st = h.scrollTop;
+    p.removeChild(h);
+    if (n && n.parentNode === p) p.insertBefore(h, n); else p.appendChild(h);
+    h.scrollTop = st;
+  }
+  window._flushPanelPaint = function(){ document.querySelectorAll(HOST).forEach(reinsert); };
+  try {
+    new MutationObserver(muts => {
+      for (const m of muts) {
+        const t = m.target;
+        if (t && t.classList && TRIG.some(c => t.classList.contains(c))) {
+          window._flushPanelPaint();
+          return;
+        }
+      }
+    }).observe(document.documentElement, {subtree: true, attributes: true, attributeFilter: ['class']});
+  } catch (e) {}
+})();
+
 (function initEffects(){
   const KEY       = 'naval_sem_effects';
   const FAIL_KEY  = 'naval_sem_effects_fails';

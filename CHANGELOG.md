@@ -7,6 +7,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.10] - 2026-09-17
+
+### Fixed
+
+- **Model-tab tool buttons still showed a stale active state on OCLP/legacy Macs** (behavior worked — clicking Observed indicator really selected it — but the `.on` highlight never repainted). Root cause is WebKit refusing to re-raster the host panel after a class toggle, which neither removing the host's backdrop-filter (v2.0.9) nor per-control layer promotion (v2.0.8) could force. v2.0.10 adds a deterministic panel repaint flush: whenever a tool/tab control's class changes, the host panel is re-inserted in the same frame (DOM re-order of its own subtree), forcing a full re-layout + re-raster on any engine, accelerated or software. The flush runs before the next paint, so no stale frame is shown; the panels are small, so the cost per toggle is negligible. PR #229.
+
 ## [v2.0.9] - 2026-09-17
 
 ### Fixed

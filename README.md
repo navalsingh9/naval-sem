@@ -64,7 +64,7 @@ Built for people who need real SEM output without a subscription or a data-priva
 
 NAVAL-SEM starts a local FastAPI server on `127.0.0.1:8765` and opens the UI in a native window. Nothing is transmitted anywhere unless you explicitly opt into timestamping a fingerprint hash — your raw data never does.
 
-**v2.0.9** is the current stable release. **v1.1.5 LTS** (2 Aug 2026) remains the long-term-support milestone with frozen public API schemas — cite this build in your methods section if schema stability matters more than new features.
+**v2.0.10** is the current stable release. **v1.1.5 LTS** (2 Aug 2026) remains the long-term-support milestone with frozen public API schemas — cite this build in your methods section if schema stability matters more than new features.
 
 ---
 
@@ -249,7 +249,8 @@ A `CITATION.cff` in the repository root supports APA 7, BibTeX, and RIS export.
 
 | Version | Date | Highlights |
 |---|---|---|
-| **v2.0.9** | 17 Sep 2026 | Removed backdrop-filter from the tool/tab button hosts — .on states now repaint on any renderer, incl. OCLP Macs |
+| **v2.0.10** | 17 Sep 2026 | Deterministic panel repaint flush — tool/tab active states now repaint even when WebKit refuses (OCLP/software renderers) |
+| v2.0.9 | 17 Sep 2026 | Removed backdrop-filter from the tool/tab button hosts — .on states now repaint on any renderer, incl. OCLP Macs |
 | v2.0.8 | 17 Sep 2026 | Fixed whole-window click freeze on legacy/OCLP Macs (surgical one-layer repaint, not mass promotion); empty-canvas probe skipped |
 | v2.0.7 | 17 Sep 2026 | Fixed model-tab tool buttons (latent/observed) appearing dead on click in WebKit; blur probe now covers the canvas; update-check success now logged |
 | v2.0.6 | 17 Sep 2026 | Effects/blur respects the OS reduce-transparency preference; fsQCA & .docx exports no longer fail silently; unbuildable-lock fix + CI consistency checks; Bandit job renamed |
