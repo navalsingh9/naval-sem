@@ -69,7 +69,7 @@ dependencies = [
     # degrades gracefully with an actionable error if this is missing, but it
     # should stay declared so a standard `uv sync` doesn't need a follow-up step.
     "reportlab==5.0.0",
-    "scikit-learn==1.9.0",
+    "scikit-learn==1.9.1",
     "scipy==1.17.1",
     # semopy is a hard dependency of fit_model() in engine.py even on the PLS
     # path (presence-checked at the top of the function before branching on
