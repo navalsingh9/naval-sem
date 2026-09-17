@@ -54,7 +54,7 @@ dependencies = [
     # imported with a friendly ImportError message, so its absence only
     # breaks SPSS-file uploads specifically — it does not stop the server
     # from starting.
-    "pyreadstat==1.3.5",
+    "pyreadstat==1.3.6",
     "python-dateutil==2.9.0.post0",
     # python-docx powers /export/docx (app/export_docx.py). The endpoint already
     # degrades gracefully with an actionable error if this is missing, but it
