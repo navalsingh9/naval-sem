@@ -353,13 +353,31 @@ button { cursor: pointer; }
 .drawer-close:hover { color: var(--t1); }
 .sl { font-size: 9px; font-weight: 500; letter-spacing: 2px; color: var(--t3); text-transform: uppercase; padding: 8px 8px 3px; }
 .sl:first-child { padding-top: 2px; }
+/* WebKit repaint fix. These controls sit inside a backdrop-filter ancestor
+   (.model-sidebar / .ana-nav / .rep-nav), which promotes that ancestor to a
+   compositing layer. Their active state is a TRANSLUCENT background painted
+   onto that layer, and an unaccelerated (or partially accelerated) WebKit can
+   fail to invalidate the backdrop region when the class changes -- the class
+   lands, the pixels don't, and the control only looks right after something
+   forces a re-composite (e.g. switching tabs). That manifests as the canvas
+   tool buttons (latent variable vs observed indicator, etc.) appearing dead
+   on click. Affects WKWebView (macOS) and WebKitGTK (Linux); Windows uses
+   WebView2 (Chromium) and never showed it.
+   translateZ(0) gives each control its own compositing layer, so its repaint
+   no longer depends on the parent's blurred layer -- toggle the class and the
+   pixels follow. The narrowed transitions are the second half: `transition:
+   all` animated the translucent change, which is the exact case WebKit drops,
+   while animating layout properties nobody changes. This is belt-and-suspenders
+   with the `html.reduced-effects` probe below: the probe strips the blur where
+   the compositor cannot afford it, and translateZ(0) covers the machines where
+   the blur is affordable but the invalidation still glitches. */
 .tool {
   display: flex; align-items: center; gap: 10px;
   font-size: 12px; font-weight: 400; color: var(--t2);
   padding: 8px 10px; border-radius: var(--r-sm);
   background: transparent; border: .5px solid transparent;
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
-  text-align: left;
+  text-align: left; transform: translateZ(0);
 }
 .tool:hover { background: var(--glass-hover); border-color: var(--line); color: var(--t1); }
 .tool.on { background: var(--accent-soft); border-color: rgba(59,130,246,.3); color: var(--accent-text); }
@@ -409,7 +427,7 @@ button { cursor: pointer; }
 .ctool {
   font-size: 12px; padding: 5px 13px;
   border-radius: var(--pill); background: transparent; border: none;
-  color: var(--t2); transition: background-color .14s, color .14s;
+  color: var(--t2); transition: background-color .14s, color .14s; transform: translateZ(0);
 }
 .ctool:hover { color: var(--t1); background: var(--glass-hover); }
 .ctool.on { background: var(--glass-active); color: var(--t0); }
@@ -465,7 +483,7 @@ button { cursor: pointer; }
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
   transition: color .15s, border-bottom-color .15s; white-space: nowrap;
-  letter-spacing: .1px;
+  transform: translateZ(0); letter-spacing: .1px;
   flex-shrink: 0;
 }
 .rtab:hover { color: var(--t1); }
@@ -544,6 +562,7 @@ button { cursor: pointer; }
   padding: 7px 10px; border-radius: var(--r-sm);
   border: .5px solid transparent; cursor: pointer;
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  transform: translateZ(0);
 }
 .ani:hover { background: var(--glass-hover); color: var(--t1); }
 .ani.on { background: var(--accent-soft); border-color: rgba(59,130,246,.22); color: var(--accent-text); }
@@ -650,6 +669,7 @@ button { cursor: pointer; }
   border: none; background: transparent;
   color: var(--t3); border-bottom: 1.5px solid transparent;
   transition: color .15s, border-bottom-color .15s; white-space: nowrap;
+  transform: translateZ(0);
 }
 .stab:hover { color: var(--t1); }
 .stab.on { color: var(--t0); border-bottom-color: var(--accent); }
@@ -11142,6 +11162,9 @@ function toggleResultsPanel() {
 // on every sampled frame and times the result. A machine that cannot hold a
 // reasonable rate under that load gets the blur dropped, which fixes both the
 // sluggishness and the stale-paint bug described in the CSS note above.
+// The canvas is sampled too: `backdrop-filter` on the .lv/.obs nodes makes the
+// blur cost scale with the size of the model, and a small sidebar panel alone
+// can mask a canvas that the composer cannot repaint.
 //
 // A single slow measurement is not trusted: the downgrade is applied at once
 // (the WebKit stale-paint bug is real) but only persisted after two
@@ -11184,6 +11207,7 @@ function toggleResultsPanel() {
   apply(false, false);                                        // default: keep the design (OS preference may reduce)
 
   const probe  = document.querySelector('.model-sidebar') || document.body;
+  const canvas = document.getElementById('sem-canvas');   // blur cost scales with the model
   const frames = [];
   let   last   = 0;
 
@@ -11191,9 +11215,12 @@ function toggleResultsPanel() {
     if (last) frames.push(now - last);
     last = now;
     // Force the blurred region to re-composite so we measure blur, not idle.
-    probe.style.opacity = (frames.length % 2) ? '0.999' : '1';
+    const off = (frames.length % 2) ? '0.999' : '1';
+    probe.style.opacity = off;
+    if (canvas) canvas.style.opacity = off;
     if (frames.length < SAMPLES) { requestAnimationFrame(tick); return; }
     probe.style.opacity = '';
+    if (canvas) canvas.style.opacity = '';
     frames.sort((a, b) => a - b);
     const n      = frames.length;
     const median = (frames[(n - 1) >> 1] + frames[n >> 1]) / 2;
