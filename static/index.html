@@ -544,7 +544,6 @@ button { cursor: pointer; }
   padding: 7px 10px; border-radius: var(--r-sm);
   border: .5px solid transparent; cursor: pointer;
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
- 
 }
 .ani:hover { background: var(--glass-hover); color: var(--t1); }
 .ani.on { background: var(--accent-soft); border-color: rgba(59,130,246,.22); color: var(--accent-text); }
@@ -1249,10 +1248,14 @@ html.reduced-effects *::after {
   -webkit-backdrop-filter: none !important;
 }
 
-/* Respect the OS-level preference too, unless effects were explicitly kept. */
+/* Respect the OS-level preference too, unless effects were explicitly kept.
+   `force-full-effects` is only set when the person opts into full effects via
+   the Effects button; the default path leaves it off so this can fire. */
 @media (prefers-reduced-transparency: reduce) {
   html:not(.force-full-effects),
-  html:not(.force-full-effects) * {
+  html:not(.force-full-effects) *,
+  html:not(.force-full-effects) *::before,
+  html:not(.force-full-effects) *::after {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -11139,16 +11142,29 @@ function toggleResultsPanel() {
 // on every sampled frame and times the result. A machine that cannot hold a
 // reasonable rate under that load gets the blur dropped, which fixes both the
 // sluggishness and the stale-paint bug described in the CSS note above.
+//
+// A single slow measurement is not trusted: the downgrade is applied at once
+// (the WebKit stale-paint bug is real) but only persisted after two
+// consecutive launches fail, so a one-off hitch -- an antivirus scan, a busy
+// background tab -- cannot permanently strip the design. The Effects button
+// always wins and resets the probe counter.
 (function initEffects(){
-  const KEY  = 'naval_sem_effects';
-  const root = document.documentElement;
+  const KEY       = 'naval_sem_effects';
+  const FAIL_KEY  = 'naval_sem_effects_fails';
+  const MAX_FAILS = 2;             // consecutive slow launches before persisting
+  const SAMPLES   = 24;
+  const BUDGET    = 28;            // ms; ~36fps. Generous -- only clear failures count.
+  const root      = document.documentElement;
 
-  const read  = () => { try { return localStorage.getItem(KEY); } catch(e) { return null; } };
-  const write = v  => { try { localStorage.setItem(KEY, v); } catch(e) {} };
+  const read  = (k, fb) => { try { const v = localStorage.getItem(k); return v === null ? fb : v; } catch(e) { return fb; } };
+  const write = (k, v)  => { try { localStorage.setItem(k, v); } catch(e) {} };
+  const clear = (k)     => { try { localStorage.removeItem(k); } catch(e) {} };
 
-  function apply(reduced){
+  function apply(reduced, explicitFull){
+    // `force-full-effects` only marks an explicit in-app choice, so an
+    // untouched default still defers to prefers-reduced-transparency below.
     root.classList.toggle('reduced-effects', reduced);
-    root.classList.toggle('force-full-effects', !reduced);
+    root.classList.toggle('force-full-effects', !reduced && !!explicitFull);
     const lbl = document.getElementById('fx-label');
     if (lbl) lbl.textContent = reduced ? 'Effects off' : 'Effects';
     const btn = document.getElementById('fx-btn');
@@ -11157,20 +11173,19 @@ function toggleResultsPanel() {
 
   window.toggleEffects = function(){
     const reduced = !root.classList.contains('reduced-effects');
-    apply(reduced);
-    write(reduced ? 'reduced' : 'full');
+    apply(reduced, !reduced);
+    write(KEY, reduced ? 'reduced' : 'full');
+    clear(FAIL_KEY);
   };
 
-  const saved = read();
-  if (saved === 'reduced') { apply(true);  return; }   // person chose this
-  if (saved === 'full')    { apply(false); return; }   // person chose this
-  apply(false);                                        // default: keep the design
+  const saved = read(KEY, null);
+  if (saved === 'reduced') { apply(true,  false); return; }   // person chose this
+  if (saved === 'full')    { apply(false, true);  return; }   // person chose this
+  apply(false, false);                                        // default: keep the design (OS preference may reduce)
 
-  const SAMPLES = 24;
-  const BUDGET  = 28;            // ms; ~36fps. Generous -- only clear failures count.
-  const probe   = document.querySelector('.model-sidebar') || document.body;
-  const frames  = [];
-  let   last    = 0;
+  const probe  = document.querySelector('.model-sidebar') || document.body;
+  const frames = [];
+  let   last   = 0;
 
   function tick(now){
     if (last) frames.push(now - last);
@@ -11180,12 +11195,17 @@ function toggleResultsPanel() {
     if (frames.length < SAMPLES) { requestAnimationFrame(tick); return; }
     probe.style.opacity = '';
     frames.sort((a, b) => a - b);
-    const median = frames[frames.length >> 1];
+    const n      = frames.length;
+    const median = (frames[(n - 1) >> 1] + frames[n >> 1]) / 2;
     if (median > BUDGET) {
-      apply(true);
-      write('reduced');
+      apply(true, false);
+      const fails = (parseInt(read(FAIL_KEY, '0'), 10) || 0) + 1;
+      if (fails >= MAX_FAILS) { write(KEY, 'reduced'); clear(FAIL_KEY); }
+      else write(FAIL_KEY, String(fails));
       console.info('[NAVAL-SEM] Blur disabled: median frame ' + median.toFixed(1) +
                    'ms exceeds the ' + BUDGET + 'ms budget. Re-enable with the Effects button.');
+    } else {
+      clear(FAIL_KEY);   // machine recovered -- a stray slow run no longer counts
     }
   }
   // Measure the steady state, not application startup.
