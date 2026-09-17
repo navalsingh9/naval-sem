@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.8] - 2026-09-17
+
+### Fixed
+
+- **The whole window could stop responding to clicks on legacy/patched Macs.** v2.0.7 restored `translateZ(0)` on *every* interactive control to cure the WebKit repaint bug; on a partially-accelerated compositor — OpenCore-Legacy-Patcher Macs (e.g. a 2011 iMac running macOS Sonoma) — dozens of forced compositing surfaces stall the compositor and the entire app stops reacting. v2.0.8 replaces the mass promotion with a **surgical one**: only the single control currently holding `.on` gets a layer, so at most one surface is ever in play, and tearing it down on switch forces WebKit to re-resolve the blurred backdrop (the re-composite that flushes the stale paint). The same class of bug was seen twice now: mass promotion fixes fast machines and kills weak ones, so the fix stays scoped to one active control at a time. PR #227.
+
+### Changed
+
+- **The model-canvas blur probe is skipped while the canvas is empty** (avoids pointless load-time style churn on slow machines), and clicking a canvas tool now also nudges a one-frame recomposite of the sidebar as a fallback for compositors where layer teardown alone leaves the backdrop stale. PR #227.
+
 ## [v2.0.7] - 2026-09-17
 
 ### Fixed
