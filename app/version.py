@@ -12,7 +12,7 @@ the compiled default (useful for dev/staging deployments).
 
 import os
 
-_DEFAULT_APP_VERSION = "2.0.8"
+_DEFAULT_APP_VERSION = "2.0.9"
 
 
 def _resolve() -> str:

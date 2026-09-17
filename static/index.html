@@ -1258,6 +1258,21 @@ button { cursor: pointer; }
 .ss-dot.ss-partial { background: var(--amber); }
 #ss-label { transition: color .3s; letter-spacing: .2px; }
 
+/* ── Control-host blur removal ─────────────────────────────────────────────
+   The four containers below paint translucent `.on` states directly onto
+   their own backdrop-filter layer. That is the WebKit case where the class
+   lands in the DOM but the pixels never update (or, worse, the control
+   behaves as if clicking some other element) on partially-accelerated
+   compositors -- OLDCP/2011-era Macs, unaccelerated WebKitGTK. Removing the
+   blur from the HOST puts the controls on an ordinary painting layer, so the
+   `.on` repaint is immediate on any renderer, with no dependency on the probe
+   or on layer promotion. The ambient blur on the orbs and on topbar/drawer
+   (which contain no translucent active-state controls) is untouched. */
+.model-sidebar, .canvas-bar, .ana-nav, .rep-nav {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* ── Reduced effects ───────────────────────────────────────────────────────
    backdrop-filter costs almost nothing on a GPU-composited webview and is
    ruinous without one. Worse, an unaccelerated WebKit also loses paint
