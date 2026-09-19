@@ -302,6 +302,7 @@ NAVAL-SEM is built with researchers and practitioners worldwide. Special thanks 
 
 **Support the project:** [Donate via PayPal](https://www.paypal.com/paypalme/singhn9) · [Submit bug / feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
 
+[![Liberapay receiving](https://img.shields.io/liberapay/receives/singhn9.svg?logo=liberapay)](https://liberapay.com/singhn9/donate)
 ---
 
 ## License
