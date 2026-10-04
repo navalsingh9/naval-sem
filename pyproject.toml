@@ -81,7 +81,7 @@ dependencies = [
     "starlette==1.6.0",
     "statsmodels==0.15.0",
     "sympy==1.14.0",
-    "threadpoolctl==3.6.0",
+    "threadpoolctl==3.7.0",
     "typing-extensions==4.16.0",
     "typing-inspection==0.4.4",
     "tzdata==2026.3",
