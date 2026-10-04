@@ -7,7 +7,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "annotated-doc==0.0.5",
     "annotated-types==0.8.0",
-    "anyio==4.14.2",
+    "anyio==4.15.1",
     "bottle==0.13.4",
     "cffi==2.1.1",
     "click==8.5.0",
