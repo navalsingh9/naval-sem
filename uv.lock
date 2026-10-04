@@ -716,7 +716,7 @@ requires-dist = [
     { name = "matplotlib", specifier = "==3.11.2" },
     { name = "mpmath", specifier = ">=1.3.0,<1.5" },
     { name = "narwhals", specifier = "==2.26.0" },
-    { name = "numdifftools", specifier = "==0.9.42" },
+    { name = "numdifftools", specifier = "==0.11.1" },
     { name = "numpy", specifier = "==2.4.6" },
     { name = "openpyxl", specifier = "==3.1.5" },
     { name = "opentimestamps", specifier = "==0.4.5" },
@@ -766,15 +766,15 @@ build = [
 
 [[package]]
 name = "numdifftools"
-version = "0.9.42"
+version = "0.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/94/7c83677dddc78f93230f4c8a6a5faa06c92699a76eb019386a3aed8a9762/numdifftools-0.9.42.tar.gz", hash = "sha256:866675171f293c4bf2f1e1c5bf9b88a07d5396903e3b3e7fcc3879e2a01cfbc1", size = 79612, upload-time = "2025-12-11T12:06:10.54Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/75/e0/33c9240387173d4a92ae777a91deac759f0b8e9e47e4e3fbd984e17980d2/numdifftools-0.11.1.tar.gz", hash = "sha256:af6d58c22eb201fef9aa4dfc8caf286b14e10154a736c03a45f0a1df2bcec452", size = 82246, upload-time = "2026-09-02T11:53:56.656Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/60/60/c7504633e9fe53dc823db5d83dc15651c595cf35d668781832b4d2748272/numdifftools-0.9.42-py3-none-any.whl", hash = "sha256:22f926b8de24aa44f740bc26744a74555c1c80413068b1dee2edb3c3d10566f6", size = 94252, upload-time = "2025-12-11T12:06:09.322Z" },
+    { url = "https://files.pythonhosted.org/packages/39/84/1a5e50aa81a84ef740e968913b06c78845d3f57e07d022c99a4cea887faa/numdifftools-0.11.1-py3-none-any.whl", hash = "sha256:bae72cba59a45cd1bc842d8438a7643a3013d3bdfc0192829c536fbb03a3679f", size = 96458, upload-time = "2026-09-02T11:53:55.455Z" },
 ]
 
 [[package]]
