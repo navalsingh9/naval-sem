@@ -6,11 +6,25 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      # Listed first: a dependency goes into the first group it matches.
       codeql-action:
         patterns:
           - "github/codeql-action*"
+      # Everything else (setup-uv, checkout, etc.) in one PR.
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # Minor and patch bumps arrive as one PR.
+      # Major bumps still come as separate PRs for individual review.
+      python-deps:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
