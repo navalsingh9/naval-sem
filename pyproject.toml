@@ -15,10 +15,10 @@ dependencies = [
     "colorama==0.4.6",
     "et-xmlfile==2.0.0",
     "factor-analyzer==0.5.1",
-    "fastapi==0.141.1",
+    "fastapi==0.142.2",
     "h11==0.16.0",
     "httptools==0.8.0",
-    "idna==3.19",
+    "idna==3.20",
     "joblib==1.6.0",
     # matplotlib powers the IPMA quadrant chart (engine_ipma.py). Unlike the
     # lazily-imported packages below (pyreadstat, python-docx, reportlab),
@@ -44,12 +44,12 @@ dependencies = [
     # status="unavailable" instead. Free service, no wallet/funds.
     "opentimestamps==0.4.5",
     "packaging==26.3",
-    "pandas==3.0.5",
+    "pandas==3.0.6",
     "patsy==1.0.3",
-    "pingouin==0.6.1",
+    "pingouin==0.7.0",
     "proxy-tools==0.1.0",
     "pycparser==3.0",
-    "pydantic==2.13.4",
+    "pydantic==2.13.5",
     # pyreadstat powers SPSS .sav file uploads (parser.parse_spss). Lazily
     # imported with a friendly ImportError message, so its absence only
     # breaks SPSS-file uploads specifically — it does not stop the server
@@ -60,15 +60,15 @@ dependencies = [
     # degrades gracefully with an actionable error if this is missing, but it
     # should stay declared so a standard `uv sync` doesn't need a follow-up step.
     "python-docx==1.2.0",
-    "python-dotenv==1.2.3",
+    "python-dotenv==1.2.4",
     "python-multipart==0.0.32",
-    "pythonnet==3.1.0",
+    "pythonnet==3.2.0",
     "pywebview==6.2.1",
     "pyyaml==6.0.3",
     # reportlab powers /export/pdf (app/export_pdf.py). The endpoint already
     # degrades gracefully with an actionable error if this is missing, but it
     # should stay declared so a standard `uv sync` doesn't need a follow-up step.
-    "reportlab==5.0.0",
+    "reportlab==5.0.1",
     "scikit-learn==1.9.1",
     "scipy==1.17.1",
     # semopy is a hard dependency of fit_model() in engine.py even on the PLS
@@ -78,16 +78,16 @@ dependencies = [
     "semopy==2.3.11",
     "setuptools==84.0.0",
     "six==1.17.0",
-    "starlette==1.6.0",
+    "starlette==1.7.0",
     "statsmodels==0.15.0",
     "sympy==1.14.0",
     "threadpoolctl==3.7.0",
     "typing-extensions==4.16.0",
     "typing-inspection==0.4.4",
-    "tzdata==2026.3",
-    "uvicorn[standard]==0.52.4",
-    "watchfiles==1.2.0",
-    "websockets==17.0.1",
+    "tzdata==2026.4",
+    "uvicorn[standard]==0.54.0",
+    "watchfiles==1.3.0",
+    "websockets==17.1",
     "xlrd==2.0.2",
 ]
 
@@ -100,8 +100,8 @@ build = [
     "altgraph==0.17.5",
     "macholib==1.16.4",
     "pefile==2024.8.26",
-    "pyinstaller-hooks-contrib==2026.6",
-    "pyinstaller==6.22.2",
+    "pyinstaller-hooks-contrib==2026.8",
+    "pyinstaller==6.22.3",
     "pywin32-ctypes==0.2.3",
 ]
 
