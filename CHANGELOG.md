@@ -7,6 +7,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.11] - 2026-10-15
+
+### Fixed
+
+- **fsQCA reports now render consistently in PNG and PDF.** PDF exports include necessity results and sufficiency solutions; both formats identify fsQCA accurately, omit irrelevant SEM metrics, and use a light report palette. Run history also labels fsQCA runs correctly.
+
 ## [v2.0.10] - 2026-09-17
 
 ### Fixed

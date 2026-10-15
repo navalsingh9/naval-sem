@@ -409,6 +409,7 @@ def _build_header_block(snap: dict, analyst: dict, note: str, st: dict) -> list:
     miss     = snap.get("miss", "—")
     fname    = snap.get("fname", "—")
     a_type   = snap.get("analysisType", "SEM")
+    is_fsqca = a_type == "fsQCA"
 
     now_str  = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -433,7 +434,11 @@ def _build_header_block(snap: dict, analyst: dict, note: str, st: dict) -> list:
 
     flowables: list = [
         title_tbl,
-        Paragraph("Structural Equation Modelling · Results Report", st["ReportSubtitle"]),
+        Paragraph(
+            "Fuzzy-Set Qualitative Comparative Analysis · Results Report"
+            if is_fsqca else "Structural Equation Modelling · Results Report",
+            st["ReportSubtitle"],
+        ),
         HRFlowable(width="100%", thickness=1, color=_ACCENT, spaceAfter=6),
     ]
 
@@ -442,14 +447,24 @@ def _build_header_block(snap: dict, analyst: dict, note: str, st: dict) -> list:
     n_params = snap.get("n_params")
     cmb      = snap.get("cmb", "—")
 
-    meta_pairs = [
-        ("Analysis type", a_type),
-        ("Algorithm",     algo),
-        ("Bootstrap",     str(bs_n)),
-        ("Missing",       miss),
-        ("Dataset",       fname),
-        ("CMB marker",    cmb or "—"),
-    ]
+    if is_fsqca:
+        meta_pairs = [
+            ("Analysis type", a_type),
+            ("Dataset", fname),
+            ("Outcome", snap.get("outcome", "—")),
+            ("Conditions", snap.get("conditions", "—")),
+            ("Frequency threshold", snap.get("freqThreshold", "—")),
+            ("Consistency threshold", snap.get("consistThreshold", "—")),
+        ]
+    else:
+        meta_pairs = [
+            ("Analysis type", a_type),
+            ("Algorithm",     algo),
+            ("Bootstrap",     str(bs_n)),
+            ("Missing",       miss),
+            ("Dataset",       fname),
+            ("CMB marker",    cmb or "—"),
+        ]
     if n_obs is not None:
         meta_pairs.append(("Observations", str(n_obs)))
     if n_params is not None:
@@ -1675,6 +1690,76 @@ def _build_modmediation_section(modmed: dict, st: dict) -> list:
     return flowables
 
 
+def _build_fsqca_section(fsqca: dict, st: dict) -> list:
+    """Render fsQCA necessity results and minimized sufficiency solutions."""
+    if not fsqca:
+        return []
+
+    flowables = _section_header("Fuzzy-Set QCA (fsQCA)", st)
+    conditions = ", ".join(fsqca.get("conditions") or []) or "—"
+    flowables.append(Paragraph(
+        f"Outcome: <b>{_xml_escape(str(fsqca.get('outcome', '—')))}</b> &nbsp; "
+        f"Conditions: <b>{_xml_escape(conditions)}</b> &nbsp; "
+        f"N = <b>{_xml_escape(str(fsqca.get('n_obs', '—')))}</b>",
+        st["Small"],
+    ))
+    flowables.append(Spacer(1, 4))
+
+    necessity = fsqca.get("necessity") or []
+    if necessity:
+        flowables += _section_header("Necessity Analysis", st)
+        rows = [[_p(h, st["THL"]) for h in
+                 ["Condition", "Coverage", "Consistency", "Label"]]]
+        for item in necessity:
+            rows.append([
+                _p(item.get("condition", "—"), st["TCL"]),
+                _p(_fmt(item.get("coverage")), st["TCMono"]),
+                _p(_fmt(item.get("consistency")), st["TCMono"]),
+                _p(item.get("label", "—"), st["TC"]),
+            ])
+        table = Table(rows, colWidths=[_CW * 0.34, _CW * 0.20, _CW * 0.23, _CW * 0.23], repeatRows=1)
+        table.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (1, 0), (-1, -1), "CENTER")]))
+        flowables += [table, Spacer(1, 6)]
+
+    for warning in fsqca.get("warnings") or []:
+        flowables.append(Paragraph(f"Note: {_xml_escape(str(warning))}", st["Note"]))
+
+    flowables += _section_header("Sufficiency Solutions", st)
+    labels = {
+        "complex": "Complex Solution",
+        "parsimonious": "Parsimonious Solution",
+        "intermediate": "Intermediate Solution",
+    }
+    solutions = fsqca.get("solutions") or []
+    if not solutions:
+        flowables.append(Paragraph("No solutions found for the given thresholds.", st["Muted"]))
+    for solution in solutions:
+        solution_type = solution.get("solution_type", "Solution")
+        flowables.append(Paragraph(
+            f"<b>{_xml_escape(labels.get(solution_type, solution_type))}</b>"
+            f" &nbsp; Coverage: {_fmt(solution.get('solution_coverage'))}"
+            f" &nbsp; Consistency: {_fmt(solution.get('solution_consistency'))}",
+            st["Small"],
+        ))
+        terms = solution.get("terms") or []
+        if not terms:
+            flowables.append(Paragraph("No terms in this solution.", st["Muted"]))
+            continue
+        rows = [[_p(h, st["THL"]) for h in
+                 ["Configuration", "Raw coverage", "Unique coverage", "Consistency"]]]
+        for term in terms:
+            rows.append([
+                _p(term.get("configuration", "—"), st["TCL"]),
+                _p(_fmt(term.get("raw_coverage")), st["TCMono"]),
+                _p(_fmt(term.get("unique_coverage")), st["TCMono"]),
+                _p(_fmt(term.get("consistency")), st["TCMono"]),
+            ])
+        table = Table(rows, colWidths=[_CW * 0.40, _CW * 0.20, _CW * 0.20, _CW * 0.20], repeatRows=1)
+        table.setStyle(_apply_ts(_BASE_TS, [("ALIGN", (1, 0), (-1, -1), "CENTER")]))
+        flowables += [table, Spacer(1, 6)]
+    return flowables
+
+
 def _make_on_page(run_id: str, ts: str, total_pages_ref: list):
     """Return an onPage callback that draws header + footer on every page."""
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -1739,6 +1824,7 @@ def generate_pdf(payload: dict) -> bytes:
     efa           = payload.get("efa")
     cvi           = payload.get("cvi")
     mod_mediation = payload.get("mod_mediation")
+    fsqca = payload.get("fsqca")
     diag_b64 = payload.get("diagram_png") or ""
     analyst  = payload.get("analyst")  or {}
     note     = payload.get("note")     or ""
@@ -1752,12 +1838,15 @@ def generate_pdf(payload: dict) -> bytes:
     story: list = []
     story += _build_header_block(snap, analyst, note, st)
     story += _build_provenance_section(payload, st)
-    story += _build_syntax_block(snap, st)
-    story += _build_kpi_row(results, st)
-    story += _build_fit_indices(results, st)
-    story += _build_parameters(results, st)
-    story += _build_loadings(results, st)
-    story += _build_fornell_larcker(results, st)
+    if fsqca:
+        story += _build_fsqca_section(fsqca, st)
+    else:
+        story += _build_syntax_block(snap, st)
+        story += _build_kpi_row(results, st)
+        story += _build_fit_indices(results, st)
+        story += _build_parameters(results, st)
+        story += _build_loadings(results, st)
+        story += _build_fornell_larcker(results, st)
 
     if htmt:
         story += _build_htmt(htmt, st)

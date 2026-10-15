@@ -983,6 +983,38 @@ button { cursor: pointer; }
   margin: 0 auto;
   font-family: var(--sans);
 }
+#report-card.rpt-export-light {
+  --glass: #f3f4f6;
+  --glass-hover: #e9ecef;
+  --glass-active: #e5e7eb;
+  --line: #d1d5db;
+  --line-strong: #9ca3af;
+  --table-border: #d1d5db;
+  --accent: #2f5dd3;
+  --accent-soft: #eef2ff;
+  --accent-text: #2f5dd3;
+  --green: #1b8a5a;
+  --green-soft: #e8f5ee;
+  --green-text: #1b8a5a;
+  --amber: #8a6508;
+  --amber-soft: #fff7df;
+  --amber-text: #8a6508;
+  --purple: #6b3fa0;
+  --purple-soft: #f2ebf8;
+  --purple-text: #6b3fa0;
+  --red: #c0392b;
+  --red-soft: #fcebea;
+  --red-text: #c0392b;
+  --t0: #1a1d23;
+  --t1: #3a3d45;
+  --t2: #6b7280;
+  --t3: #7b8491;
+  --t4: #9ca3af;
+  --view-bg: #ffffff;
+  --bg: #ffffff;
+  color: #1a1d23;
+  background: #ffffff;
+}
 
 /* ── Report header ── */
 .rpt-header {
@@ -3695,7 +3727,8 @@ function _freezeReportSnapshot(){
   // for a real SEM run by checking !results || !(results.parameters?.length).
   const _noSEM = !results || !(results.parameters?.length);
   let analysisType = 'SEM';
-  if (typeof _mgaResult !== 'undefined' && _mgaResult && _noSEM && !(typeof _hocResult !== 'undefined' && _hocResult)) analysisType = 'MGA';
+  if (typeof _fsqcaResult !== 'undefined' && _fsqcaResult && _noSEM) analysisType = 'fsQCA';
+  else if (typeof _mgaResult !== 'undefined' && _mgaResult && _noSEM && !(typeof _hocResult !== 'undefined' && _hocResult)) analysisType = 'MGA';
   else if (typeof _hocResult !== 'undefined' && _hocResult && _noSEM && !(typeof _mgaResult !== 'undefined' && _mgaResult)) analysisType = 'HOC';
   else if (typeof _mgaResult !== 'undefined' && _mgaResult && typeof _hocResult !== 'undefined' && _hocResult) analysisType = 'SEM + MGA + HOC';
   else if (typeof _mgaResult !== 'undefined' && _mgaResult) analysisType = 'SEM + MGA';
@@ -3703,17 +3736,21 @@ function _freezeReportSnapshot(){
 
   _reportSnapshot = {
     diagramDataUrl : diagramUrl,
-    algo           : document.getElementById('algo-sel')?.value   || '—',
-    bsN            : document.getElementById('bs-sel')?.value     || '—',
-    miss           : document.getElementById('missing-sel')?.value|| '—',
+    algo           : analysisType === 'fsQCA' ? 'Not applicable' : (document.getElementById('algo-sel')?.value || '—'),
+    bsN            : analysisType === 'fsQCA' ? 'Not applicable' : (document.getElementById('bs-sel')?.value || '—'),
+    miss           : analysisType === 'fsQCA' ? 'Not applicable' : (document.getElementById('missing-sel')?.value || '—'),
     fname          : uploadedFile ? uploadedFile.name : '—',
     cmb            : document.getElementById('cmb-marker')?.value?.trim() || '—',
     syntax         : document.getElementById('syntax-area')?.value?.trim() || '',
     runId          : _liveRunId || ('local-' + Date.now().toString(16)),
     ts             : new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC',
     analysisType   : analysisType,
-    n_obs          : results?.n_obs ?? null,
+    n_obs          : analysisType === 'fsQCA' ? _fsqcaResult.n_obs : (results?.n_obs ?? null),
     n_params       : results?.n_params ?? null,
+    outcome        : analysisType === 'fsQCA' ? _fsqcaResult.outcome : null,
+    conditions     : analysisType === 'fsQCA' ? (_fsqcaResult.conditions || []).join(', ') : null,
+    freqThreshold  : analysisType === 'fsQCA' ? document.getElementById('fsqca-freq')?.value : null,
+    consistThreshold: analysisType === 'fsQCA' ? document.getElementById('fsqca-consist')?.value : null,
     // Deep-clone builder canvas state so the report can re-render the
     // exact same diagram (positions, colours, edge labels) without a PNG snapshot.
     nodes          : JSON.parse(JSON.stringify(typeof nodes !== 'undefined' ? nodes : [])),
@@ -5722,7 +5759,8 @@ function clearLiveLog(){
 // automatically without modifying each run function's start path.
 
 function _openRunRecord(n, id, label) {
-  const type = /\bMGA\b/i.test(label) ? 'MGA'
+  const type = /\bfsQCA\b/i.test(label) ? 'fsQCA'
+             : /\bMGA\b/i.test(label) ? 'MGA'
              : /\bHOC\b/i.test(label) ? 'HOC'
              : 'SEM';
   const rec = { n, id, label, type,
@@ -6807,9 +6845,10 @@ function buildReport(){
   const miss  = snap.miss;
   const fname = snap.fname;
   const cmb   = snap.cmb;
-  const nObs  = results.n_obs   != null ? results.n_obs   : (snap.n_obs   ?? '—');
-  const nPar  = results.n_params != null ? results.n_params : (snap.n_params ?? '—');
   const analysisType = snap.analysisType || 'SEM';
+  const isFsQCA = analysisType === 'fsQCA';
+  const nObs  = isFsQCA ? (snap.n_obs ?? '—') : (results.n_obs != null ? results.n_obs : (snap.n_obs ?? '—'));
+  const nPar  = isFsQCA ? '—' : (results.n_params != null ? results.n_params : (snap.n_params ?? '—'));
 
   function envKV(k,v){ return `<div class="rpt-env-kv"><div class="rpt-env-k">${k}</div><div class="rpt-env-v">${v}</div></div>`; }
 
@@ -7496,7 +7535,7 @@ function buildReport(){
     <div class="rpt-header">
       <div>
         <div class="rpt-logo">${window._ACTIVE_LOGO || 'NAVAL<em>·</em>SEM'}</div>
-        <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-top:4px">Structural Equation Modelling · Results Report</div>
+        <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-top:4px">${isFsQCA ? 'Fuzzy-Set Qualitative Comparative Analysis' : 'Structural Equation Modelling'} · Results Report</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <div class="rpt-meta">
@@ -7511,13 +7550,17 @@ function buildReport(){
       <div class="rpt-section-title">Environment</div>
       <div class="rpt-env-grid">
         ${envKV('Analysis Type',analysisType)}
-        ${envKV('Algorithm',results.algorithm||algo)}
-        ${envKV('Bootstrap N',bsN==='0'?'None':bsN)}
-        ${envKV('Missing Data',miss)}
+        ${envKV('Algorithm',isFsQCA?'Not applicable':(results.algorithm||algo))}
+        ${envKV('Bootstrap N',isFsQCA?'Not applicable':(bsN==='0'?'None':bsN))}
+        ${envKV('Missing Data',isFsQCA?'Not applicable':miss)}
         ${envKV('Data File',fname)}
+        ${isFsQCA ? envKV('Outcome',snap.outcome||'—') : ''}
+        ${isFsQCA ? envKV('Conditions',snap.conditions||'—') : ''}
+        ${isFsQCA ? envKV('Frequency Threshold',snap.freqThreshold||'—') : ''}
+        ${isFsQCA ? envKV('Consistency Threshold',snap.consistThreshold||'—') : ''}
         ${nObs!=='—'?envKV('N Observations',nObs):''}
         ${nPar!=='—'?envKV('N Parameters',nPar):''}
-        ${cmb!=='—'?envKV('CMB Marker',cmb):''}
+        ${!isFsQCA&&cmb!=='—'?envKV('CMB Marker',cmb):''}
       </div>
     </div>
 
@@ -7548,44 +7591,44 @@ function buildReport(){
     </div>
     ` : ''}
 
-    <div class="rpt-section">
+    ${isFsQCA ? '' : `<div class="rpt-section">
       <div class="rpt-section-title">Model Fit Indices</div>
       ${fitHtml}
       ${warnHtml}
-    </div>
+    </div>`}
 
-    <div class="rpt-section">
+    ${isFsQCA ? '' : `<div class="rpt-section">
       <div class="rpt-section-title">Structural Paths — Relative Magnitude</div>
       ${pathChartHtml}
-    </div>
+    </div>`}
 
-    <div class="rpt-section">
+    ${isFsQCA ? '' : `<div class="rpt-section">
       <div class="rpt-section-title">Parameter Estimates</div>
       ${paramsHtml}
-    </div>
+    </div>`}
 
-    ${lvs.length ? `<div class="rpt-section">
+    ${!isFsQCA&&lvs.length ? `<div class="rpt-section">
       <div class="rpt-section-title">Convergent Validity (AVE · CR · Cronbach α)</div>
       ${validHtml}
       ${flHtml}
     </div>` : ''}
 
-    ${(htmtData&&htmtData.matrix&&htmtData.matrix.length) ? `<div class="rpt-section">
+    ${!isFsQCA&&(htmtData&&htmtData.matrix&&htmtData.matrix.length) ? `<div class="rpt-section">
       <div class="rpt-section-title">Discriminant Validity — HTMT</div>
       ${htmtHtml}
     </div>` : ''}
 
-    ${(vif.length||f2.length) ? `<div class="rpt-section">
+    ${!isFsQCA&&(vif.length||f2.length) ? `<div class="rpt-section">
       <div class="rpt-section-title">Effects (VIF · Cohen's f²)</div>
       ${effHtml}
     </div>` : ''}
 
-    ${(predictiveData&&predictiveData.q2&&predictiveData.q2.length) ? `<div class="rpt-section">
+    ${!isFsQCA&&(predictiveData&&predictiveData.q2&&predictiveData.q2.length) ? `<div class="rpt-section">
       <div class="rpt-section-title">Predictive Relevance (Q² Blindfolding)</div>
       ${predHtml}
     </div>` : ''}
 
-    ${results.bootstrap?`<div class="rpt-section"><div class="rpt-section-title">Bootstrap Results</div>${bsHtml}</div>`:''}
+    ${!isFsQCA&&results.bootstrap?`<div class="rpt-section"><div class="rpt-section-title">Bootstrap Results</div>${bsHtml}</div>`:''}
 
     ${mgaReportHtml}
     ${moderationReportHtml}
@@ -7861,9 +7904,9 @@ async function downloadReport(fmt){
       // Read the currently active theme's background instead of assuming
       // dark — previously this was hardcoded to '#13151a', so exports always
       // came out dark even when a custom light theme was active in the UI.
-      const _exportBg = (getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg').trim()) || '#13151a';
+      const _exportBg = '#ffffff';
       const clone = card.cloneNode(true);
+      clone.classList.add('rpt-export-light');
       clone.style.cssText = [
         'position:fixed','left:-9999px','top:0',
         `width:${EXPORT_W}px`,`max-width:${EXPORT_W}px`,
