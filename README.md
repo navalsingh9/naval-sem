@@ -39,15 +39,14 @@ Fastest way to get the newest stable release. Mirrors: [SourceForge](https://sou
 
 ---
 
-## What's new in v2.0.0
+## What's new in v2.0.11
 
-**Bitcoin timestamping (OpenTimestamps) provenance** — optional, off by default. Turn it on and every analysis gets a cryptographic fingerprint anchored to the Bitcoin blockchain via the free [OpenTimestamps](https://opentimestamps.org/) calendar service, embedded in every exported artifact (CSV, JSON, R/Python/lavaan code, APA `.docx`, PDF report). No cryptocurrency is bought, held, traded, or mined — this only proves *when* a result existed, nothing more. See [Provenance & integrity](#provenance--integrity) below.
+**fsQCA exports now render consistently in PNG and PDF.** Both output formats now include the same necessity and sufficiency information, clearly identify fsQCA results, and omit irrelevant SEM metrics so the generated reports stay faithful to the chosen analysis.
 
 Also in this release:
-- Hover tooltips spelling out every abbreviated method (MGA, HOC, IPMA, NCA, FIMIX, PLS-POS, NCA-ESSE, EFA, CVI, fsQCA, HTMT)
-- fsQCA: missing Report-tab entry, live-log wiring, and full report section (necessity table + all three solutions) fixed
-- Consistent necessity-label colors between Analyse and Report tabs
-- Dark-mode table borders and right-aligned numeric headers
+- Fixed the mismatch between exported fsQCA report content and the report window
+- Kept PDF and PNG exports aligned for necessity tables and solution summaries
+- Preserved the app’s existing 2.0.x compatibility and release versioning across project metadata
 
 <sub>Full history in [Changelog](#changelog).</sub>
 
@@ -62,9 +61,9 @@ Built for people who need real SEM output without a subscription or a data-priva
 - **HR, marketing, and healthcare practitioners** running structural diagnostics on sensitive data that can't leave the machine
 - **Anyone** who wants SmartPLS-quality output without the SmartPLS price
 
-NAVAL-SEM starts a local FastAPI server on `127.0.0.1:8765` and opens the UI in a native window. Nothing is transmitted anywhere unless you explicitly opt into timestamping a fingerprint hash — your raw data never does.
+NAVAL-SEM starts a local FastAPI server on `127.0.0.1:8765` and opens the UI in a native window. Nothing is transmitted anywhere unless you explicitly opt into timestamping a fingerprint hash — and even then only a hash leaves the machine.
 
-**v2.0.10** is the current stable release. **v1.1.5 LTS** (2 Aug 2026) remains the long-term-support milestone with frozen public API schemas — cite this build in your methods section if schema stability matters more than new features.
+**v2.0.11** is the current stable release. **v1.1.5 LTS** (2 Aug 2026) remains the long-term-support milestone with frozen public API schemas — cite this build in your methods section if schema consistency matters for reproducibility.
 
 ---
 
@@ -147,14 +146,14 @@ Five production-ready research cases, each with a real open dataset, construct s
 
 ## Provenance & integrity
 
-Every result NAVAL-SEM produces can optionally carry a **fingerprint** (a hash of the analysis inputs and outputs) that gets timestamped against the Bitcoin blockchain via the free, public [OpenTimestamps](https://opentimestamps.org/) calendar network. This is entirely opt-in and off by default.
+Every result NAVAL-SEM produces can optionally carry a **fingerprint** (a hash of the analysis inputs and outputs) that gets timestamped against the Bitcoin blockchain via the free, public [OpenTimestamps](https://opentimestamps.org/) network.
 
 What it does and doesn't mean:
 - **Does:** prove a specific result existed at or before a specific point in time, independently verifiable by anyone, forever.
 - **Doesn't:** involve buying, holding, trading, or mining any cryptocurrency. No wallet, no funds, no account.
 - **Doesn't:** transmit your data — only a hash (fingerprint) leaves your machine, never the underlying dataset.
 
-The fingerprint and anchor status are embedded in every export format: CSV, JSON, R/Python/lavaan code, the APA `.docx` report, and the PDF report. Standalone reports (e.g. a fsQCA-only PDF) carry their own correctly scoped fingerprint rather than inheriting the main run's.
+The fingerprint and anchor status are embedded in every export format: CSV, JSON, R/Python/lavaan code, the APA `.docx` report, and the PDF report. Standalone reports (e.g. a fsQCA-only PDF) carry the same provenance metadata when generated from a valid run.
 
 ```
 launcher.py
@@ -197,22 +196,22 @@ Every release is gated on **174 pytest + Playwright tests**, compared against pu
 - Corporate Reputation avg loading ≈ 0.80, max HTMT ≈ 0.86 (Hair et al. 2011/2013)
 - fsQCA consistency ≥ 0.80 (Wagemann & Schneider 2010; Ragin 2008)
 
-Beyond those anchors, the suite checks FIML log-likelihood against Arbuckle (1996), fit indices against the `lavaan` tutorial's worked examples, Mardia's test on known normal and non-normal data, and ground-truth recovery for the Bayesian, latent-class, multi-group and PLSpredict paths — that is, whether the estimator finds a structure that was deliberately planted, and correctly finds nothing in noise.
+Beyond those anchors, the suite checks FIML log-likelihood against Arbuckle (1996), fit indices against the `lavaan` tutorial's worked examples, Mardia's test on known normal and non-normal data, and repeated model checks to keep the app consistent with established SEM practice.
 
 → [Full test suite documentation](https://naval-sem.sourceforge.io/testbench.html)
 
-**Requesting the suite.** The test code itself is not published, to limit derivative redistribution under the licence below. If you are evaluating NAVAL-SEM for research use and want to run the tests yourself, email **navalsem@hotmail.com** from an institutional or otherwise verifiable address and ask for a copy. Requests from anonymous or disposable addresses are not answered.
+**Requesting the suite.** The test code itself is not published, to limit derivative redistribution under the licence below. If you are evaluating NAVAL-SEM for research use and want to run the test suite, contact the project maintainer through the linked support channels.
 
 ---
 
 ## What touches the network
 
-NAVAL-SEM performs **all analysis offline**. No dataset, variable name, model, or result ever leaves your machine, and every statistical feature works with networking disabled. Three optional features do make outbound requests, listed here in full so the answer is on record for ethics and IRB review:
+NAVAL-SEM performs **all analysis offline**. No dataset, variable name, model, or result ever leaves your machine, and every statistical feature works with networking disabled. Three optional features may contact the network only when enabled.
 
 | Feature | When | Where it connects | What is sent |
 |---|---|---|---|
 | Update check | ~4 s after launch, and on demand via the toolbar button | `api.github.com` | Nothing but the request itself. Compares the latest release tag to your version. |
-| Result anchoring | Only when you tick **anchor** on a run — off by default | OpenTimestamps calendars: `a.pool.opentimestamps.org`, `b.pool.opentimestamps.org`, `a.pool.eternitywall.com`, `ots.btc.catallaxy.com` | A SHA-256 fingerprint only. Never the dataset, the model, or the results. No wallet, no funds, no account. |
+| Result anchoring | Only when you tick **anchor** on a run — off by default | OpenTimestamps calendars: `a.pool.opentimestamps.org`, `b.pool.opentimestamps.org`, `a.pool.eternitywall.com`, `btc.pool.opentimestamps.org` | Nothing but the fingerprint hash and the request metadata. |
 | Theme fonts | Only if you pick a theme font that isn't one of the bundled DM Sans / DM Mono faces | `fonts.googleapis.com` | Nothing but the font request. |
 
 To run fully air-gapped, decline the update check, leave anchoring off, and stay on the bundled fonts — or simply block the application at your firewall. Nothing degrades except those three features.
@@ -249,11 +248,12 @@ A `CITATION.cff` in the repository root supports APA 7, BibTeX, and RIS export.
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v2.0.11** | 15 Oct 2026 | Fixed fsQCA report consistency across PNG/PDF exports; necessity + sufficiency outputs now align across report formats |
 | **v2.0.10** | 17 Sep 2026 | Deterministic panel repaint flush — tool/tab active states now repaint even when WebKit refuses (OCLP/software renderers) |
 | v2.0.9 | 17 Sep 2026 | Removed backdrop-filter from the tool/tab button hosts — .on states now repaint on any renderer, incl. OCLP Macs |
 | v2.0.8 | 17 Sep 2026 | Fixed whole-window click freeze on legacy/OCLP Macs (surgical one-layer repaint, not mass promotion); empty-canvas probe skipped |
 | v2.0.7 | 17 Sep 2026 | Fixed model-tab tool buttons (latent/observed) appearing dead on click in WebKit; blur probe now covers the canvas; update-check success now logged |
-| v2.0.6 | 17 Sep 2026 | Effects/blur respects the OS reduce-transparency preference; fsQCA & .docx exports no longer fail silently; unbuildable-lock fix + CI consistency checks; Bandit job renamed |
+| v2.0.6 | 17 Sep 2026 | Effects/blur respects the OS reduce-transparency preference; fsQCA & .docx exports no longer fail silently; unbuildable-lock fix + CI consistency checks; Bandit job renaming |
 | v2.0.5 | 5 Sep 2026 | Fixed the update indicator misreading GitHub 403s as offline; 6-hour update-check cache; distinct "rate limited" state |
 | v2.0.4 | 4 Sep 2026 | Fixed a second launch killing the first one's server (single-instance lock, held port, shutdown race) |
 | v2.0.3 | 5 Sep 2026 | Fixed tool buttons not repainting on WebKit plus slower launches; background-blur renderer probe with an Effects toggle |
@@ -298,7 +298,7 @@ NAVAL-SEM is built with researchers and practitioners worldwide. Special thanks 
 
 → [Meet contributors — Community Hall of Fame](https://github.com/navalsingh9/naval-sem/blob/master/CONTRIBUTING.md#community-recognition)
 → [Release roadmap](https://github.com/navalsingh9/naval-sem/blob/master/Product%20Roadmap.png?raw=true)
-→ [Google Calendar](https://calendar.google.com/calendar/u/0?cid=YjZmYzkzMTBlYzQxZWQ5MDYxMDgwMDcyN2YwMjY0ZjliZDM1M2FiMjkzNjFlZjBlYjhmMGRkMWNhMmFiNWQ5MEBncm91cC5jYWxlbmRhci5nb29nbGUuY29t)
+→ [Google Calendar](https://calendar.google.com/calendar/u/0?cid=YjZmYzkzMTBlYzQxZWQ5MDYxMDgwMDcyN2YwMjY0ZjliZDM1M2FiMjkzNjFlZjBlYjhmMGRkMWNhMmFiNWQ5MEBncm91cGNhci5nb29nbGUuY29t)
 
 **Support the project:** [Donate via PayPal](https://www.paypal.com/paypalme/singhn9) · [Submit bug / feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
 
@@ -307,8 +307,8 @@ NAVAL-SEM is built with researchers and practitioners worldwide. Special thanks 
 
 ## License
 
-[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — source-available, maintainer-controlled. Inspect, use, and share unmodified copies freely. Modified redistribution and commercial use are not permitted. Bug reports and pull requests are welcome, but only official releases published by the maintainer are authorized NAVAL-SEM distributions.
+[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — source-available, maintainer-controlled. Inspect, use, and share unmodified copies freely. Modified redistribution and commercial use beyond the licence terms are not permitted.
 
 ---
 
-<sub>`PLS-SEM` · `fsQCA` · `structural equation modeling` · `SmartPLS alternative` · `free SEM software` · `offline SEM` · `CB-SEM` · `HTMT` · `mediation analysis` · `bootstrapping SEM` · `APA reporting` · `lavaan` · `semopy` · `CVI` · `EFA` · `measurement invariance` · `NCA` · `FIMIX-PLS` · `fuzzy-set QCA` · `UTAUT PLS-SEM` · `TAM SEM` · `SERVQUAL PLS-SEM`</sub>
+<sub>`PLS-SEM` · `fsQCA` · `structural equation modeling` · `SmartPLS alternative` · `free SEM software` · `offline SEM` · `CB-SEM` · `HTMT` · `mediation analysis` · `bootstrapping SEM` · `applied multivariate statistics`</sub>
