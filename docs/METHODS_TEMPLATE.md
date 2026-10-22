@@ -2,16 +2,16 @@
 
 ## General SEM usage
 
-Structural equation modelling was conducted using NAVAL-SEM v0.2.1, a cross-platform desktop application for quantitative research workflows supporting PLS-SEM and CB-SEM methodologies. The analysis included bootstrapping, discriminant validity assessment using HTMT, and model fit evaluation.
+Structural equation modelling was conducted using NAVAL-SEM v2.0.11, a cross-platform desktop application for quantitative research workflows supporting PLS-SEM, CB-SEM, and fsQCA analysis. The analysis included bootstrapping, HTMT assessment, and model fit evaluation.
 
 ## PLS-SEM example
 
-PLS-SEM analysis was performed using NAVAL-SEM v0.2.1 with bootstrapping enabled for significance testing. Discriminant validity was assessed using the Heterotrait-Monotrait Ratio (HTMT).
+PLS-SEM analysis was performed using NAVAL-SEM v2.0.11 with bootstrapping enabled for significance testing. Discriminant validity was assessed using the Heterotrait-Monotrait Ratio (HTMT).
 
 ## CB-SEM example
 
-CB-SEM analysis was performed using NAVAL-SEM v0.2.1 using maximum likelihood estimation. Model fit was evaluated using CFI, RMSEA, and SRMR indices.
+CB-SEM analysis was performed using NAVAL-SEM v2.0.11 with maximum likelihood estimation. Model fit was evaluated using CFI, RMSEA, and SRMR indices.
 
 ## Software citation
 
-Singh, N. (2026). NAVAL-SEM (Version 0.2.1) [Computer software]. https://github.com/navalsingh9/naval-sem
+Singh, N. (2026). NAVAL-SEM: Free offline structural equation modelling desktop application (Version 2.0.11) [Computer software]. https://doi.org/10.5281/zenodo.20124108

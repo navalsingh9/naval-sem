@@ -31,7 +31,7 @@
 
     <Package
   Description="$(var.ProductName) — Structural Equation Modelling Desktop App"
-  Comments="Open-source PLS-SEM / CB-SEM desktop application"
+  Comments="Source-available PLS-SEM / CB-SEM desktop application"
   InstallerVersion="301"
   Compressed="yes"
   InstallScope="perMachine"

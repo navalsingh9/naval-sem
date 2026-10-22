@@ -1,37 +1,29 @@
 # Validation and Reproducibility
 
-NAVAL-SEM aims to support transparent and reproducible SEM workflows.
+NAVAL-SEM is designed for transparent, reproducible SEM workflows and keeps the analysis fully local by default.
 
 ## Current validation approach
 
-Outputs are compared against established SEM ecosystems including:
+The project validates its outputs against established SEM references and release checks, including:
 
-- lavaan (R)
-- semopy (Python)
-- SmartPLS
-- AMOS
+- lavaan (R) benchmark comparisons
+- semopy (Python) benchmark comparisons
+- SmartPLS and alternative SEM tool references
+- fit-index checks for CB-SEM (CFI, RMSEA, SRMR, χ²/df)
+- bootstrap, HTMT, mediation, and fsQCA verification across the release suite
 
-## Planned validation benchmarks
-
-The following benchmark categories are planned:
-
-- Path coefficient comparison
-- Factor loading comparison
-- HTMT comparison
-- Bootstrap significance comparison
-- Fit index comparison
-- Cross-platform numerical consistency checks
+The release process also enforces version consistency across `pyproject.toml`, `CITATION.cff`, `app/version.py`, and `uv.lock` to prevent mismatched build metadata.
 
 ## Reproducibility goals
 
 NAVAL-SEM supports reproducible workflows through:
 
-- Offline execution
-- Export to R (lavaan)
-- Export to Python code
-- Versioned GitHub releases
-- Open-source repository visibility
+- Offline execution and localhost-only networking
+- Export to R (`lavaan`, `seminr`), Python (`semopy`), and JASP-ready code
+- Versioned GitHub releases and DOI-backed citation metadata
+- Optional Bitcoin timestamp provenance for analysis fingerprints
+- Source-available repository visibility and transparent build scripts
 
-## Important note
+## Reporting recommendation
 
-NAVAL-SEM is under active development. Researchers are encouraged to independently validate outputs before publication-critical use.
+The project is stable and release-driven rather than pre-release. For publication-critical work, researchers should still independently validate their chosen models and cite the exact NAVAL-SEM version used.

@@ -92,7 +92,7 @@ Version: $VERSION
 Architecture: $ARCH
 Maintainer: NAVAL-SEM Project <contact@naval-sem.io>
 Description: NAVAL-SEM — Structural Equation Modelling Desktop App
- Open-source PLS-SEM and CB-SEM desktop application with
+ Source-available PLS-SEM and CB-SEM desktop application with
  visual model builder, bootstrapping, HTMT analysis, and
  support for CSV, Excel, and SPSS data files.
  All computation runs fully offline.

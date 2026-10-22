@@ -116,17 +116,17 @@ NAVAL-SEM starts a local FastAPI server on `127.0.0.1:8765` and opens the UI in 
 | | NAVAL-SEM v2.0 | SmartPLS 4 |
 |---|---|---|
 | Price | **Free** | Paid licence |
-| Sample size / construct limit | **None** | Student edition: 100 rows / 4 constructs |
+| Sample size / construct limit | **No application-imposed limit** | Plan-dependent; verify current SmartPLS terms |
 | OS | **Windows · macOS · Linux** | Windows · macOS only |
 | Offline | **Always** | After licence activation |
 | CB-SEM | **ML + WLS estimators** | Limited |
-| fsQCA | **Quine-McCluskey minimisation** | Not available |
-| APA 7 reporting | **One-click `.docx`** | Not available |
-| R / Python export | **lavaan, seminr, semopy** | Not available |
-| Result provenance | **Optional Bitcoin timestamping** | Not available |
+| fsQCA | **Quine-McCluskey minimisation** | Not compared here; verify current SmartPLS documentation |
+| APA 7 reporting | **One-click `.docx`** | Not compared here; verify current SmartPLS documentation |
+| R / Python export | **lavaan, seminr, semopy** | Not compared here; verify current SmartPLS documentation |
+| Result provenance | **Optional Bitcoin timestamping** | Not compared here; verify current SmartPLS documentation |
 | Data privacy | **Localhost only** | Local analysis |
 | Schema stability | **Frozen public API (LTS)** | Proprietary |
-| Citable DOI | **Zenodo, every release** | Not available |
+| Citable DOI | **Zenodo, every release** | Not applicable as a project citation claim |
 
 ---
 
@@ -146,23 +146,36 @@ Five production-ready research cases, each with a real open dataset, construct s
 
 ## Provenance & integrity
 
-Every result NAVAL-SEM produces can optionally carry a **fingerprint** (a hash of the analysis inputs and outputs) that gets timestamped against the Bitcoin blockchain via the free, public [OpenTimestamps](https://opentimestamps.org/) network.
+NAVAL-SEM can optionally anchor a **fingerprint** (a SHA-256 hash of the analysis inputs and outputs) to the Bitcoin blockchain through the free, public [OpenTimestamps](https://opentimestamps.org/) calendar network. This is entirely opt-in and off by default. It is useful as a tamper-evident, dated record of an analysis—for example, for a thesis or data-integrity record, resolving a dispute about when results were produced, or documenting that results existed before a preprint or submission.
 
-What it does and doesn't mean:
-- **Does:** prove a specific result existed at or before a specific point in time, independently verifiable by anyone, forever.
-- **Doesn't:** involve buying, holding, trading, or mining any cryptocurrency. No wallet, no funds, no account.
-- **Doesn't:** transmit your data — only a hash (fingerprint) leaves your machine, never the underlying dataset.
+### How it works
+
+1. Before starting an analysis, check **₿ Timestamp** in the top bar. The option applies to the analysis methods in the application; if it is left unchecked, no blockchain or OpenTimestamps request is made.
+2. NAVAL-SEM computes the fingerprint locally. Only that hash is submitted to free public OpenTimestamps calendar servers; your dataset, model, and results stay on your machine.
+3. The run panel shows the timestamp status and provides **Download `.ots` Proof**. Download and retain this proof with the corresponding exported result or audit JSON—the server does not store it permanently.
+4. The initial status is normally **Pending Bitcoin confirmation**. Confirmation is asynchronous and usually takes a few hours to about a day. Use **Check confirmation** later; once confirmed, the proof is self-contained and can be independently verified without trusting NAVAL-SEM.
 
 The fingerprint and anchor status are embedded in every export format: CSV, JSON, R/Python/lavaan code, the APA `.docx` report, and the PDF report. Standalone reports (e.g. a fsQCA-only PDF) carry the same provenance metadata when generated from a valid run.
+
+### What a timestamp does—and does not—establish
+
+- **Does:** provide an independently verifiable record that this particular fingerprint, and therefore this particular analysis record, existed by the anchored time.
+- **Does not:** prove authorship, originality, novelty, priority, or that the underlying data are genuine or were collected correctly. It is not a substitute for publication, a thesis submission, or patent filing. In most patent systems, priority depends on filing requirements rather than a blockchain timestamp; consult a qualified intellectual-property professional for advice about your situation.
+- **Does not:** involve buying, holding, trading, or mining any cryptocurrency. No wallet, funds, or account are required.
+- **Does not:** transmit your data—only a hash leaves your machine, never the underlying dataset.
+
+Keep the `.ots` proof and the matching fingerprint/export together. Verification depends on preserving that proof and having access to the OpenTimestamps/Bitcoin verification ecosystem; “verifiable by anyone” does not mean that NAVAL-SEM or the proof file can be recovered if you lose them.
 
 ```
 launcher.py
   ├── starts FastAPI on port 8765
   ├── opens pywebview window   →  http://127.0.0.1:8765
+  ├── app/main.py              ← FastAPI app and route layer
   ├── app/engine.py            ← PLS/CB-SEM, bootstrapping, HTMT, MGA
   ├── app/fsqca.py             ← fsQCA engine
   ├── app/anchor.py            ← optional fingerprint + OpenTimestamps anchoring
-  ├── app/report.py            ← APA 7th-edition DOCX export
+  ├── app/export_docx.py       ← APA 7th-edition DOCX export
+  ├── app/export_pdf.py        ← PDF report export
   ├── app/parser.py            ← CSV / Excel / SPSS ingestion
   └── static/index.html        ← canvas builder, results panels, export
 ```
@@ -177,11 +190,11 @@ No telemetry. No account. Anchoring sends a hash and nothing else — see [What 
 git clone https://github.com/navalsingh9/naval-sem.git
 cd naval-sem
 
-uv sync                # creates .venv, installs locked dependencies
-uv run launcher.py     # opens at http://127.0.0.1:8765
+uv sync --locked      # creates .venv and installs the exact locked dependency set
+uv run launcher.py    # opens at http://127.0.0.1:8765
 ```
 
-No `uv`? [Install it](https://docs.astral.sh/uv/getting-started/installation/) first — it's what keeps every contributor's environment identical via `uv.lock`.
+No `uv`? [Install it](https://docs.astral.sh/uv/getting-started/installation/) first. For packaging releases, use `uv sync --locked --group build` to include the PyInstaller toolchain.
 
 → Full build instructions (EXE, DMG, `.deb`): [`docs/building.md`](docs/building.md)
 
@@ -241,6 +254,8 @@ desktop application [Software]. https://doi.org/10.5281/zenodo.20124108
 ```
 
 A `CITATION.cff` in the repository root supports APA 7, BibTeX, and RIS export.
+
+For reproducibility, also record the exact NAVAL-SEM version used in your methods section. The DOI above resolves to the latest release; version-specific release records are available from [Zenodo](https://doi.org/10.5281/zenodo.20124108) and [GitHub Releases](https://github.com/navalsingh9/naval-sem/releases).
 
 ---
 

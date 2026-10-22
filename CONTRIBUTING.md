@@ -105,7 +105,7 @@ SECURITY.md
 
 # 🏆 Community Recognition
 
-NAVAL-SEM is an open-source research project, and every meaningful contribution helps improve the software for researchers worldwide.
+NAVAL-SEM is a source-available research project, and every meaningful contribution helps improve the software for researchers worldwide.
 
 Outstanding contributors are recognized here.
 
@@ -157,7 +157,7 @@ Future contributors may be recognized here for significant bug reports, feature 
 
 # Project status
 
-NAVAL-SEM is under active development and APIs/UI behaviour may evolve rapidly during early releases.
+NAVAL-SEM is a stable, release-driven project. The public API and desktop workflow are expected to remain consistent within release lines, while newer major versions may still evolve features and UX details.
 
 Feedback from:
 - PhD scholars
