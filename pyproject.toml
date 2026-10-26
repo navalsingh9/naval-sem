@@ -31,6 +31,7 @@ dependencies = [
     "numdifftools==0.11.1",
     "numpy==2.4.6",
     "openpyxl==3.1.5",
+    "pillow==13.0.0",
     # opentimestamps (NOT the otsclient CLI wrapper) powers the OPTIONAL,
     # opt-in Bitcoin timestamping of run fingerprints (app/anchor.py —
     # anchor=True on /run). We talk to public OpenTimestamps calendar
@@ -76,7 +77,7 @@ dependencies = [
     # algorithm) — without it every /run, /bootstrap, /mga, /moderation, /ipma,
     # /nca, /nca-esse, /mod-mediation call 500s regardless of chosen algorithm.
     "semopy==2.3.11",
-    "setuptools==84.0.0",
+    "setuptools==84.1.0",
     "six==1.17.0",
     "starlette==1.7.0",
     "statsmodels==0.15.0",
