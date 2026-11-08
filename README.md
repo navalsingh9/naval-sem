@@ -117,9 +117,9 @@ NAVAL-SEM starts a local FastAPI server on `127.0.0.1:8765` and opens the UI in 
 |---|---|---|
 | Price | **Free** | Paid licence |
 | Sample size / construct limit | **No application-imposed limit** | Plan-dependent; verify current SmartPLS terms |
-| OS | **Windows · macOS · Linux** | Windows · macOS only |
-| Offline | **Always** | After licence activation |
-| CB-SEM | **ML + WLS estimators** | Limited |
+| OS | **Windows · macOS · Linux** | Windows · macOS · Linux |
+| Offline | **Always** | Not compared here; verify current SmartPLS documentation |
+| CB-SEM | **ML + WLS estimators** | ML estimator |
 | fsQCA | **Quine-McCluskey minimisation** | Not compared here; verify current SmartPLS documentation |
 | APA 7 reporting | **One-click `.docx`** | Not compared here; verify current SmartPLS documentation |
 | R / Python export | **lavaan, seminr, semopy** | Not compared here; verify current SmartPLS documentation |
