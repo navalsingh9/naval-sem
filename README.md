@@ -312,7 +312,7 @@ For reproducibility, also record the exact NAVAL-SEM version used in your method
 NAVAL-SEM is built with researchers and practitioners worldwide. Special thanks to everyone who reports bugs, tests releases, and suggests features.
 
 → [Meet contributors — Community Hall of Fame](https://github.com/navalsingh9/naval-sem/blob/master/CONTRIBUTING.md#community-recognition)
-→ [Release roadmap](https://github.com/navalsingh9/naval-sem/blob/master/Product%20Roadmap.png?raw=true)
+→ [Release roadmap](https://github.com/navalsingh9/naval-sem/blob/master/docs/product-roadmap.png?raw=true)
 → [Google Calendar](https://calendar.google.com/calendar/u/0?cid=YjZmYzkzMTBlYzQxZWQ5MDYxMDgwMDcyN2YwMjY0ZjliZDM1M2FiMjkzNjFlZjBlYjhmMGRkMWNhMmFiNWQ5MEBncm91cGNhci5nb29nbGUuY29t)
 
 **Support the project:** [Donate via PayPal](https://www.paypal.com/paypalme/singhn9) · [Submit bug / feedback](https://forms.gle/N4AmCkJyCK6HHsZz8)
