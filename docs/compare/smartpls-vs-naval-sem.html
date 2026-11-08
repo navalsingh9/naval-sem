@@ -265,7 +265,7 @@ h2:hover .anc { opacity: 1; }
   <div class="verdict" role="region" aria-label="Summary comparison">
     <div class="vc naval">
       <p class="vc-tool">NAVAL-SEM — use when</p>
-      <p class="vc-verdict">Cost, data privacy, or Linux support is the constraint</p>
+      <p class="vc-verdict">Cost or data privacy is the constraint</p>
       <p class="vc-detail">Free to use and source-available under CC BY-NC-ND 4.0. Fully offline by default — no data leaves your machine. No application-imposed sample-size limit. Runs on Windows, macOS, and Linux. Built-in case library with real open datasets.</p>
     </div>
     <div class="vc smartpls">
@@ -296,7 +296,7 @@ h2:hover .anc { opacity: 1; }
   <!-- 1. WHAT -->
   <section class="section" id="what">
     <h2>What each tool is <a href="#what" class="anc">§</a></h2>
-    <p><strong>SmartPLS</strong> is a desktop application for partial least squares structural equation modelling (PLS-SEM), developed at the University of Hamburg. SmartPLS 4 runs on Windows and macOS. It is widely used in academic research, particularly in management, information systems, and marketing. Licensing and plan restrictions can change, so consult the current <a href="https://smartpls.com/pricing/">SmartPLS pricing and licensing information</a> before relying on a specific limit.</p>
+    <p><strong>SmartPLS</strong> is a desktop application for partial least squares structural equation modelling (PLS-SEM), developed at the University of Hamburg. SmartPLS 4 runs on Windows, macOS and Linux. It is widely used in academic research, particularly in management, information systems, and marketing. Licensing and plan restrictions can change, so consult the current <a href="https://smartpls.com/pricing/">SmartPLS pricing and licensing information</a> before relying on a specific limit.</p>
     <p><strong>NAVAL-SEM</strong> is a free, offline PLS-SEM and CB-SEM desktop application that runs on Windows, macOS, and Linux. It starts a local server at <code>http://127.0.0.1:8765</code> and opens the interface in a native window via pywebview. All data stays on your machine — nothing is transmitted externally. It ships with a built-in case library: five research scenarios, each with a real open dataset, construct specification, and expected path coefficients.</p>
     <p>Both tools run PLS-SEM. The meaningful differences are in licensing, documented capabilities, platform support, case library depth, and citation maturity.</p>
   </section>
@@ -360,12 +360,12 @@ h2:hover .anc { opacity: 1; }
           <tr>
             <td><p class="feat">Operating systems</p></td>
             <td><span class="naval-win">Windows · macOS · Linux</span></td>
-            <td>Windows · macOS only</td>
+            <td>Windows · macOS · Linux</td>
           </tr>
           <tr>
             <td><p class="feat">Internet required?</p></td>
             <td><span class="naval-win">Never — fully offline</span></td>
-            <td>Needed for licence activation. Analysis is local.</td>
+            <td>Analysis is local. Check current SmartPLS documentation for licence activation requirements.</td>
           </tr>
           <tr>
             <td><p class="feat">Data privacy</p></td>
@@ -481,7 +481,7 @@ h2:hover .anc { opacity: 1; }
 
     <h3>Where NAVAL-SEM leads</h3>
     <p><strong>R and Python export</strong> is useful for quantitatively oriented researchers. When NAVAL-SEM runs your model, it can export the equivalent lavaan syntax (for R) or semopy syntax (for Python), letting you replicate in an open-source environment, validate results, or move to a pipeline workflow. SmartPLS export capabilities should be checked against its current documentation before making a tool-selection decision.</p>
-    <p><strong>Linux support</strong> matters for researchers at institutions running Linux, for high-performance computing environments, and for anyone using a Linux development machine. SmartPLS has no Linux version.</p>
+    <p><strong>Linux support</strong> matters for researchers at institutions running Linux, for high-performance computing environments, and for anyone using a Linux development machine.</p>
   </section>
 
   <!-- 7. CASE LIBRARY -->
@@ -556,7 +556,7 @@ h2:hover .anc { opacity: 1; }
       <div class="scenario naval-wins">
         <p class="s-label">✓ Use NAVAL-SEM</p>
         <h4>Linux machine or HPC environment</h4>
-        <p>SmartPLS has no Linux version. NAVAL-SEM ships a Debian .deb package and a portable Linux binary.</p>
+        <p>NAVAL-SEM ships a Debian .deb package and a portable Linux binary.</p>
       </div>
       <div class="scenario sp-wins">
         <p class="s-label">✓ Use SmartPLS</p>
