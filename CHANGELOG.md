@@ -7,6 +7,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.12] - 2026-11-24
+
+### Fixed
+
+- **Word (.docx) export failed in the packaged desktop apps.** The macOS build (and likely Windows/Linux) shipped without the `python-docx` library, so every "Full .docx" export ended in "Export failed." The PyInstaller spec now bundles `python-docx`, its `lxml` dependency and its template files.
+
 ## [v2.0.11] - 2026-10-15
 
 ### Fixed
