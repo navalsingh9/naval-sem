@@ -12,6 +12,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - **Word (.docx) export failed in the packaged desktop apps.** The macOS build (and likely Windows/Linux) shipped without the `python-docx` library, so every "Full .docx" export ended in "Export failed." The PyInstaller spec now bundles `python-docx`, its `lxml` dependency and its template files.
+- **Word export now uses the native Save As dialog** in the desktop app, matching PDF, PNG and CSV exports, instead of a browser-style download that desktop webviews ignore.
+- **Word export errors now show the reason** instead of a bare "Export failed."
 
 ## [v2.0.11] - 2026-10-15
 
