@@ -8054,17 +8054,18 @@ async function exportDocx() {
   fd.append('anchor', document.getElementById('anchor-chk')?.checked ? 'true' : 'false');
   try {
     const r = await fetch('/export/docx', { method: 'POST', body: fd });
-    if (!r.ok) { alert('Export failed.'); return; }
+    if (!r.ok) {
+      let d = 'Server error ' + r.status;
+      try { d = (await r.json()).detail || d; } catch (_) {}
+      alert('Export failed: ' + d);
+      return;
+    }
     const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url;
     // The server names the explanatory document differently. Honour it, so a
     // "why this is empty" file is never mistaken for a finished report.
     const cd = r.headers.get('Content-Disposition') || '';
     const m  = cd.match(/filename="?([^";]+)"?/);
-    a.download = m ? m[1] : 'naval_sem_report.docx';
-    a.click();
-    URL.revokeObjectURL(url);
+    _dlBlob(blob, m ? m[1] : 'naval_sem_report.docx');
   } catch(e) { alert('Export error: ' + e.message); }
 }
 
