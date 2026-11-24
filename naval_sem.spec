@@ -4,6 +4,7 @@
 
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
@@ -62,6 +63,11 @@ hiddenimports = [
     "opentimestamps.core.op", "opentimestamps.core.serialize", "opentimestamps.core.timestamp",
     "Cryptodome", "Cryptodome.Hash.keccak",
     "bitcoin", "bitcoin.core",
+    # python-docx is imported lazily inside app/export_docx.py, so PyInstaller's
+    # static scan never sees it and the bundle shipped without it
+    # ("No module named 'docx'" on every Word export).
+    *collect_submodules("docx"),
+    "lxml", "lxml.etree", "lxml._elementpath",
 ]
 
 a = Analysis(
@@ -79,6 +85,9 @@ a = Analysis(
             (str(p), "fonts")
             for p in Path("fonts").glob("*.ttf")
         ],
+        # python-docx needs its default template (docx/templates/default.docx)
+        # at runtime; without it Document() fails even when the module imports.
+        *collect_data_files("docx"),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
