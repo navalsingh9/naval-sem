@@ -68,6 +68,7 @@ hiddenimports = [
     # ("No module named 'docx'" on every Word export).
     *collect_submodules("docx"),
     "lxml", "lxml.etree", "lxml._elementpath",
+    "certifi",
 ]
 
 a = Analysis(
@@ -88,6 +89,7 @@ a = Analysis(
         # python-docx needs its default template (docx/templates/default.docx)
         # at runtime; without it Document() fails even when the module imports.
         *collect_data_files("docx"),
+        *collect_data_files("certifi"),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],

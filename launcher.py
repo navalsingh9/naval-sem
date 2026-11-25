@@ -170,7 +170,7 @@ class JsApi:
             import webview
             data = base64.b64decode(data_b64)
             save_path = webview.windows[0].create_file_dialog(
-                webview.SAVE_DIALOG,
+                webview.FileDialog.SAVE,
                 save_filename=filename,
             )
             if save_path:
@@ -248,7 +248,7 @@ def main():
         )
         server_thread.start()
 
-        if not wait_for_server(port, timeout=60):
+        if not wait_for_server(port, timeout=240):  # cold start on old/slow-disk Macs can exceed 60s
             logging.error("Server failed to start — opening browser anyway")
             webbrowser.open(f"http://127.0.0.1:{port}")
             _keep_alive()

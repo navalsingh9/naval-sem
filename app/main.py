@@ -876,6 +876,12 @@ async def check_updates(force: bool = False):
             return (0,)
 
     def _fetch_latest_release():
+        import ssl
+        try:
+            import certifi
+            _ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:  # certifi unavailable: fall back to system trust store
+            _ctx = None
         req = Request(
             api_url,
             headers={
@@ -883,7 +889,7 @@ async def check_updates(force: bool = False):
                 "Accept": "application/vnd.github+json",
             },
         )
-        with urlopen(req, timeout=8) as resp:  # nosec B310 – URL is a compile-time https:// constant, not user-supplied
+        with urlopen(req, timeout=8, context=_ctx) as resp:  # nosec B310 – URL is a compile-time https:// constant, not user-supplied
             return _json.loads(resp.read())
 
     try:
