@@ -11266,8 +11266,8 @@ function toggleResultsPanel() {
    next paint, no stale frame is ever shown. Panels are small, so the cost per
    toggle is a single cheap subtree move. */
 (function(){
-  const HOST = '.model-sidebar, .canvas-bar, .ana-nav, .rep-nav, .rtab-bar, .sub-tabs';
-  const TRIG = ['tool','ctool','ani','stab','rtab','rni'];
+  const HOST = '.model-sidebar, .canvas-bar, .ana-nav, .rep-nav, .rtab-bar, .sub-tabs, .main-nav';
+  const TRIG = ['tool','ctool','ani','stab','rtab','rni','mnav'];
   function reinsert(h){
     const p  = h.parentNode, n = h.nextSibling;
     if (!p) return;
