@@ -771,13 +771,15 @@ def _build_parameters(results: dict, st: dict) -> list:
         op    = p.get("op", "")
         lhs   = p.get("lhs", "")
         rhs   = p.get("rhs", "")
-        label = f"{rhs} {op} {lhs}" if op else _safe_text(f"{rhs} \u2192 {lhs}")
+        label = f"{lhs} {op} {rhs}" if op else _safe_text(f"{rhs} \u2192 {lhs}")
         est   = _fmt(_first_present(p, "std_estimate", "std.all", "est", "estimate"), 3)
         se    = _fmt(_first_present(p, "se", "std.error", "std_error"), 3)
         t_val = _fmt(_first_present(p, "t", "z", "stat", "z_value"), 3)
         pv    = _first_present(p, "pvalue", "p.value", "p", "p_value")
         p_str = _fmt_p(pv)
-        stars = _sig_stars(pv)
+        _sg   = _first_present(p, "significant", "sig")
+        stars = (_sig_stars(pv) if pv is not None
+                 else (_check(bool(_sg)) if _sg is not None else "\u2014"))
         lo    = _first_present(p, "ci_lower", "ci.lower")
         hi    = _first_present(p, "ci_upper", "ci.upper")
         ci    = f"[{_fmt(lo,3)}, {_fmt(hi,3)}]" if lo is not None and hi is not None else "—"

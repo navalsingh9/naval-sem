@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.13] - 2026-11-25
+
+### Fixed
+
+- **Apple Silicon (arm64) macOS build failed to start in CI.** GitHub retired the `macos-14` runner image on 2026-11-02; the release workflow now uses `macos-15`.
+- **Top navigation highlight (Model / Analyse / Report) stayed stuck on legacy Macs (OCLP).** The v2.0.10 repaint workaround did not cover the top bar; it now does.
+- **PDF export showed path and loading labels reversed** (for example `AIU ~ ADA` instead of `ADA ~ AIU`). Labels now follow the model syntax. The Sig. column now shows the bootstrap significance flag (check or cross) when no p-value is available.
+- **Slow first launch no longer falls back to a browser window.** The launcher now waits up to 240 seconds for the local server (was 60), which is not enough on older Macs with slow disks.
+- **Update check could never succeed in the packaged macOS app** (`CERTIFICATE_VERIFY_FAILED`). The check now uses the bundled `certifi` certificate list.
+- **Save As dialog uses the current pywebview API** (`FileDialog.SAVE`), removing a deprecation warning.
+
+### Added
+
+- **Application icon** for macOS (`.icns`) and Windows (`.ico`); the launcher no longer shows a blank white icon.
+
 ## [v2.0.12] - 2026-11-24
 
 ### Fixed
